@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Refract" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background_dark</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.Refract.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background_dark</item>
+        <item name="postSplashScreenTheme">@style/Theme.Refract</item>
+    </style>
+
+</resources>

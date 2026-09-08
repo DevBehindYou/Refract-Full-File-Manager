@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+    Window shell only — all actual UI theming happens in Compose's MaterialTheme {}
+    (see MainActivity.kt). ComponentActivity doesn't need AppCompat, so this extends a
+    plain platform theme rather than Theme.AppCompat/Theme.Material3.
+    -->
+    <style name="Theme.Refract" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background_light</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.Refract.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background_light</item>
+        <item name="postSplashScreenTheme">@style/Theme.Refract</item>
+    </style>
+
+</resources>

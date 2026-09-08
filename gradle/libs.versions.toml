@@ -1,0 +1,115 @@
+# Refract — version catalog
+#
+# Provenance key used in the comments below (see PHASE_1_NOTES.md for the full
+# explanation of why this matters this phase):
+#   [CONFIRMED]    — checked against an official source on 2026-08-28.
+#   [BEST-EFFORT]  — a reasonable current value I could not directly confirm from this
+#                    sandbox (no network access to Google's Maven / Maven Central here).
+#                    Verify against the artifact's real metadata before the first build
+#                    and correct in this one file if it's off — nothing else should need
+#                    to change.
+
+[versions]
+# --- Core toolchain --------------------------------------------------------
+agp = "9.3.0" # [CONFIRMED] current stable AGP as of Aug 2026.
+kotlin = "2.2.10" # [BEST-EFFORT] AGP 9.1's reported bundled default; AGP 9.3 may bundle a newer patch.
+ksp = "2.2.10-2.0.2" # [BEST-EFFORT] must track the `kotlin` version above (KSP2 versions as "<kotlinVersion>-<kspPatch>").
+
+# --- Compose -----------------------------------------------------------
+# Pinned to the April '26 train (Compose 1.11.0) deliberately: the August '26 train
+# (BOM 2026.08.00 / Compose 1.12.0) raises the *minimum* compileSdk to 37, which
+# conflicts with TECH_STACK.md's compileSdk 36. Re-pin once the docs move to 37.
+composeBom = "2026.04.01" # [CONFIRMED]
+activityCompose = "1.10.1" # [BEST-EFFORT]
+
+# --- Splash / DI / async -------------------------------------------------
+coreSplashscreen = "1.0.1" # [BEST-EFFORT] verify no newer stable exists.
+hilt = "2.57.2" # [BEST-EFFORT, moderately confident]
+kotlinxCoroutines = "1.9.0" # [BEST-EFFORT]
+
+# --- Custom Lint module ----------------------------------------------------
+# Lint's own artifact version has historically tracked "AGP version + 23 major", e.g.
+# AGP 8.4 -> Lint 31.4. Extrapolated (NOT independently confirmed) to AGP 9.3 -> Lint 32.3.
+# This is the single value most likely to need correcting — see PHASE_1_NOTES.md.
+lintApi = "32.3.0" # [BEST-EFFORT, inferred from a historical pattern]
+
+# --- Test stack --------------------------------------------------------
+androidJunit5Plugin = "2.0.1" # [BEST-EFFORT] bridges JUnit Platform into AGP's Android unit-test task.
+junitJupiter = "5.11.4" # [BEST-EFFORT]
+junit4 = "4.13.2" # [CONFIRMED-BY-LONGSTANDING-STABILITY] used only for the one Robolectric smoke
+                    # test — see PHASE_1_NOTES.md for why JUnit4+Robolectric was chosen over
+                    # JUnit5+Robolectric for that one file. Bridged into the JUnit Platform via
+                    # junit-vintage-engine below so the whole suite still runs through one runner.
+robolectric = "4.14.1" # [BEST-EFFORT]
+androidxTestCore = "1.6.1" # [BEST-EFFORT]
+
+# --- Static analysis -----------------------------------------------------
+detekt = "1.23.7" # [BEST-EFFORT]
+ktlintGradle = "12.1.2" # [BEST-EFFORT]
+
+# --- Benchmark module (added this hardening pass — see PHASE_1_NOTES.md §4) ------------
+androidxTestExtJunit = "1.2.1" # [BEST-EFFORT]
+androidxTestRunner = "1.6.2" # [BEST-EFFORT] a separate artifact from androidx.test.ext:junit —
+                              # doesn't necessarily share its exact version, so tracked separately
+                              # rather than assumed to match.
+androidxBenchmark = "1.3.3" # [BEST-EFFORT] pins both the benchmark-macro-junit4 library
+                              # and the androidx.benchmark Gradle plugin — they're released
+                              # in lockstep and must match.
+
+[libraries]
+# Used only from build-logic/convention to apply plugins programmatically inside the
+# precompiled convention-plugin scripts. Not consumed directly by :app or :lint-rules.
+android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
+kotlin-composeCompilerGradlePlugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
+
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+
+activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
+
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+
+lint-api = { group = "com.android.tools.lint", name = "lint-api", version.ref = "lintApi" }
+lint-checks = { group = "com.android.tools.lint", name = "lint-checks", version.ref = "lintApi" }
+lint-tests = { group = "com.android.tools.lint", name = "lint-tests", version.ref = "lintApi" }
+
+junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junitJupiter" }
+junit-jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junitJupiter" }
+junit-jupiter-params = { group = "org.junit.jupiter", name = "junit-jupiter-params", version.ref = "junitJupiter" }
+junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
+junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junitJupiter" }
+
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "androidxBenchmark" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# No `kotlin-compose` plugin alias here: org.jetbrains.kotlin.plugin.compose is applied
+# via a bare id() inside build-logic/convention's refract.android.application.gradle.kts,
+# since its implementation is already on that module's own classpath
+# (kotlin-composeCompilerGradlePlugin below). A version-catalog alias would be unused.
+# kotlin-android is used only by :benchmark (a com.android.test module) — deliberately
+# NOT relying on AGP 9's built-in Kotlin support there, since that was only confirmed
+# for com.android.application/com.android.library, not com.android.test. See
+# PHASE_1_NOTES.md's addendum on the :benchmark module.
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+androidx-benchmark = { id = "androidx.benchmark", version.ref = "androidxBenchmark" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+androidJunit5 = { id = "de.mannodermaus.android-junit", version.ref = "androidJunit5Plugin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }

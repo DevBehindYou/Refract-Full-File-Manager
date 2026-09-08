@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+    The only manifest difference between the "base" and "reporting" flavours. No crash
+    reporter is wired up yet in Phase 1 — this permission exists so the structural split
+    is correct from day one, per PRIVACY.md §4 and the Phase 1 roadmap entry.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>

@@ -1,0 +1,85 @@
+name: CI
+
+# No CI provider is named anywhere in /docs — GitHub Actions is an assumption, not a
+# documented requirement. See PHASE_1_NOTES.md, open item #3.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-analysis:
+    name: Static analysis (ktlint, detekt, Lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: ktlint
+        run: ./gradlew ktlintCheck --configuration-cache
+
+      - name: detekt
+        run: ./gradlew detekt --configuration-cache
+
+      - name: Android Lint (base + reporting), incl. the 7 custom checks in :lint-rules
+        run: ./gradlew lintBaseDebug lintReportingDebug --configuration-cache
+
+      - name: Upload Lint HTML reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: app/build/reports/lint-results-*.html
+          retention-days: 14
+
+  unit-tests:
+    name: Unit tests (both flavours + :lint-rules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run unit tests
+        run: >
+          ./gradlew
+          :lint-rules:test
+          testBaseDebugUnitTest
+          testReportingDebugUnitTest
+          --configuration-cache
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            lint-rules/build/reports/tests
+            app/build/reports/tests
+          retention-days: 14
+
+# Deliberately out of scope for Phase 1 (see PHASE_1_NOTES.md and the roadmap's
+# per-phase gating): the full instrumented-test emulator matrix
+# (testing/DEVICE_MATRIX.md), screenshot tests, and macrobenchmark all belong to the
+# merge-to-main gate once there's feature code for them to exercise
+# (testing/TEST_STRATEGY.md §11).
