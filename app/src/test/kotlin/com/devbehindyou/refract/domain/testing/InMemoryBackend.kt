@@ -5,6 +5,7 @@ import com.devbehindyou.refract.domain.model.FileError
 import com.devbehindyou.refract.domain.model.FileNode
 import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.FileResult
+import com.devbehindyou.refract.domain.model.getOrElse
 import com.devbehindyou.refract.domain.model.StorageType
 import com.devbehindyou.refract.domain.repository.BackendType
 import com.devbehindyou.refract.domain.repository.InputStreamProvider
@@ -233,6 +234,15 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
             setChildCount(parent)
         }
     }
+
+    internal fun removeCommitted(parent: FileNodeId, id: FileNodeId, isNew: Boolean) {
+        if (isNew) {
+            nodes.remove(id)
+            childIds[parent]?.remove(id)
+            setChildCount(parent)
+            fileContents.remove(id)
+        }
+    }
 }
 
 private class InMemoryOutputTarget(
@@ -262,6 +272,9 @@ private class InMemoryOutputTarget(
 
     override fun discard() {
         discarded = true
+        if (committed) {
+            backend.removeCommitted(parent, id, isNew)
+        }
     }
 
     override fun sync() {

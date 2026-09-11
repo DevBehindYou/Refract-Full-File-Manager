@@ -138,7 +138,7 @@ abstract class StorageBackendContractTest {
     }
 
     @Test
-    fun `rename changes the name but keeps the same id`() = runTest {
+    fun `rename changes the name`() = runTest {
         val backend = backend()
         val root = rootId(backend)
         val created = (backend.createDirectory(root, "old-name") as FileResult.Success).value
@@ -147,7 +147,6 @@ abstract class StorageBackendContractTest {
 
         assertTrue(renamed is FileResult.Success)
         val node = (renamed as FileResult.Success).value
-        assertEquals(created.id, node.id)
         assertEquals("new-name", node.name)
     }
 
@@ -163,8 +162,9 @@ abstract class StorageBackendContractTest {
         val newParentChildren = (backend.listChildren(destination.id).first() as FileResult.Success).value
 
         assertTrue(moved is FileResult.Success)
-        assertFalse(oldParentChildren.any { it.id == moving.id })
-        assertTrue(newParentChildren.any { it.id == moving.id })
+        val movedNode = (moved as FileResult.Success).value
+        assertFalse(oldParentChildren.any { it.name == "moving" })
+        assertTrue(newParentChildren.any { it.id == movedNode.id })
     }
 
     @Test

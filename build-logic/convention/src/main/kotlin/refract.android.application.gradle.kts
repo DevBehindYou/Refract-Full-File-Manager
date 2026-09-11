@@ -27,8 +27,8 @@ extensions.configure<ApplicationExtension> {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     packaging {
@@ -40,5 +40,5 @@ extensions.configure<ApplicationExtension> {
 // specified; under AGP 9's built-in-Kotlin the exact extension surface for this may
 // have shifted (see PHASE_1_NOTES.md) — verify this block resolves as written.
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }

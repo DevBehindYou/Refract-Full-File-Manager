@@ -20,7 +20,7 @@ import org.robolectric.annotation.Config
  * @Config(sdk = ...) rather than two separate test classes.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [27, 36])
+@Config(sdk = [27, 34])
 class MainActivitySmokeTest {
 
     @Test

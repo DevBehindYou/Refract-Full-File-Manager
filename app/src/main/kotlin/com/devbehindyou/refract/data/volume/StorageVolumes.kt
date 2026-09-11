@@ -14,7 +14,7 @@ import java.io.File
  * "Volume enumeration" (roadmap Phase 3 deliverable). Lists what storage volumes
  * physically exist on the device — internal, SD card, USB — using
  * `StorageManager.storageVolumes`, never by hardcoding `/storage/emulated/0` or scanning
- * `/storage/*` (`ANDROID_STORAGE_RESEARCH.md`'s explicit rule).
+ * `/storage/[wildcard]` (`ANDROID_STORAGE_RESEARCH.md`'s explicit rule).
  *
  * Deliberately does **not** resolve [StorageVolumeInfo.rootNodeId] or
  * [StorageVolumeInfo.requiresGrant] to real, permission-aware values — that needs live
@@ -55,7 +55,7 @@ object StorageVolumes {
         legacyExternalDirs: Array<File?>,
     ): File? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return volume.directory
+            return runCatching { volume.directory }.getOrNull()
         }
         // Positional heuristic — see class KDoc.
         val appSpecificDir = legacyExternalDirs.getOrNull(index) ?: return null
@@ -80,11 +80,18 @@ object StorageVolumes {
             // flags exactly this as an open, device-verification-only question.
             else -> StorageType.VIRTUAL
         }
-        val space = directory?.let { dir ->
+        val space = directory?.takeIf { it.canRead() }?.let { dir ->
             runCatching { StatFs(dir.absolutePath) }
                 .map { it.totalBytes to it.availableBytes }
-                .getOrDefault(0L to 0L)
-        } ?: (0L to 0L)
+                .getOrNull()
+        } ?: if (volume.isPrimary) {
+            runCatching {
+                val stat = StatFs(context.filesDir.absolutePath)
+                stat.totalBytes to stat.availableBytes
+            }.getOrDefault(0L to 0L)
+        } else {
+            0L to 0L
+        }
 
         return StorageVolumeInfo(
             id = volume.uuid ?: if (volume.isPrimary) "primary" else "volume-$index",

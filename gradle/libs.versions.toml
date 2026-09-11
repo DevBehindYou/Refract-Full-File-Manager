@@ -11,7 +11,7 @@
 
 [versions]
 # --- Core toolchain --------------------------------------------------------
-agp = "9.3.0" # [CONFIRMED] current stable AGP as of Aug 2026.
+agp = "9.1.1" # Matched to Gradle 9.3.1 toolchain
 kotlin = "2.2.10" # [BEST-EFFORT] AGP 9.1's reported bundled default; AGP 9.3 may bundle a newer patch.
 ksp = "2.2.10-2.0.2" # [BEST-EFFORT] must track the `kotlin` version above (KSP2 versions as "<kotlinVersion>-<kspPatch>").
 
@@ -31,7 +31,7 @@ kotlinxCoroutines = "1.9.0" # [BEST-EFFORT]
 # Lint's own artifact version has historically tracked "AGP version + 23 major", e.g.
 # AGP 8.4 -> Lint 31.4. Extrapolated (NOT independently confirmed) to AGP 9.3 -> Lint 32.3.
 # This is the single value most likely to need correcting — see PHASE_1_NOTES.md.
-lintApi = "32.3.0" # [BEST-EFFORT, inferred from a historical pattern]
+lintApi = "32.1.1"
 
 # --- Test stack --------------------------------------------------------
 androidJunit5Plugin = "2.0.1" # [BEST-EFFORT] bridges JUnit Platform into AGP's Android unit-test task.

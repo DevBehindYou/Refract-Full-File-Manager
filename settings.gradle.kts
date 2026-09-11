@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "refract"
+rootProject.name = "Refract"
 
 // Convention plugins (compileSdk/minSdk/targetSdk/Compose baseline). See
 // architecture/MODULES.md §6 — "Convention plugins live in build-logic/ from day one,
@@ -26,4 +26,4 @@ includeBuild("build-logic")
 
 include(":app")
 include(":lint-rules")
-include(":benchmark")
+// include(":benchmark")

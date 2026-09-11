@@ -153,9 +153,9 @@ class SlowBackendTest {
         val real = InMemoryBackend()
         val backend = SlowBackend(delayMillis = 500, delegate = real)
 
-        val before = currentTime
+        val before = testScheduler.currentTime
         backend.getNode(real.rootId)
-        val elapsed = currentTime - before
+        val elapsed = testScheduler.currentTime - before
 
         assertTrue(elapsed >= 500)
     }
@@ -180,9 +180,9 @@ class SlowBackendTest {
         val real = InMemoryBackend()
         val backend = SlowBackend(delayMillis = 10_000, delegate = real)
 
-        val before = currentTime
+        val before = testScheduler.currentTime
         backend.listChildren(real.rootId)
-        val elapsed = currentTime - before
+        val elapsed = testScheduler.currentTime - before
 
         assertEquals(0L, elapsed)
     }

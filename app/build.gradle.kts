@@ -1,7 +1,5 @@
 plugins {
     id("refract.android.application")
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.hilt)
     alias(libs.plugins.androidJunit5)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
@@ -16,22 +14,17 @@ android {
         versionName = "0.1.0-phase1"
     }
 
-    // Two distribution flavours, no separate application ID — they are alternate
-    // builds of the same app for different release channels, not meant to coexist
-    // side-by-side on one device (see PRIVACY.md §4, roadmap Phase 1).
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("base") {
-            dimension = "distribution"
-            // No source-set override here on purpose: the absence of a manifest that
-            // declares INTERNET *is* the "no network access" guarantee for this
-            // flavour — there is nothing to structurally add.
+    signingConfigs {
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
         }
-        create("reporting") {
-            dimension = "distribution"
-            // INTERNET is added only by src/reporting/AndroidManifest.xml. No crash
-            // reporter is wired yet in Phase 1 — this flavour exists so the manifest
-            // split is correct from day one (roadmap Phase 1 deliverables).
+    }
+    buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debugConfig")
         }
     }
 
@@ -49,6 +42,8 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.material3)
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
 
@@ -56,7 +51,6 @@ dependencies {
     implementation(libs.core.splashscreen)
 
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
