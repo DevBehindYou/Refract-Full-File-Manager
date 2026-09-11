@@ -53,7 +53,7 @@ import javax.inject.Inject
  * shadow coverage here is unproven, and this is genuinely new-to-this-project territory.
  */
 class MediaStoreBackend @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : StorageBackend {
 
     override val type: BackendType = BackendType.MEDIASTORE

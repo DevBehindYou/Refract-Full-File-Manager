@@ -26,15 +26,29 @@ value class FileNodeId(val raw: String) {
         FILE("file:"),
         SAF("saf:"),
         MEDIA("media:"),
+        USB("usb:"),
+        SFTP("sftp:"),
+        FTP("ftp:"),
+        FTPS("ftps:"),
+        SMB("smb:"),
+        WEBDAV("webdav:"),
     }
 
     val prefix: Prefix?
         get() = Prefix.entries.firstOrNull { raw.startsWith(it.scheme) }
 
     companion object {
-        /** [path] must be absolute (start with `/`). */
+        private fun isAbsolutePath(path: String): Boolean {
+            if (path.startsWith("/")) return true
+            if (path.length >= 2 && path[1] == ':' && (path[0] in 'a'..'z' || path[0] in 'A'..'Z')) {
+                return path.length == 2 || path[2] == '/' || path[2] == '\\'
+            }
+            return false
+        }
+
+        /** [path] must be absolute (start with `/` or Windows drive letter). */
         fun file(path: String): FileNodeId {
-            require(path.startsWith("/")) { "file: path must be absolute, was \"$path\"" }
+            require(isAbsolutePath(path)) { "file: path must be absolute, was \"$path\"" }
             return FileNodeId(Prefix.FILE.scheme + path)
         }
 
@@ -51,9 +65,39 @@ value class FileNodeId(val raw: String) {
             return FileNodeId("${Prefix.MEDIA.scheme}$volume:$collection:$id")
         }
 
+        fun usb(path: String): FileNodeId {
+            require(path.isNotEmpty()) { "usb: path must not be empty" }
+            return FileNodeId(Prefix.USB.scheme + path)
+        }
+
+        fun sftp(serverId: String, remotePath: String): FileNodeId {
+            require(serverId.isNotEmpty()) { "sftp: serverId must not be empty" }
+            return FileNodeId("${Prefix.SFTP.scheme}$serverId:$remotePath")
+        }
+
+        fun ftp(serverId: String, remotePath: String): FileNodeId {
+            require(serverId.isNotEmpty()) { "ftp: serverId must not be empty" }
+            return FileNodeId("${Prefix.FTP.scheme}$serverId:$remotePath")
+        }
+
+        fun ftps(serverId: String, remotePath: String): FileNodeId {
+            require(serverId.isNotEmpty()) { "ftps: serverId must not be empty" }
+            return FileNodeId("${Prefix.FTPS.scheme}$serverId:$remotePath")
+        }
+
+        fun smb(serverId: String, shareAndPath: String): FileNodeId {
+            require(serverId.isNotEmpty()) { "smb: serverId must not be empty" }
+            return FileNodeId("${Prefix.SMB.scheme}$serverId:$shareAndPath")
+        }
+
+        fun webdav(serverId: String, remotePath: String): FileNodeId {
+            require(serverId.isNotEmpty()) { "webdav: serverId must not be empty" }
+            return FileNodeId("${Prefix.WEBDAV.scheme}$serverId:$remotePath")
+        }
+
         /**
          * Validates and parses [raw]. Returns `null` — never throws — on anything that
-         * isn't one of the three well-formed encodings above.
+         * isn't one of the well-formed encodings above.
          */
         fun parse(raw: String): FileNodeId? {
             val prefix = Prefix.entries.firstOrNull { raw.startsWith(it.scheme) } ?: return null
@@ -61,7 +105,7 @@ value class FileNodeId(val raw: String) {
             if (body.isEmpty()) return null
 
             val valid = when (prefix) {
-                Prefix.FILE -> body.startsWith("/")
+                Prefix.FILE -> isAbsolutePath(body)
                 Prefix.SAF -> runCatching { URLDecoder.decode(body, "UTF-8") }
                     .getOrNull()
                     ?.startsWith("content://") == true
@@ -71,6 +115,9 @@ value class FileNodeId(val raw: String) {
                         parts[0].isNotEmpty() &&
                         parts[1].isNotEmpty() &&
                         parts[2].toLongOrNull() != null
+                }
+                Prefix.USB, Prefix.SFTP, Prefix.FTP, Prefix.FTPS, Prefix.SMB, Prefix.WEBDAV -> {
+                    body.isNotEmpty()
                 }
             }
             return if (valid) FileNodeId(raw) else null

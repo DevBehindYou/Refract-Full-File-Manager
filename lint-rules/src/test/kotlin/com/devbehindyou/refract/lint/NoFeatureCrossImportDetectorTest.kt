@@ -2,13 +2,15 @@ package com.devbehindyou.refract.lint
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
+import com.android.tools.lint.checks.infrastructure.TestMode
 import org.junit.jupiter.api.Test
 
 class NoFeatureCrossImportDetectorTest {
-
     @Test
     fun `flags feature trash importing from feature browse`() {
         lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
             .files(
                 kotlin(
                     """
@@ -17,8 +19,8 @@ class NoFeatureCrossImportDetectorTest {
                     import com.devbehindyou.refract.feature.browse.ui.BrowseScreenState
 
                     class TrashScreenState(val lastBrowsed: BrowseScreenState)
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoFeatureCrossImportDetector.ISSUE)
             .run()
@@ -28,6 +30,8 @@ class NoFeatureCrossImportDetectorTest {
     @Test
     fun `allows a feature importing from core`() {
         lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
             .files(
                 kotlin(
                     """
@@ -36,8 +40,8 @@ class NoFeatureCrossImportDetectorTest {
                     import com.devbehindyou.refract.core.designsystem.RefractSpacing
 
                     class TrashScreenState(val spacing: RefractSpacing)
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoFeatureCrossImportDetector.ISSUE)
             .run()
@@ -47,6 +51,8 @@ class NoFeatureCrossImportDetectorTest {
     @Test
     fun `allows a feature importing from its own subpackages`() {
         lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
             .files(
                 kotlin(
                     """
@@ -55,8 +61,8 @@ class NoFeatureCrossImportDetectorTest {
                     import com.devbehindyou.refract.feature.trash.viewmodel.TrashViewModel
 
                     class TrashScreenState(val viewModel: TrashViewModel)
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoFeatureCrossImportDetector.ISSUE)
             .run()

@@ -13,8 +13,12 @@
 * ZIP: create and extract
 * Hidden-file toggle, sorting, view mode (list/grid), folder size calculation
 * Full permission flows for API 27 → 37
-* Light and dark theme, three-tier Liquid Glass rendering
-* Full TalkBack support, reduce motion/transparency, font scaling to 200%
+* Clean Plain Material 3 with tonal elevation, dark/light theme, and dynamic color
+* Direct multi-selection drag-and-drop between folders, panes, and Transfer Bubbles
+* Up to 3 persistent Transfer Bubbles for virtual staging
+* Instagram-style Quick Peek for images and videos with GestureArbiter
+* Multiple file hiding modes (Gallery Hide, Fast Obscure, Private Storage)
+* Full TalkBack support, reduce motion, font scaling to 200%
 
 ## 2. In scope — V1
 
@@ -49,7 +53,7 @@
 
 * Not a "pro tool" aesthetic. No dense toolbars, no permanent 8-icon action row.
 * Not a category-only launcher that hides the filesystem. Both views are first class.
-* Not maximal glass. Glass is chrome only, capped at 25% of the viewport.
+* Plain Material 3 design foundation. No fake glass surfaces, blur shaders, or runtime AGSL overhead.
 * Not a settings maze. Settings fits on two scroll-screens.
 
 ## 5. Scope guards

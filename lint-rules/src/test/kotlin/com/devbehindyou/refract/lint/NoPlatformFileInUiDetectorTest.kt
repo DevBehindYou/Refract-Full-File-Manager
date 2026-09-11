@@ -2,13 +2,15 @@ package com.devbehindyou.refract.lint
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
+import com.android.tools.lint.checks.infrastructure.TestMode
 import org.junit.jupiter.api.Test
 
 class NoPlatformFileInUiDetectorTest {
-
     @Test
     fun `flags an android_net_Uri import in a feature package`() {
         lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
             .files(
                 kotlin(
                     """
@@ -17,8 +19,8 @@ class NoPlatformFileInUiDetectorTest {
                     import android.net.Uri
 
                     class BrowseScreenState(val currentUri: Uri)
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoPlatformFileInUiDetector.ISSUE)
             .run()
@@ -28,6 +30,8 @@ class NoPlatformFileInUiDetectorTest {
     @Test
     fun `flags a java_io_File import in core_ui`() {
         lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
             .files(
                 kotlin(
                     """
@@ -36,8 +40,8 @@ class NoPlatformFileInUiDetectorTest {
                     import java.io.File
 
                     class ThumbnailLoader(private val file: File)
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoPlatformFileInUiDetector.ISSUE)
             .run()
@@ -47,6 +51,8 @@ class NoPlatformFileInUiDetectorTest {
     @Test
     fun `allows a domain model import in a feature package`() {
         lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
             .files(
                 kotlin(
                     """
@@ -55,8 +61,8 @@ class NoPlatformFileInUiDetectorTest {
                     import com.devbehindyou.refract.domain.model.FileNode
 
                     class BrowseScreenState(val current: FileNode)
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoPlatformFileInUiDetector.ISSUE)
             .run()
@@ -66,6 +72,8 @@ class NoPlatformFileInUiDetectorTest {
     @Test
     fun `allows a java_io_File import in the data layer`() {
         lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
             .files(
                 kotlin(
                     """
@@ -74,8 +82,8 @@ class NoPlatformFileInUiDetectorTest {
                     import java.io.File
 
                     class LocalFileRepository(private val root: File)
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoPlatformFileInUiDetector.ISSUE)
             .run()

@@ -36,6 +36,7 @@ lintApi = "32.1.1"
 # --- Test stack --------------------------------------------------------
 androidJunit5Plugin = "2.0.1" # [BEST-EFFORT] bridges JUnit Platform into AGP's Android unit-test task.
 junitJupiter = "5.11.4" # [BEST-EFFORT]
+junitPlatform = "1.11.4"
 junit4 = "4.13.2" # [CONFIRMED-BY-LONGSTANDING-STABILITY] used only for the one Robolectric smoke
                     # test — see PHASE_1_NOTES.md for why JUnit4+Robolectric was chosen over
                     # JUnit5+Robolectric for that one file. Bridged into the JUnit Platform via
@@ -86,6 +87,7 @@ lint-tests = { group = "com.android.tools.lint", name = "lint-tests", version.re
 junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junitJupiter" }
 junit-jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junitJupiter" }
 junit-jupiter-params = { group = "org.junit.jupiter", name = "junit-jupiter-params", version.ref = "junitJupiter" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatform" }
 junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
 junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junitJupiter" }
 

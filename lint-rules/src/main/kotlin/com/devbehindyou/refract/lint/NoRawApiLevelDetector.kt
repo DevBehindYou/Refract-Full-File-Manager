@@ -1,5 +1,6 @@
 package com.devbehindyou.refract.lint
 
+import com.android.tools.lint.client.api.UElementHandler
 import com.android.tools.lint.detector.api.Category
 import com.android.tools.lint.detector.api.Detector
 import com.android.tools.lint.detector.api.Implementation
@@ -10,7 +11,6 @@ import com.android.tools.lint.detector.api.Severity
 import com.android.tools.lint.detector.api.SourceCodeScanner
 import org.jetbrains.uast.UBinaryExpression
 import org.jetbrains.uast.UElement
-import org.jetbrains.uast.UElementHandler
 import org.jetbrains.uast.ULiteralExpression
 import org.jetbrains.uast.UastBinaryOperator
 
@@ -25,9 +25,7 @@ import org.jetbrains.uast.UastBinaryOperator
  * that specific named constant is the "right" one to use.
  */
 class NoRawApiLevelDetector : Detector(), SourceCodeScanner {
-
-    override fun getApplicableUastTypes(): List<Class<out UElement>> =
-        listOf(UBinaryExpression::class.java)
+    override fun getApplicableUastTypes(): List<Class<out UElement>> = listOf(UBinaryExpression::class.java)
 
     override fun createUastHandler(context: JavaContext): UElementHandler =
         object : UElementHandler() {
@@ -47,7 +45,8 @@ class NoRawApiLevelDetector : Detector(), SourceCodeScanner {
                     }
                     else -> return
                 }
-                @Suppress("UNUSED_EXPRESSION") sdkIntSide // referenced for clarity only
+                @Suppress("UNUSED_EXPRESSION")
+                sdkIntSide // referenced for clarity only
 
                 val literal = literalSide as? ULiteralExpression ?: return
                 if (literal.value !is Int) return
@@ -56,46 +55,51 @@ class NoRawApiLevelDetector : Detector(), SourceCodeScanner {
                     issue = ISSUE,
                     scope = node,
                     location = context.getLocation(node),
-                    message = "Comparing `Build.VERSION.SDK_INT` against the raw literal " +
-                        "`${literal.value}`. Use a named constant (e.g. an `Api` object " +
-                        "member, or `Build.VERSION_CODES.*`) instead."
+                    message =
+                        "Comparing `Build.VERSION.SDK_INT` against the raw literal " +
+                            "`${literal.value}`. Use a named constant (e.g. an `Api` object " +
+                            "member, or `Build.VERSION_CODES.*`) instead.",
                 )
             }
         }
 
     private fun isSdkIntReference(element: UElement): Boolean {
-        val text = element.asSourceString()
+        val text = element.asSourceString().filterNot { it.isWhitespace() }
         return text == "Build.VERSION.SDK_INT" || text.endsWith(".Build.VERSION.SDK_INT") ||
             text == "SDK_INT" || text.endsWith(".SDK_INT")
     }
 
     companion object {
-        private val COMPARISON_OPERATORS = setOf(
-            UastBinaryOperator.GREATER,
-            UastBinaryOperator.GREATER_OR_EQUALS,
-            UastBinaryOperator.LESS,
-            UastBinaryOperator.LESS_OR_EQUALS,
-            UastBinaryOperator.EQUALS,
-            UastBinaryOperator.NOT_EQUALS,
-            UastBinaryOperator.IDENTITY_EQUALS,
-            UastBinaryOperator.IDENTITY_NOT_EQUALS
-        )
-
-        val ISSUE: Issue = Issue.create(
-            id = "NoRawApiLevel",
-            briefDescription = "Raw integer literal compared against SDK_INT",
-            explanation = """
-                Comparing `Build.VERSION.SDK_INT` against a bare integer literal (e.g. \
-                `Build.VERSION.SDK_INT >= 29`) makes the comparison hard to grep and easy \
-                to get wrong. Compare against a named constant instead.
-            """.trimIndent(),
-            category = Category.CORRECTNESS,
-            priority = 6,
-            severity = Severity.ERROR,
-            implementation = Implementation(
-                NoRawApiLevelDetector::class.java,
-                Scope.JAVA_FILE_SCOPE
+        private val COMPARISON_OPERATORS =
+            setOf(
+                UastBinaryOperator.GREATER,
+                UastBinaryOperator.GREATER_OR_EQUALS,
+                UastBinaryOperator.LESS,
+                UastBinaryOperator.LESS_OR_EQUALS,
+                UastBinaryOperator.EQUALS,
+                UastBinaryOperator.NOT_EQUALS,
+                UastBinaryOperator.IDENTITY_EQUALS,
+                UastBinaryOperator.IDENTITY_NOT_EQUALS,
             )
-        )
+
+        val ISSUE: Issue =
+            Issue.create(
+                id = "NoRawApiLevel",
+                briefDescription = "Raw integer literal compared against SDK_INT",
+                explanation =
+                    """
+                    Comparing `Build.VERSION.SDK_INT` against a bare integer literal (e.g. \
+                    `Build.VERSION.SDK_INT >= 29`) makes the comparison hard to grep and easy \
+                    to get wrong. Compare against a named constant instead.
+                    """.trimIndent(),
+                category = Category.CORRECTNESS,
+                priority = 6,
+                severity = Severity.ERROR,
+                implementation =
+                    Implementation(
+                        NoRawApiLevelDetector::class.java,
+                        Scope.JAVA_FILE_SCOPE,
+                    ),
+            )
     }
 }

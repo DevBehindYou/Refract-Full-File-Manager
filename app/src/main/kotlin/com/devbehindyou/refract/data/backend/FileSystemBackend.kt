@@ -43,7 +43,7 @@ import javax.inject.Inject
  * AC3, and it's the one invariant this backend exists specifically to prove.
  */
 class FileSystemBackend @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : StorageBackend {
 
     override val type: BackendType = BackendType.FILE

@@ -12,22 +12,23 @@ import com.android.tools.lint.detector.api.Issue
  * detector jar (architecture/MODULES.md §3).
  */
 class RefractIssueRegistry : IssueRegistry() {
-
     override val api: Int = CURRENT_API
 
-    override val issues: List<Issue> = listOf(
-        NoAndroidInDomainDetector.ISSUE,
-        NoPlatformFileInUiDetector.ISSUE,
-        NoFeatureCrossImportDetector.ISSUE,
-        NoRawApiLevelDetector.ISSUE,
-        NoHardcodedDpDetector.ISSUE,
-        NoRunBlockingDetector.ISSUE,
-        NoGlobalScopeDetector.ISSUE
-    )
+    override val issues: List<Issue> =
+        listOf(
+            NoAndroidInDomainDetector.ISSUE,
+            NoPlatformFileInUiDetector.ISSUE,
+            NoFeatureCrossImportDetector.ISSUE,
+            NoRawApiLevelDetector.ISSUE,
+            NoHardcodedDpDetector.ISSUE,
+            NoRunBlockingDetector.ISSUE,
+            NoGlobalScopeDetector.ISSUE,
+        )
 
-    override val vendor: Vendor = Vendor(
-        vendorName = "DevBehindYou",
-        identifier = "com.devbehindyou.refract.lint-rules",
-        feedbackUrl = "https://github.com/DevBehindYou/refract/issues"
-    )
+    override val vendor: Vendor =
+        Vendor(
+            vendorName = "DevBehindYou",
+            identifier = "com.devbehindyou.refract.lint-rules",
+            feedbackUrl = "https://github.com/DevBehindYou/refract/issues",
+        )
 }

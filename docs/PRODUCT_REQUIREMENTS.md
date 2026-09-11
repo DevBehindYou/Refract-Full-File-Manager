@@ -4,9 +4,8 @@
 
 Refract is a native Android file manager that is immediately legible to someone who has
 never thought about a filesystem, and complete enough that a power user never installs a
-second one. Its interface is built from a custom Liquid Glass material that refracts the
-content beneath it, degrading gracefully to a clean Material surface on any device from
-Android 8.1 upward.
+second one. It is built with clean Material 3, unusually strong direct-manipulation interactions,
+safe file operations, and powerful multi-location workflows on any device from Android 8.1 upward.
 
 ## 2. Success criteria
 
@@ -18,7 +17,7 @@ Android 8.1 upward.
 | Data-loss incidents | **0** — any single incident is a P0 stop-ship |
 | Play policy review | Passes All Files Access declaration first submission |
 | Play Store rating | ≥ 4.5 after 1,000 ratings |
-| Frame rate during folder scroll (1,000 items) | ≥ 58 fps p90 on reference device |
+| Frame performance during interaction | Target consistently smooth interaction and validate frame performance using profiling, Macrobenchmark and real devices |
 
 ## 3. Jobs to be done
 
@@ -43,7 +42,7 @@ Every MVP screen maps to at least one of these. A screen mapping to none is cut.
 3. **Progressive disclosure.** Home shows six things. Everything else is one deliberate step
    away — long press, overflow, or the command palette.
 4. **One primary action per surface.** Never two competing FABs, never a toolbar of peers.
-5. **Glass is chrome.** It marks what floats and what is interactive. Content is opaque.
+5. **Clean Material 3 foundation.** Uses tonal elevation, container roles, and shapes. Content and chrome are crisp, accessible, and fast without shader gimmicks or blur.
 6. **Nothing blocks on I/O.** Every list paints its skeleton in one frame and fills in.
 7. **Local-first.** Nothing leaves the device without explicit, specific consent.
 

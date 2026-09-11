@@ -5,7 +5,6 @@ import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
 import org.junit.jupiter.api.Test
 
 class NoRawApiLevelDetectorTest {
-
     @Test
     fun `flags a raw literal compared against SDK_INT`() {
         lint()
@@ -17,8 +16,8 @@ class NoRawApiLevelDetectorTest {
                     import android.os.Build
 
                     fun supportsScopedStorage(): Boolean = Build.VERSION.SDK_INT >= 29
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoRawApiLevelDetector.ISSUE)
             .run()
@@ -36,8 +35,8 @@ class NoRawApiLevelDetectorTest {
                     import android.os.Build
 
                     fun isLegacy(): Boolean = 29 > Build.VERSION.SDK_INT
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoRawApiLevelDetector.ISSUE)
             .run()
@@ -56,8 +55,8 @@ class NoRawApiLevelDetectorTest {
 
                     fun supportsScopedStorage(): Boolean =
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoRawApiLevelDetector.ISSUE)
             .run()
@@ -73,8 +72,8 @@ class NoRawApiLevelDetectorTest {
                     package com.devbehindyou.refract.data.local
 
                     fun isOverLimit(count: Int): Boolean = count >= 29
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoRawApiLevelDetector.ISSUE)
             .run()

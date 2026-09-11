@@ -15,7 +15,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,11 +35,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -62,8 +67,8 @@ import com.devbehindyou.refract.domain.model.StorageVolumeInfo
 import com.devbehindyou.refract.ui.screens.BrowseScreen
 import com.devbehindyou.refract.ui.screens.HomeScreen
 import com.devbehindyou.refract.ui.screens.StorageScreen
+import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.ui.theme.RefractTheme
-import java.io.File
 
 enum class NavigationTab(val title: String) {
     HOME("Home"),
@@ -92,8 +97,9 @@ class MainActivity : ComponentActivity() {
 fun RefractAppContent() {
     val context = LocalContext.current
     var currentTab by remember { mutableStateOf(NavigationTab.HOME) }
-    var selectedDirectory by remember {
-        mutableStateOf(Environment.getExternalStorageDirectory() ?: context.filesDir)
+    val defaultPath = Environment.getExternalStorageDirectory()?.absolutePath ?: context.filesDir.absolutePath
+    var selectedFolderId by remember {
+        mutableStateOf(FileNodeId.file(defaultPath))
     }
 
     var volumes by remember { mutableStateOf<List<StorageVolumeInfo>>(emptyList()) }
@@ -191,6 +197,9 @@ fun RefractAppContent() {
         refreshVolumes()
     }
 
+    val configuration = LocalConfiguration.current
+    val isExpanded = configuration.screenWidthDp >= 600
+
     Scaffold(
         topBar = {
             if (currentTab != NavigationTab.BROWSE) {
@@ -210,93 +219,115 @@ fun RefractAppContent() {
                             Icon(Icons.Default.Info, contentDescription = "About Refract")
                         }
                     },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background
                     )
                 )
             }
         },
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.testTag("bottom_nav_bar")
-            ) {
-                NavigationBarItem(
-                    selected = currentTab == NavigationTab.HOME,
-                    onClick = { currentTab = NavigationTab.HOME },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                    label = { Text("Home") },
-                    modifier = Modifier.testTag("tab_home")
-                )
-                NavigationBarItem(
-                    selected = currentTab == NavigationTab.BROWSE,
-                    onClick = { currentTab = NavigationTab.BROWSE },
-                    icon = { Icon(Icons.Default.Folder, contentDescription = "Browse") },
-                    label = { Text("Browse") },
-                    modifier = Modifier.testTag("tab_browse")
-                )
-                NavigationBarItem(
-                    selected = currentTab == NavigationTab.STORAGE,
-                    onClick = { currentTab = NavigationTab.STORAGE },
-                    icon = { Icon(Icons.Default.Storage, contentDescription = "Storage") },
-                    label = { Text("Storage") },
-                    modifier = Modifier.testTag("tab_storage")
-                )
+            if (!isExpanded) {
+                NavigationBar(
+                    modifier = Modifier.testTag("bottom_nav_bar")
+                ) {
+                    NavigationBarItem(
+                        selected = currentTab == NavigationTab.HOME,
+                        onClick = { currentTab = NavigationTab.HOME },
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                        label = { Text("Home") },
+                        modifier = Modifier.testTag("tab_home")
+                    )
+                    NavigationBarItem(
+                        selected = currentTab == NavigationTab.BROWSE,
+                        onClick = { currentTab = NavigationTab.BROWSE },
+                        icon = { Icon(Icons.Default.Folder, contentDescription = "Browse") },
+                        label = { Text("Browse") },
+                        modifier = Modifier.testTag("tab_browse")
+                    )
+                    NavigationBarItem(
+                        selected = currentTab == NavigationTab.STORAGE,
+                        onClick = { currentTab = NavigationTab.STORAGE },
+                        icon = { Icon(Icons.Default.Storage, contentDescription = "Storage") },
+                        label = { Text("Storage") },
+                        modifier = Modifier.testTag("tab_storage")
+                    )
+                }
             }
         }
     ) { innerPadding ->
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            when (currentTab) {
-                NavigationTab.HOME -> {
-                    HomeScreen(
+        if (isExpanded) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                NavigationRail(
+                    modifier = Modifier.testTag("nav_rail")
+                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    NavigationRailItem(
+                        selected = currentTab == NavigationTab.HOME,
+                        onClick = { currentTab = NavigationTab.HOME },
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                        label = { Text("Home") },
+                        modifier = Modifier.testTag("tab_home")
+                    )
+                    NavigationRailItem(
+                        selected = currentTab == NavigationTab.BROWSE,
+                        onClick = { currentTab = NavigationTab.BROWSE },
+                        icon = { Icon(Icons.Default.Folder, contentDescription = "Browse") },
+                        label = { Text("Browse") },
+                        modifier = Modifier.testTag("tab_browse")
+                    )
+                    NavigationRailItem(
+                        selected = currentTab == NavigationTab.STORAGE,
+                        onClick = { currentTab = NavigationTab.STORAGE },
+                        icon = { Icon(Icons.Default.Storage, contentDescription = "Storage") },
+                        label = { Text("Storage") },
+                        modifier = Modifier.testTag("tab_storage")
+                    )
+                }
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainScreenContent(
+                        currentTab = currentTab,
                         volumes = volumes,
                         hasStorageAccess = hasStorageAccess,
-                        onNavigateToVolume = { volume ->
-                            val targetFile = if (hasStorageAccess) Environment.getExternalStorageDirectory() else context.filesDir
-                            selectedDirectory = targetFile ?: context.filesDir
+                        selectedFolderId = selectedFolderId,
+                        onFolderSelected = {
+                            selectedFolderId = it
                             currentTab = NavigationTab.BROWSE
                         },
-                        onNavigateToCategory = { category ->
-                            val target = when (category) {
-                                FileCategory.DOWNLOAD -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                                FileCategory.IMAGE -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                                FileCategory.AUDIO -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-                                FileCategory.DOCUMENT -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-                                FileCategory.VIDEO -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                                FileCategory.APK -> context.filesDir
-                                else -> if (hasStorageAccess) Environment.getExternalStorageDirectory() else context.filesDir
-                            }
-                            selectedDirectory = target ?: context.filesDir
-                            currentTab = NavigationTab.BROWSE
-                        },
-                        onNavigateToFolder = { folder ->
-                            selectedDirectory = folder
-                            currentTab = NavigationTab.BROWSE
-                        },
-                        onRequestStorageAccess = {
-                            requestStorageAccess()
-                        }
+                        onNavigateBack = { currentTab = NavigationTab.HOME },
+                        onRequestStorageAccess = { requestStorageAccess() },
+                        context = context
                     )
                 }
-                NavigationTab.BROWSE -> {
-                    BrowseScreen(
-                        initialDirectory = selectedDirectory,
-                        onNavigateBack = { currentTab = NavigationTab.HOME }
-                    )
-                }
-                NavigationTab.STORAGE -> {
-                    StorageScreen(
-                        volumes = volumes,
-                        onBrowseVolume = { volume ->
-                            selectedDirectory = Environment.getExternalStorageDirectory() ?: context.filesDir
-                            currentTab = NavigationTab.BROWSE
-                        }
-                    )
-                }
+            }
+        } else {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                MainScreenContent(
+                    currentTab = currentTab,
+                    volumes = volumes,
+                    hasStorageAccess = hasStorageAccess,
+                    selectedFolderId = selectedFolderId,
+                    onFolderSelected = {
+                        selectedFolderId = it
+                        currentTab = NavigationTab.BROWSE
+                    },
+                    onNavigateBack = { currentTab = NavigationTab.HOME },
+                    onRequestStorageAccess = { requestStorageAccess() },
+                    context = context
+                )
             }
         }
     }
@@ -332,3 +363,67 @@ fun RefractAppContent() {
         )
     }
 }
+
+@Composable
+private fun MainScreenContent(
+    currentTab: NavigationTab,
+    volumes: List<StorageVolumeInfo>,
+    hasStorageAccess: Boolean,
+    selectedFolderId: FileNodeId,
+    onFolderSelected: (FileNodeId) -> Unit,
+    onNavigateBack: () -> Unit,
+    onRequestStorageAccess: () -> Unit,
+    context: android.content.Context,
+) {
+    when (currentTab) {
+        NavigationTab.HOME -> {
+            HomeScreen(
+                volumes = volumes,
+                hasStorageAccess = hasStorageAccess,
+                onNavigateToVolume = { volume ->
+                    val defaultPath = context.filesDir.absolutePath
+                    val targetPath = volume.rootNodeId ?: FileNodeId.file(
+                        if (hasStorageAccess) (Environment.getExternalStorageDirectory()?.absolutePath ?: defaultPath)
+                        else defaultPath
+                    )
+                    onFolderSelected(targetPath)
+                },
+                onNavigateToCategory = { category ->
+                    val defaultPath = context.filesDir.absolutePath
+                    val targetPath = when (category) {
+                        FileCategory.DOWNLOAD -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.absolutePath
+                        FileCategory.IMAGE -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)?.absolutePath
+                        FileCategory.AUDIO -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)?.absolutePath
+                        FileCategory.DOCUMENT -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)?.absolutePath
+                        FileCategory.VIDEO -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)?.absolutePath
+                        FileCategory.APK -> defaultPath
+                        else -> if (hasStorageAccess) Environment.getExternalStorageDirectory()?.absolutePath else defaultPath
+                    } ?: defaultPath
+                    onFolderSelected(FileNodeId.file(targetPath))
+                },
+                onNavigateToFolder = onFolderSelected,
+                onRequestStorageAccess = onRequestStorageAccess
+            )
+        }
+        NavigationTab.BROWSE -> {
+            BrowseScreen(
+                initialFolderId = selectedFolderId,
+                onNavigateBack = onNavigateBack
+            )
+        }
+        NavigationTab.STORAGE -> {
+            StorageScreen(
+                volumes = volumes,
+                onBrowseVolume = { volume ->
+                    val defaultPath = context.filesDir.absolutePath
+                    val targetPath = volume.rootNodeId ?: FileNodeId.file(
+                        Environment.getExternalStorageDirectory()?.absolutePath ?: defaultPath
+                    )
+                    onFolderSelected(targetPath)
+                },
+                onBrowseFolder = onFolderSelected
+            )
+        }
+    }
+}
+

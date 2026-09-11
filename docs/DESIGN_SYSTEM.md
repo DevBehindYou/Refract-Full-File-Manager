@@ -128,45 +128,27 @@ shadows only where a floating element must separate from arbitrary content.
 | Level | Technique | Used by |
 |---|---|---|
 | `0` | Flat on background | Content lists |
-| `1` | `surfaceVariant` tint, no shadow | Cards, section containers |
-| `2` | Glass + 1dp rim, `y=2 blur=8 alpha=0.06` | Toolbars, search bar |
-| `3` | Glass + rim + `y=6 blur=20 alpha=0.10` | Bottom nav, FAB, selection bar |
-| `4` | Glass + rim + `y=12 blur=32 alpha=0.14` + scrim behind | Sheets, dialogs, menus |
+| `1` | `surfaceContainerLow`, tonal elevation 1dp | Cards, section containers |
+| `2` | `surfaceContainer`, tonal elevation 2dp | Toolbars, search bar, active drop target highlight |
+| `3` | `surfaceContainerHigh`, tonal elevation 3dp | Bottom nav, FAB, selection bar, Transfer Bubble rail |
+| `4` | `surfaceContainerHighest`, tonal elevation 6dp + scrim | Sheets, dialogs, Quick Peek overlay |
 
-Dark theme halves shadow alpha and compensates with a stronger rim highlight; shadows are
-nearly invisible on dark backgrounds and the rim does the work.
+## 6. Material 3 Elevation & Surface Tokens
 
-## 6. Glass tokens
-
-Semantic, tier-resolved. A composable asks for `GlassStyle.Navigation`; the token layer
-returns the correct values for the active `GlassTier`.
+Refract uses Material 3 tonal elevation and surface container roles (`surfaceContainerLow`, `surfaceContainer`, `surfaceContainerHigh`, `surfaceContainerHighest`) instead of excessive borders or blur shaders.
 
 ```kotlin
-data class GlassTokens(
-    val blurRadius: Dp,
-    val opacity: Float,
-    val borderOpacity: Float,
-    val highlightStrength: Float,
-    val distortion: Float,      // px of UV displacement at the rim
-    val refraction: Float,      // edge ramp exponent
-    val cornerRadius: Dp,
-    val shadowElevation: Dp,
-    val noise: Float,
-    val saturation: Float,
+data class SurfaceElevationTokens(
+    val level0: Dp = 0.dp,
+    val level1: Dp = 1.dp,
+    val level2: Dp = 3.dp,
+    val level3: Dp = 6.dp,
+    val level4: Dp = 8.dp,
+    val level5: Dp = 12.dp,
 )
 ```
 
-| Style | Tier A | Tier B | Tier C |
-|---|---|---|---|
-| **Navigation** (bottom bar) | blur 32, op .58, border .30, hl .18, dist 12, refr 2.0, r pill, sh 6, noise .03, sat 1.15 | blur 20, op .74, border .24, hl .10, dist 0, r pill, sh 6, noise .02, sat 1.05 | blur 0, op .94, border .18, hl 0, dist 0, r pill, sh 8, noise 0, sat 1.0 |
-| **Toolbar** | blur 28, op .55, border .26, hl .12, dist 8 | blur 18, op .72, border .20, hl .06 | blur 0, op .95, border .14 |
-| **Sheet** | blur 40, op .62, border .28, hl .14, dist 10 | blur 24, op .80, border .22, hl .08 | blur 0, op .97, border .12 |
-| **Dialog** | blur 40, op .70, border .30, hl .12, dist 6 | blur 24, op .86, border .24, hl .06 | blur 0, op 1.0, border .12 |
-| **Menu** | blur 30, op .66, border .28, hl .10, dist 6 | blur 20, op .82, border .22 | blur 0, op .98, border .12 |
-| **Control** (chips, small buttons) | blur 20, op .50, border .30, hl .16, dist 6 | blur 14, op .70, border .24, hl .08 | blur 0, op .92, border .16 |
-
-Under **reduce transparency**, every style resolves to opacity `1.0`, border `.12`,
-blur `0`, highlight `0`, distortion `0` — regardless of tier.
+Interactive states (hover, drag pickup, drop target activation) animate tonal elevation and subtle scale (e.g. pickup lifts to 8dp elevation and 1.03 scale) with tactile haptic confirmation.
 
 ## 7. Iconography
 
@@ -199,22 +181,14 @@ fun RefractTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val tier = LocalGlassCapability.current.tier.collectAsStateWithLifecycle().value
-    CompositionLocalProvider(
-        LocalGlassTier provides tier,
-        LocalGlassTokens provides glassTokensFor(tier, reduceTransparency),
-        LocalSpacing provides Spacing,
-        LocalRefractShapes provides RefractShapes,
-    ) {
-        MaterialTheme(
-            colorScheme = colorSchemeFor(darkTheme, dynamicColor),
-            typography = RefractTypography,
-            shapes = RefractShapes.material,
-            content = content,
-        )
-    }
+    MaterialTheme(
+        colorScheme = colorSchemeFor(darkTheme, dynamicColor),
+        typography = RefractTypography,
+        shapes = RefractShapes,
+        content = content,
+    )
 }
 ```
 
-Feature code reads `MaterialTheme.colorScheme`, `LocalSpacing.current`, and
-`GlassStyle.X` — never a literal.
+Feature code reads `MaterialTheme.colorScheme`, `MaterialTheme.typography`, and
+`MaterialTheme.shapes` — never ad-hoc literals.

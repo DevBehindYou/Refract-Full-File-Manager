@@ -41,7 +41,7 @@ import javax.inject.Inject
  * are also exactly the kind of thing that varies in the field in ways a shadow can't catch.
  */
 class SafBackend @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : StorageBackend {
 
     override val type: BackendType = BackendType.SAF

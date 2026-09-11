@@ -6,14 +6,14 @@ The phone layout is never stretched. Each window size class gets a layout design
 
 | Class | Width | Devices | Navigation | Content |
 |---|---|---|---|---|
-| **Compact** | < 600dp | Phones portrait, folded | Floating glass bottom bar | Single pane |
-| **Medium** | 600–839dp | Tablets portrait, phones landscape, unfolded portrait | Glass navigation rail (leading) | Single pane, wider gutters, grid density +1 |
-| **Expanded** | ≥ 840dp | Tablets landscape, unfolded landscape, desktop windows | Glass navigation rail, optionally expanded with labels | **Dual pane** |
+| **Compact** | < 600dp | Phones portrait, folded | Material 3 bottom bar | Single pane |
+| **Medium** | 600–839dp | Tablets portrait, phones landscape, unfolded portrait | Navigation rail (leading) | Single pane, wider gutters, grid density +1 |
+| **Expanded** | ≥ 840dp | Tablets landscape, unfolded landscape, desktop windows | Navigation rail, optionally expanded with labels | **Dual pane** |
 
 Height classes matter too: compact height (< 480dp, phone landscape) collapses the top bar
 into a single 48dp row and hides the storage card on Home.
 
-Use `currentWindowAdaptiveInfo()` from `material3-adaptive`. Never read
+Use `currentWindowAdaptiveInfoV2()` from `material3-adaptive 1.3.0+`. Never read
 `Configuration.screenWidthDp` directly, and never branch on `isTablet`.
 
 ## 2. Dual pane (expanded)

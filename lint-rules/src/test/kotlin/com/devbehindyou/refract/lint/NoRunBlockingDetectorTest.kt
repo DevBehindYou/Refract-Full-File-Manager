@@ -5,7 +5,6 @@ import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
 import org.junit.jupiter.api.Test
 
 class NoRunBlockingDetectorTest {
-
     /**
      * The real `kotlinx-coroutines-core` jar isn't on this module's test classpath, so a
      * minimal stub is supplied for `runBlocking` to resolve against — the standard way
@@ -13,13 +12,14 @@ class NoRunBlockingDetectorTest {
      * the real dependency (see Google's own custom-lint-rules sample for the same
      * pattern applied to Android SDK stubs).
      */
-    private val coroutinesStub = kotlin(
-        """
-        package kotlinx.coroutines
+    private val coroutinesStub =
+        kotlin(
+            """
+            package kotlinx.coroutines
 
-        fun <T> runBlocking(block: () -> T): T = TODO()
-        """.trimIndent()
-    )
+            fun <T> runBlocking(block: () -> T): T = TODO()
+            """.trimIndent(),
+        )
 
     @Test
     fun `flags kotlinx coroutines runBlocking called from production code`() {
@@ -35,8 +35,8 @@ class NoRunBlockingDetectorTest {
                     fun loadSync() {
                         runBlocking { }
                     }
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoRunBlockingDetector.ISSUE)
             .run()
@@ -56,8 +56,8 @@ class NoRunBlockingDetectorTest {
                     fun loadSync() {
                         runBlocking { }
                     }
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoRunBlockingDetector.ISSUE)
             .run()

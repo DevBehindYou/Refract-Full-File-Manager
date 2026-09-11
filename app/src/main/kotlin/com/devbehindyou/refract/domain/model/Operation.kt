@@ -9,7 +9,19 @@ value class OperationId(val raw: String) {
     }
 }
 
-enum class OperationType { COPY, MOVE, DELETE, RENAME, EXTRACT, COMPRESS }
+enum class OperationType {
+    COPY,
+    MOVE,
+    DELETE,
+    RENAME,
+    EXTRACT,
+    COMPRESS,
+    HIDE_GALLERY,
+    UNHIDE_GALLERY,
+    FAST_OBSCURE,
+    RESTORE_OBSCURE,
+    MOVE_TO_PRIVATE,
+}
 
 enum class CollisionPolicy { ASK, OVERWRITE, KEEP_BOTH, SKIP, RENAME_AUTO }
 
@@ -43,6 +55,8 @@ data class FileOperation(
     }
 }
 
+typealias FileOperationRequest = FileOperation
+
 data class OperationProgress(
     val itemsDone: Int,
     val itemsTotal: Int,
@@ -71,6 +85,7 @@ data class Conflict(val source: FileNode, val existingDestination: FileNode)
 /** The mutable state of a [FileOperation] as it runs. */
 sealed interface OperationStatus {
     data object Queued : OperationStatus
+    data object Preparing : OperationStatus
     data class Running(val progress: OperationProgress) : OperationStatus
     data class Paused(val progress: OperationProgress) : OperationStatus
     data class AwaitingInput(val conflict: Conflict) : OperationStatus
@@ -78,6 +93,7 @@ sealed interface OperationStatus {
     data class PartiallyCompleted(val summary: OperationSummary) : OperationStatus
     data class Failed(val error: FileError, val summary: OperationSummary) : OperationStatus
     data object Cancelled : OperationStatus
+    data object Recovering : OperationStatus
 }
 
 /**

@@ -22,13 +22,11 @@ component without semantics is not finished.
 | Selection checkbox | Handled by the row's `selected` state, not a separate announcement |
 | Storage meter | Full sentence with the top three categories |
 | Progress | `progressSemantics()` + live region, throttled to 10% steps |
-| Glass surfaces | No semantics contribution whatsoever |
 
 ### Traversal
 
 * Content before chrome: list → toolbar → bottom bar.
-* `traversalIndex` used only where the visual order genuinely differs from the DOM order
-  (the floating bottom bar).
+* `traversalIndex` used only where the visual order genuinely differs from the DOM order.
 * Sheets and dialogs trap focus (`Modifier.semantics { dialog() }` / `paneTitle`), move
   focus in on open, and restore it on close.
 * Selection mode announces the transition once: "Selection mode. 1 item selected."
@@ -36,11 +34,12 @@ component without semantics is not finished.
 
 ### Custom actions
 
-Rows expose `customActions` so TalkBack users reach Copy / Move / Delete / Share / Info
+Rows expose `customActions` so TalkBack users reach Copy / Move / Delete / Share / Info / Quick Preview
 without long press:
 ```kotlin
 Modifier.semantics {
     customActions = listOf(
+        CustomAccessibilityAction("Quick preview") { onQuickPreview(); true },
         CustomAccessibilityAction("Copy") { onCopy(); true },
         CustomAccessibilityAction("Move") { onMove(); true },
         CustomAccessibilityAction("Delete") { onDelete(); true },
@@ -54,25 +53,18 @@ This is mandatory on `FileRow`, `FolderRow`, and `FileGridItem`.
 ## 2. Contrast
 
 * Body text ≥ 4.5:1, large text and meaningful icons ≥ 3:1.
-* **Glass rule:** contrast is measured against the *worst-case* backdrop, not the average.
-  Every glass container that holds text carries an internal opaque tint layer sized to
-  guarantee the ratio. This layer is part of the component, not optional.
-* High-contrast text setting → borders go to 1.5dp, `outline` uses `onSurface` at 0.6,
-  glass drops to Tier C.
+* Material 3 surface container roles (`surfaceContainerLow`, `surfaceContainer`, `surfaceContainerHigh`) maintain WCAG 2.2 AA compliant contrast with `onSurface` and `onSurfaceVariant`.
+* High-contrast text setting → borders use high contrast outline `outlineVariant` / `outline`.
 * Colour is never the only signal: category colour is paired with a glyph, selection is
   paired with a checkbox, errors are paired with an icon and text.
 
-## 3. Motion and transparency
+## 3. Motion
 
 | System setting | Effect |
 |---|---|
-| Reduce motion / animator scale 0 | See `ANIMATION_SYSTEM.md` §7 — springs become 120 ms opacity tweens, no translation or scale, no ambient glass drift |
-| Reduce transparency / high contrast | `GlassTier.COMPATIBILITY`, all glass opacity → 1.0, blur → 0 |
+| Reduce motion / animator scale 0 | Springs become 120 ms opacity tweens, no translation or scale |
 | Bold text | Body weights +100 |
-| Remove animations (developer options) | Same as reduce motion |
-
-The app also exposes its own **Glass: Auto / High / Medium / Off** setting so a user can opt
-out without changing a system-wide preference.
+| Remove animations (developer options) | Instant state changes (0 ms) |
 
 ## 4. Text scaling and display size
 

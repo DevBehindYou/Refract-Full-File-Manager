@@ -18,10 +18,13 @@ import org.jetbrains.uast.UCallExpression
  * (CODING_RULES.md; MODULES.md's `NoRunBlocking` entry).
  */
 class NoRunBlockingDetector : Detector(), SourceCodeScanner {
-
     override fun getApplicableMethodNames(): List<String> = listOf("runBlocking")
 
-    override fun visitMethodCall(context: JavaContext, node: UCallExpression, method: PsiMethod) {
+    override fun visitMethodCall(
+        context: JavaContext,
+        node: UCallExpression,
+        method: PsiMethod,
+    ) {
         if (context.isTestSource) return
 
         val declaringPackage = method.containingClass?.qualifiedName ?: return
@@ -31,28 +34,32 @@ class NoRunBlockingDetector : Detector(), SourceCodeScanner {
             issue = ISSUE,
             scope = node,
             location = context.getLocation(node),
-            message = "`runBlocking` is only allowed in `test`/`androidTest` source " +
-                "sets. In app code, launch a coroutine on an injected `CoroutineScope` " +
-                "instead."
+            message =
+                "`runBlocking` is only allowed in `test`/`androidTest` source " +
+                    "sets. In app code, launch a coroutine on an injected `CoroutineScope` " +
+                    "instead.",
         )
     }
 
     companion object {
-        val ISSUE: Issue = Issue.create(
-            id = "NoRunBlocking",
-            briefDescription = "runBlocking used outside a test source set",
-            explanation = """
-                `runBlocking` blocks the calling thread until the coroutine completes. \
-                That's fine in a test's own thread, but calling it from production code \
-                (especially the main thread) defeats the point of using coroutines at all.
-            """.trimIndent(),
-            category = Category.CORRECTNESS,
-            priority = 9,
-            severity = Severity.ERROR,
-            implementation = Implementation(
-                NoRunBlockingDetector::class.java,
-                Scope.JAVA_FILE_SCOPE
+        val ISSUE: Issue =
+            Issue.create(
+                id = "NoRunBlocking",
+                briefDescription = "runBlocking used outside a test source set",
+                explanation =
+                    """
+                    `runBlocking` blocks the calling thread until the coroutine completes. \
+                    That's fine in a test's own thread, but calling it from production code \
+                    (especially the main thread) defeats the point of using coroutines at all.
+                    """.trimIndent(),
+                category = Category.CORRECTNESS,
+                priority = 9,
+                severity = Severity.ERROR,
+                implementation =
+                    Implementation(
+                        NoRunBlockingDetector::class.java,
+                        Scope.JAVA_FILE_SCOPE,
+                    ),
             )
-        )
     }
 }

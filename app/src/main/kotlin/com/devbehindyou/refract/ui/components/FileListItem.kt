@@ -11,14 +11,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -60,18 +60,12 @@ private fun visualFor(node: FileNode): FileTypeVisual = when {
         node.mimeType?.contains("compressed") == true ||
         node.mimeType?.contains("archive") == true -> FileTypeVisual(Icons.Filled.FolderZip, Color(0xFF795548))
     node.mimeType == "application/vnd.android.package-archive" -> FileTypeVisual(Icons.Filled.Android, Color(0xFF8BC34A))
-    else -> FileTypeVisual(Icons.Filled.InsertDriveFile, Color(0xFF9E9E9E))
+    else -> FileTypeVisual(Icons.AutoMirrored.Filled.InsertDriveFile, Color(0xFF9E9E9E))
 }
 
 /**
  * [isSelectionMode] is derived by the caller from whether any item is currently selected
  * (`selectedIds.isNotEmpty()`), not tracked as separate state — see BrowseScreen.
- *
- * Long-press now enters selection mode (and selects this item) instead of opening the
- * per-item menu, per the requested spec ("enter selection mode via long-press"). The old
- * long-press-only menu is replaced by an explicit trailing "more" icon button — a more
- * discoverable, more accessible pattern than a long-press-only affordance
- * (docs/ACCESSIBILITY.md's concerns about touch-only interactions apply directly here).
  */
 @Composable
 fun FileListItem(
@@ -83,6 +77,10 @@ fun FileListItem(
     onShowDetails: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onExtract: (() -> Unit)? = null,
+    onCompress: (() -> Unit)? = null,
+    onQuickPeek: (() -> Unit)? = null,
+    onHide: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -129,13 +127,13 @@ fun FileListItem(
                 modifier = Modifier
                     .size(40.dp)
                     .background(visual.tint.copy(alpha = 0.15f), CircleShape),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = visual.icon,
                     contentDescription = null,
                     tint = visual.tint,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
@@ -175,6 +173,20 @@ fun FileListItem(
                         Icon(Icons.Filled.MoreVert, contentDescription = null)
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        val isZip = node.name.endsWith(".zip", ignoreCase = true) || node.mimeType?.contains("zip") == true
+                        if (isZip && onExtract != null) {
+                            DropdownMenuItem(text = { Text("Extract") }, onClick = { showMenu = false; onExtract() })
+                        }
+                        val isMedia = node.mimeType?.startsWith("image/") == true || node.mimeType?.startsWith("video/") == true
+                        if (isMedia && onQuickPeek != null) {
+                            DropdownMenuItem(text = { Text("Quick preview") }, onClick = { showMenu = false; onQuickPeek() })
+                        }
+                        if (onCompress != null) {
+                            DropdownMenuItem(text = { Text("Compress to ZIP") }, onClick = { showMenu = false; onCompress() })
+                        }
+                        if (onHide != null) {
+                            DropdownMenuItem(text = { Text("Hide") }, onClick = { showMenu = false; onHide() })
+                        }
                         DropdownMenuItem(text = { Text("Details") }, onClick = { showMenu = false; onShowDetails() })
                         DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
                         DropdownMenuItem(text = { Text("Delete") }, onClick = { showMenu = false; onDelete() })

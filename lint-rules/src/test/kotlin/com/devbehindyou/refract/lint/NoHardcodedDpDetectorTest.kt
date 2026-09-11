@@ -5,7 +5,6 @@ import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
 import org.junit.jupiter.api.Test
 
 class NoHardcodedDpDetectorTest {
-
     @Test
     fun `flags a hardcoded dp literal outside the design system`() {
         lint()
@@ -15,8 +14,8 @@ class NoHardcodedDpDetectorTest {
                     package com.devbehindyou.refract.feature.browse.ui
 
                     val screenPadding = 16.dp
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoHardcodedDpDetector.ISSUE)
             .run()
@@ -32,8 +31,8 @@ class NoHardcodedDpDetectorTest {
                     package com.devbehindyou.refract.core.designsystem
 
                     val spacingMedium = 16.dp
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoHardcodedDpDetector.ISSUE)
             .run()
@@ -49,8 +48,8 @@ class NoHardcodedDpDetectorTest {
                     package com.devbehindyou.refract.feature.browse.ui
 
                     fun toPadding(base: Int) = base.dp
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoHardcodedDpDetector.ISSUE)
             .run()

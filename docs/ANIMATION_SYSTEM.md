@@ -1,7 +1,7 @@
 # Animation System
 
 Motion in Refract does three jobs: it explains **where things came from**, it confirms
-**that a touch registered**, and it makes glass read as a **physical material**. Anything
+**that a touch registered**, and it provides **physical direct-manipulation feedback**. Anything
 that does none of these is deleted.
 
 ---
@@ -13,11 +13,11 @@ All spatial motion uses springs. Only opacity and colour use duration-based twee
 ```kotlin
 object Motion {
     // spatial
-    val Snappy   = spring<Float>(dampingRatio = 0.90f, stiffness = 1400f) // ~120ms settle
-    val Standard = spring<Float>(dampingRatio = 0.85f, stiffness =  700f) // ~220ms
-    val Gentle   = spring<Float>(dampingRatio = 0.90f, stiffness =  350f) // ~380ms
-    val Liquid   = spring<Float>(dampingRatio = 0.62f, stiffness =  520f) // visible overshoot
-    val Settle   = spring<Float>(dampingRatio = 1.00f, stiffness =  900f) // no overshoot
+    val Quick      = spring<Float>(dampingRatio = 0.90f, stiffness = 1400f) // ~120ms settle
+    val Standard   = spring<Float>(dampingRatio = 0.85f, stiffness =  700f) // ~220ms
+    val Emphasized = spring<Float>(dampingRatio = 0.75f, stiffness =  550f) // responsive, expressive
+    val Gentle     = spring<Float>(dampingRatio = 0.90f, stiffness =  350f) // ~380ms
+    val Settle     = spring<Float>(dampingRatio = 1.00f, stiffness =  900f) // no overshoot
 
     // opacity / colour
     const val FadeFast = 90     // ms
@@ -26,7 +26,7 @@ object Motion {
 }
 ```
 
-`Liquid` is reserved for the glass nav indicator and the FAB→sheet morph. Overshoot
+`Emphasized` is reserved for navigation indicator travel and dialog / preview expansions. Overshoot
 elsewhere reads as sloppiness rather than character.
 
 ## 2. Duration ceiling
@@ -60,53 +60,34 @@ the current screen scales to 0.92 and translates toward the gesture edge, corner
 animates 0→24dp, and the destination is revealed behind it. Releasing below threshold
 springs back with `Settle`.
 
-## 4. Bottom navigation motion
-
-The signature component. Five behaviours, composed:
+## 4. Navigation motion
 
 | Behaviour | Spec |
 |---|---|
-| **Indicator travel** | The glass pill slides to the new item with `Liquid`. It **stretches** while travelling: width scales to 1.18× at mid-travel, back to 1.0 at rest, driven by velocity |
-| **Icon morph** | Outlined → filled, cross-faded over `FadeFast`, with a 1.0→0.88→1.0 scale pulse on `Snappy` |
+| **Indicator travel** | The active indicator slides to the new item with `Emphasized` |
+| **Icon morph** | Outlined → filled, cross-faded over `FadeFast`, with a 1.0→0.88→1.0 scale pulse on `Quick` |
 | **Label** | Inactive labels at 0.65 alpha; active at 1.0 with weight 500→600, `FadeStd` |
-| **Touch compression** | On press, the whole bar scales to 0.985 and the pressed item to 0.94, `Snappy`. Released with `Standard` |
-| **Highlight response** | Tier A only: the specular band's `highlightPos` uniform animates toward the touch X over 400 ms, then drifts back |
+| **Touch compression** | On press, the item scales to 0.96 with `Quick`, released with `Standard` |
 
-Tier B drops the specular response and the stretch (indicator translates only).
-Tier C keeps only translate + icon morph.
-
-## 5. Component motion
+## 5. Direct-Manipulation & Interaction Motion
 
 | Component | Motion |
 |---|---|
-| List row press | Background `surfaceDim` fade in `FadeFast`, scale 0.995 with `Snappy` |
-| Selection enter | Checkbox slides in from leading edge, content shifts right 48dp, `Standard`, staggered 12 ms per visible row (max 8 rows staggered) |
-| Selection action bar | Rises from below with `Standard`, nav bar drops out simultaneously |
-| Context menu | Scale 0.9→1.0 from the anchor corner + fade, `Snappy` |
-| Search bar focus | Expands to full width, back arrow rotates in, `Standard` |
-| Breadcrumb | New segment slides in from trailing edge with `Snappy`; scrolls itself into view |
+| File drag pickup | Scale 1.0→1.03, elevation 0→8dp with `Quick`, haptic tick on pickup |
+| Multi-selection drag | Stacks into max 3 card previews with item count badge |
+| Drop target activation | Elevation rises to 3dp, border highlight pulses with `Standard` |
+| Folder hover navigation | Dwell 500–750ms shows progress ring, folder opens with `Standard` without dropping drag session |
+| Transfer bubble acceptance | Bubble pill scale pulse 1.0→1.12→1.0 with `Emphasized`, badge counter increments |
+| Quick Peek expand | Scrim fades in `FadeFast`, preview surface scales 0.94→1.0 with `Standard` |
+| Quick Peek release | Smooth reverse fade and scale dismiss |
+| List row press | Background `surfaceDim` fade in `FadeFast`, scale 0.995 with `Quick` |
+| Selection enter | Checkbox slides in from leading edge, content shifts right 48dp, `Standard` |
+| Context menu | Scale 0.9→1.0 from anchor corner + fade, `Quick` |
 | Operation progress | Determinate bar interpolates with `Gentle` — never jumps |
-| Operation complete | Progress bar collapses into a check glyph, `Liquid`, then snackbar |
-| Pull to refresh | Glass droplet stretches with drag (elastic), snaps with `Liquid` on release |
-| Empty state | Glyph fades in + 8dp rise, `Gentle`, 60 ms after the list resolves |
-| Error state | Shake: ±6dp X, 2 cycles, `Snappy`. Once, never repeated |
-| Thumbnail load | Cross-fade `FadeStd` from the placeholder. No scale, no shimmer sweep |
-| Sheet drag | 1:1 with finger; dismiss below 40% or on velocity > 800dp/s |
-| FAB → sheet | Container transform: FAB circle morphs into the sheet's top edge, `Liquid`, 300 ms |
+| Operation complete | Progress collapses into check glyph with `Emphasized`, then snackbar |
+| Pull to refresh | Clean Material 3 pull-to-refresh spinner |
 
-## 6. Glass-specific motion (Tier A)
-
-| Effect | Spec |
-|---|---|
-| Ambient specular drift | `highlightPos` animates 0→1 over 8 s, `LinearEasing`, infinite. **One at a time app-wide**, and only on the frontmost glass surface |
-| Press refraction bloom | `distortion` uniform × 1.35 over 120 ms on press, back over 200 ms |
-| Surface entrance | `opacity` 0→target and `blurRadius` 0→target over 200 ms, so glass "condenses" rather than popping |
-| Backdrop settle | When the content behind stops scrolling, the backdrop layer is re-captured once — never per frame |
-
-Ambient drift stops entirely when: reduce motion is on, battery < 20%, the tier is B or C,
-or a file operation is running.
-
-## 7. Reduce-motion behaviour
+## 6. Reduce-motion behaviour
 
 When `Settings.Global.ANIMATOR_DURATION_SCALE == 0` or the accessibility reduce-motion flag
 is set:
@@ -115,8 +96,7 @@ is set:
 * Container transforms → cross-fade.
 * Predictive back → instant.
 * Nav indicator → moves instantly, icon morph becomes an instant swap.
-* Ambient glass animation → off.
-* Pull-to-refresh elastic → a plain progress indicator.
+* Drag preview → static lift with no spring overshoot.
 
 Nothing becomes unusable and no information is lost, because motion never carries meaning
 alone.

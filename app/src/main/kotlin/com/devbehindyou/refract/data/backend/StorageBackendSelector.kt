@@ -31,6 +31,12 @@ class StorageBackendSelector @Inject constructor(
             FileNodeId.Prefix.FILE -> BackendType.FILE
             FileNodeId.Prefix.SAF -> BackendType.SAF
             FileNodeId.Prefix.MEDIA -> BackendType.MEDIASTORE
+            FileNodeId.Prefix.USB -> BackendType.USB
+            FileNodeId.Prefix.SFTP -> BackendType.SFTP
+            FileNodeId.Prefix.FTP -> BackendType.FTP
+            FileNodeId.Prefix.FTPS -> BackendType.FTPS
+            FileNodeId.Prefix.SMB -> BackendType.SMB
+            FileNodeId.Prefix.WEBDAV -> BackendType.WEBDAV
             null -> error("Malformed FileNodeId with no recognised prefix: $id")
         }
         return backends[backendType] ?: error("No StorageBackend bound for $backendType")

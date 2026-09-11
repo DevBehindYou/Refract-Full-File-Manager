@@ -3,6 +3,7 @@ package com.devbehindyou.refract.domain.repository
 import com.devbehindyou.refract.domain.model.FileNode
 import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.FileResult
+import com.devbehindyou.refract.domain.model.StorageCapabilities
 import kotlinx.coroutines.flow.Flow
 import java.io.InputStream
 import java.io.OutputStream
@@ -16,7 +17,7 @@ import java.io.OutputStream
  * `java.io.InputStream`/`OutputStream` here are plain JDK types, not `java.io.File` — they
  * don't trip `NoAndroidInDomain` and don't require an Android runtime to use or test against.
  */
-enum class BackendType { FILE, SAF, MEDIASTORE }
+enum class BackendType { FILE, SAF, MEDIASTORE, USB, SFTP, FTP, FTPS, SMB, WEBDAV }
 
 /** Callers must close the returned stream (`use { }` — CODING_RULES.md #20). */
 fun interface InputStreamProvider {
@@ -37,6 +38,19 @@ interface OutputTarget {
 
 interface StorageBackend {
     val type: BackendType
+    val capabilities: StorageCapabilities
+        get() = when (type) {
+            BackendType.FILE -> StorageCapabilities.FULL_LOCAL
+            BackendType.SAF -> StorageCapabilities.SAF_STORAGE
+            BackendType.MEDIASTORE -> StorageCapabilities.MEDIA_STORE
+            BackendType.USB -> StorageCapabilities.SAF_STORAGE
+            BackendType.SFTP,
+            BackendType.FTP,
+            BackendType.FTPS,
+            BackendType.SMB,
+            BackendType.WEBDAV,
+            -> StorageCapabilities.REMOTE_NETWORK
+        }
 
     fun canHandle(id: FileNodeId): Boolean
 

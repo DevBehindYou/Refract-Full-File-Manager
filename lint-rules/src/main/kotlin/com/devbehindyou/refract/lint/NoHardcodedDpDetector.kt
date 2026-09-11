@@ -1,5 +1,6 @@
 package com.devbehindyou.refract.lint
 
+import com.android.tools.lint.client.api.UElementHandler
 import com.android.tools.lint.detector.api.Category
 import com.android.tools.lint.detector.api.Detector
 import com.android.tools.lint.detector.api.Implementation
@@ -9,9 +10,8 @@ import com.android.tools.lint.detector.api.Scope
 import com.android.tools.lint.detector.api.Severity
 import com.android.tools.lint.detector.api.SourceCodeScanner
 import org.jetbrains.uast.UElement
-import org.jetbrains.uast.UElementHandler
-import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.ULiteralExpression
+import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.getContainingUFile
 
 /**
@@ -24,9 +24,7 @@ import org.jetbrains.uast.getContainingUFile
  * literals are deliberately out of scope here and would be separate detectors.
  */
 class NoHardcodedDpDetector : Detector(), SourceCodeScanner {
-
-    override fun getApplicableUastTypes(): List<Class<out UElement>> =
-        listOf(UQualifiedReferenceExpression::class.java)
+    override fun getApplicableUastTypes(): List<Class<out UElement>> = listOf(UQualifiedReferenceExpression::class.java)
 
     override fun createUastHandler(context: JavaContext): UElementHandler =
         object : UElementHandler() {
@@ -41,28 +39,32 @@ class NoHardcodedDpDetector : Detector(), SourceCodeScanner {
                     issue = ISSUE,
                     scope = node,
                     location = context.getLocation(node),
-                    message = "Hardcoded `${node.asSourceString()}`. Use a spacing token " +
-                        "from `core.designsystem` instead of a literal `.dp` value."
+                    message =
+                        "Hardcoded `${node.asSourceString()}`. Use a spacing token " +
+                            "from `core.designsystem` instead of a literal `.dp` value.",
                 )
             }
         }
 
     companion object {
-        val ISSUE: Issue = Issue.create(
-            id = "NoHardcodedDp",
-            briefDescription = "Hardcoded .dp literal outside the design system",
-            explanation = """
-                A `.dp` literal (e.g. `16.dp`) was found outside `core.designsystem`. \
-                Spacing must come from the design system's token set so it can be changed \
-                in one place.
-            """.trimIndent(),
-            category = Category.CORRECTNESS,
-            priority = 4,
-            severity = Severity.ERROR,
-            implementation = Implementation(
-                NoHardcodedDpDetector::class.java,
-                Scope.JAVA_FILE_SCOPE
+        val ISSUE: Issue =
+            Issue.create(
+                id = "NoHardcodedDp",
+                briefDescription = "Hardcoded .dp literal outside the design system",
+                explanation =
+                    """
+                    A `.dp` literal (e.g. `16.dp`) was found outside `core.designsystem`. \
+                    Spacing must come from the design system's token set so it can be changed \
+                    in one place.
+                    """.trimIndent(),
+                category = Category.CORRECTNESS,
+                priority = 4,
+                severity = Severity.ERROR,
+                implementation =
+                    Implementation(
+                        NoHardcodedDpDetector::class.java,
+                        Scope.JAVA_FILE_SCOPE,
+                    ),
             )
-        )
     }
 }

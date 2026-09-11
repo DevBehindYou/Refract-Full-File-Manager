@@ -107,4 +107,19 @@ object StorageVolumes {
             requiresGrant = true, // See class KDoc — Phase 4's job.
         )
     }
+
+    fun getAppCacheSize(context: Context): Long {
+        return runCatching {
+            fun calculateDirSize(dir: File?, depth: Int = 0): Long {
+                if (dir == null || depth > 4 || !dir.exists()) return 0L
+                var size = 0L
+                dir.listFiles()?.forEach { file ->
+                    size += if (file.isDirectory) calculateDirSize(file, depth + 1) else file.length()
+                }
+                return size
+            }
+            calculateDirSize(context.cacheDir)
+        }.getOrDefault(0L)
+    }
 }
+

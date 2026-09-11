@@ -5,7 +5,6 @@ import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
 import org.junit.jupiter.api.Test
 
 class NoGlobalScopeDetectorTest {
-
     @Test
     fun `flags a GlobalScope launch`() {
         lint()
@@ -21,8 +20,8 @@ class NoGlobalScopeDetectorTest {
                     fun fireAndForget() {
                         GlobalScope.launch { }
                     }
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoGlobalScopeDetector.ISSUE)
             .run()
@@ -44,8 +43,8 @@ class NoGlobalScopeDetectorTest {
                     fun fireAndForget(scope: ScreenScope) {
                         scope.launch { }
                     }
-                    """.trimIndent()
-                )
+                    """.trimIndent(),
+                ),
             )
             .issues(NoGlobalScopeDetector.ISSUE)
             .run()

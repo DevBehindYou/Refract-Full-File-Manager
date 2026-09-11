@@ -23,6 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.refract.domain.model.FileNodeId
+import com.devbehindyou.refract.ui.interaction.drag.ActiveDropTarget
+import com.devbehindyou.refract.ui.interaction.drag.DropTargetType
+import com.devbehindyou.refract.ui.interaction.drag.FileDragController
+import com.devbehindyou.refract.ui.interaction.drag.fileDropTarget
 
 data class BreadcrumbItem(
     val name: String,
@@ -34,6 +39,7 @@ fun BreadcrumbBar(
     breadcrumbs: List<BreadcrumbItem>,
     onBreadcrumbClick: (BreadcrumbItem) -> Unit,
     modifier: Modifier = Modifier,
+    dragController: FileDragController? = null,
 ) {
     val scrollState = rememberScrollState()
 
@@ -51,7 +57,24 @@ fun BreadcrumbBar(
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .testTag("breadcrumb_bar")
     ) {
+        val rootTargetMod = if (dragController != null && breadcrumbs.isNotEmpty()) {
+            FileNodeId.parse(breadcrumbs.first().path)?.let { targetId ->
+                Modifier.fileDropTarget(
+                    controller = dragController,
+                    target = ActiveDropTarget(
+                        id = breadcrumbs.first().path,
+                        destinationId = targetId,
+                        type = DropTargetType.BREADCRUMB,
+                        displayName = "Storage",
+                        isWritable = true,
+                    ),
+                    onHoverSpringOpen = { onBreadcrumbClick(breadcrumbs.first()) },
+                )
+            } ?: Modifier
+        } else Modifier
+
         SuggestionChip(
+            modifier = rootTargetMod,
             onClick = {
                 if (breadcrumbs.isNotEmpty()) {
                     onBreadcrumbClick(breadcrumbs.first())
@@ -84,7 +107,24 @@ fun BreadcrumbBar(
             )
 
             val isLast = item == breadcrumbs.last()
+            val chipTargetMod = if (dragController != null) {
+                FileNodeId.parse(item.path)?.let { targetId ->
+                    Modifier.fileDropTarget(
+                        controller = dragController,
+                        target = ActiveDropTarget(
+                            id = item.path,
+                            destinationId = targetId,
+                            type = DropTargetType.BREADCRUMB,
+                            displayName = item.name,
+                            isWritable = true,
+                        ),
+                        onHoverSpringOpen = { onBreadcrumbClick(item) },
+                    )
+                } ?: Modifier
+            } else Modifier
+
             SuggestionChip(
+                modifier = chipTargetMod,
                 onClick = { onBreadcrumbClick(item) },
                 label = {
                     Text(

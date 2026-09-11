@@ -58,22 +58,39 @@ letting them fail. Backends must populate them honestly, not optimistically.
 
 ---
 
-## 2. The backend interface
+## 2. The backend interface & capability model
+
+Instead of checking concrete backend types (e.g. `is FileSystemBackend`), callers query capabilities:
 
 ```kotlin
+data class StorageCapabilities(
+    val canRead: Boolean = true,
+    val canWrite: Boolean = false,
+    val canCreate: Boolean = false,
+    val canDelete: Boolean = false,
+    val canRename: Boolean = false,
+    val supportsAtomicMove: Boolean = false,
+    val supportsRandomAccess: Boolean = false,
+    val supportsTrash: Boolean = false,
+    val supportsHideMedia: Boolean = false,
+    val supportsObfuscate: Boolean = false,
+    val supportsServerSideCopy: Boolean = false,
+)
+
 interface StorageBackend {
     val type: BackendType
+    val capabilities: StorageCapabilities
 
     fun canHandle(id: FileNodeId): Boolean
 
     suspend fun getNode(id: FileNodeId): FileResult<FileNode>
-    fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>>   // may emit progressively
+    fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>>
     suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider>
     suspend fun openOutput(parent: FileNodeId, name: String, mime: String?): FileResult<OutputTarget>
     suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode>
     suspend fun delete(id: FileNodeId): FileResult<Unit>
     suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode>
-    suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode>? // null = not supported, caller falls back to copy+delete
+    suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode>?
     suspend fun exists(parent: FileNodeId, name: String): Boolean
     suspend fun freeSpace(id: FileNodeId): Long
 }

@@ -47,8 +47,8 @@ import com.devbehindyou.refract.domain.model.StorageType
 import com.devbehindyou.refract.domain.model.StorageVolumeInfo
 import com.devbehindyou.refract.ui.components.CategoryGrid
 import com.devbehindyou.refract.ui.components.StorageOverviewCard
+import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.ui.util.FileUtils
-import java.io.File
 
 @Composable
 fun HomeScreen(
@@ -56,7 +56,7 @@ fun HomeScreen(
     hasStorageAccess: Boolean,
     onNavigateToVolume: (StorageVolumeInfo) -> Unit,
     onNavigateToCategory: (FileCategory) -> Unit,
-    onNavigateToFolder: (File) -> Unit,
+    onNavigateToFolder: (FileNodeId) -> Unit,
     onRequestStorageAccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -127,8 +127,7 @@ fun HomeScreen(
 
         // Always show App Private storage option
         AppPrivateStorageItem(
-            context = context,
-            onClick = { onNavigateToFolder(context.filesDir) }
+            onClick = { onNavigateToFolder(FileNodeId.file(context.filesDir.absolutePath)) }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -158,9 +157,9 @@ private fun PermissionCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("permission_warning_card"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -168,12 +167,12 @@ private fun PermissionCard(
                 Icon(
                     imageVector = Icons.Default.Security,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Storage Permission Required",
+                    text = "All Files Access Required",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onErrorContainer
@@ -181,20 +180,19 @@ private fun PermissionCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Refract needs storage access to show and manage your device files. Internal app files can still be viewed without permission.",
-                style = MaterialTheme.typography.bodySmall,
+                text = "To browse and manage your photos, downloads, and other shared files on this device, Refract requires All Files Access permission.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = onGrantClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
+                    containerColor = MaterialTheme.colorScheme.error
                 ),
-                modifier = Modifier.testTag("grant_permission_button")
+                modifier = Modifier.align(Alignment.End)
             ) {
-                Text("Grant Storage Access")
+                Text("Grant Access")
             }
         }
     }
@@ -258,42 +256,32 @@ private fun VolumeItem(
 
 @Composable
 private fun AppPrivateStorageItem(
-    context: Context,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(
+    Surface(
         onClick = onClick,
-        modifier = Modifier
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        modifier = modifier
             .fillMaxWidth()
-            .testTag("app_private_storage_item"),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        )
+            .testTag("app_private_storage_item")
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(16.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.FolderSpecial,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(14.dp))
+            Icon(
+                imageVector = Icons.Default.FolderSpecial,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "App-Private Storage",
-                    style = MaterialTheme.typography.bodyLarge,
+                    text = "App Private Storage",
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
@@ -305,7 +293,7 @@ private fun AppPrivateStorageItem(
             Text(
                 text = "Open ›",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -314,20 +302,22 @@ private fun AppPrivateStorageItem(
 
 @Composable
 private fun QuickAccessFolders(
-    onFolderClick: (File) -> Unit,
+    onFolderClick: (FileNodeId) -> Unit,
 ) {
+    val context = LocalContext.current
+    val fallback = FileNodeId.file(context.filesDir.absolutePath)
     val quickFolders = listOf(
-        "Downloads" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-        "DCIM" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-        "Documents" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-        "Pictures" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-        "Music" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+        "Downloads" to (runCatching { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.absolutePath?.let { FileNodeId.file(it) } }.getOrNull() ?: fallback),
+        "DCIM" to (runCatching { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)?.absolutePath?.let { FileNodeId.file(it) } }.getOrNull() ?: fallback),
+        "Documents" to (runCatching { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)?.absolutePath?.let { FileNodeId.file(it) } }.getOrNull() ?: fallback),
+        "Pictures" to (runCatching { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)?.absolutePath?.let { FileNodeId.file(it) } }.getOrNull() ?: fallback),
+        "Music" to (runCatching { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)?.absolutePath?.let { FileNodeId.file(it) } }.getOrNull() ?: fallback),
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        quickFolders.forEach { (name, dir) ->
+        quickFolders.forEach { (name, id) ->
             Card(
-                onClick = { onFolderClick(dir) },
+                onClick = { onFolderClick(id) },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
