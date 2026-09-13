@@ -12,6 +12,7 @@ android {
         applicationId = "com.devbehindyou.refract"
         versionCode = 1
         versionName = "0.1.0-phase1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -86,6 +87,8 @@ dependencies {
     testRuntimeOnly(libs.junit.vintage.engine)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
@@ -94,4 +97,12 @@ dependencies {
 detekt {
     config.setFrom(files("$rootDir/detekt.yml"))
     buildUponDefaultConfig = true
+}
+
+// AGP's built-in Kotlin does not trigger ktlint 12's legacy Android source-set hook.
+// Include production and test Kotlin explicitly in both the check and formatter tasks.
+tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask>().configureEach {
+    if (name.endsWith("OverKotlinScripts")) {
+        source(fileTree("src") { include("**/*.kt") })
+    }
 }

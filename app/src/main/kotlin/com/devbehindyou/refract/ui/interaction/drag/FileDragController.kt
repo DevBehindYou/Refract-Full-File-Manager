@@ -39,14 +39,15 @@ class FileDragController {
         originLocation: FileNodeId,
         startOffset: Offset = Offset.Zero,
     ): DragPayload {
-        val payload = DragPayload(
-            sessionId = UUID.randomUUID().toString(),
-            itemIds = items.map { it.id },
-            items = items,
-            originLocation = originLocation,
-            selectionCount = items.size,
-            estimatedBytes = items.sumOf { if (it.size > 0) it.size else 0L },
-        )
+        val payload =
+            DragPayload(
+                sessionId = UUID.randomUUID().toString(),
+                itemIds = items.map { it.id },
+                items = items,
+                originLocation = originLocation,
+                selectionCount = items.size,
+                estimatedBytes = items.sumOf { if (it.size > 0) it.size else 0L },
+            )
         activeSession = payload
         dragPosition = startOffset
         currentDropTarget = null
@@ -93,7 +94,10 @@ class FileDragController {
         pendingDecision = null
     }
 
-    fun setFolderHover(folderId: FileNodeId?, progress: Float) {
+    fun setFolderHover(
+        folderId: FileNodeId?,
+        progress: Float,
+    ) {
         hoveredFolderId = folderId
         hoverProgress = progress.coerceIn(0f, 1f)
     }

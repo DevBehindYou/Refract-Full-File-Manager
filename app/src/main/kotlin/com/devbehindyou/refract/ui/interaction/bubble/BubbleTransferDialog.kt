@@ -78,7 +78,8 @@ fun BubbleTransferDialog(
         confirmButton = {
             Row {
                 Button(
-                    onClick = { onMove(true) }, // Move always clears the transferred items from the bubble
+                    // Move clears the transferred items from the bubble.
+                    onClick = { onMove(true) },
                     modifier = Modifier.padding(end = 8.dp),
                 ) {
                     Text("Move here")

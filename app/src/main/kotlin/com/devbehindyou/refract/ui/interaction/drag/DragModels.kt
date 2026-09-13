@@ -32,7 +32,10 @@ data class ActiveDropTarget(
 
 sealed interface DropDecision {
     data class Move(val payload: DragPayload, val destination: FileNodeId) : DropDecision
+
     data class Copy(val payload: DragPayload, val destination: FileNodeId) : DropDecision
+
     data class AddToBubble(val payload: DragPayload, val bubbleId: String) : DropDecision
+
     data object Cancel : DropDecision
 }

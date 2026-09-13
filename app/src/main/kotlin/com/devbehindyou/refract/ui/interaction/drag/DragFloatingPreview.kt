@@ -1,7 +1,5 @@
 package com.devbehindyou.refract.ui.interaction.drag
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +7,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
@@ -41,8 +38,9 @@ fun DragFloatingPreview(
     val pos = controller.dragPosition
 
     Box(
-        modifier = modifier
-            .offset { IntOffset(pos.x.roundToInt() + 16, pos.y.roundToInt() - 40) }
+        modifier =
+            modifier
+                .offset { IntOffset(pos.x.roundToInt() + 16, pos.y.roundToInt() - 40) },
     ) {
         if (session.selectionCount > 1) {
             MultiItemDragBadge(
@@ -61,8 +59,9 @@ private fun SingleItemDragBadge(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier
-            .shadow(8.dp, shape = RoundedCornerShape(12.dp)),
+        modifier =
+            modifier
+                .shadow(8.dp, shape = RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 6.dp,
@@ -102,9 +101,10 @@ private fun MultiItemDragBadge(
         // Render stacked background card layers
         for (i in (stackCount - 1) downTo 1) {
             Surface(
-                modifier = Modifier
-                    .offset(x = (i * 6).dp, y = (i * 6).dp)
-                    .size(width = 160.dp, height = 48.dp),
+                modifier =
+                    Modifier
+                        .offset(x = (i * 6).dp, y = (i * 6).dp)
+                        .size(width = 160.dp, height = 48.dp),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = (4 - i).dp,
@@ -113,8 +113,9 @@ private fun MultiItemDragBadge(
 
         // Top card
         Surface(
-            modifier = Modifier
-                .shadow(10.dp, shape = RoundedCornerShape(12.dp)),
+            modifier =
+                Modifier
+                    .shadow(10.dp, shape = RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 6.dp,

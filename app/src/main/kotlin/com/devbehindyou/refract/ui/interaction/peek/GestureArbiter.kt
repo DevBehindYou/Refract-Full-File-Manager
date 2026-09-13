@@ -34,21 +34,27 @@ fun Modifier.mediaGestureArbiter(
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false)
 
-            val releasedBeforeHold = withTimeoutOrNull(peekDelayMs) {
-                waitForUpOrCancellation()
-            }
+            val releasedBeforeHold =
+                withTimeoutOrNull(peekDelayMs) {
+                    // Cancellation (scroll interception, pointer cancel, leaving bounds) is
+                    // distinct from the timeout that intentionally activates Quick Peek.
+                    waitForUpOrCancellation() != null
+                }
 
-            if (releasedBeforeHold != null) {
+            if (releasedBeforeHold == true) {
                 // Tapped before hold duration -> open viewer
                 currentOnTap.value()
-            } else {
+            } else if (releasedBeforeHold == null) {
                 // Held past duration -> Quick Peek!
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 currentOnQuickPeek.value(node)
 
                 // Wait until pointer is released to dismiss
-                waitForUpOrCancellation()
-                currentOnDismissPeek.value()
+                try {
+                    waitForUpOrCancellation()
+                } finally {
+                    currentOnDismissPeek.value()
+                }
             }
         }
     }

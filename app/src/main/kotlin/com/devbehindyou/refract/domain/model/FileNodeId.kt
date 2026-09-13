@@ -21,7 +21,6 @@ import java.net.URLEncoder
  */
 @JvmInline
 value class FileNodeId(val raw: String) {
-
     enum class Prefix(val scheme: String) {
         FILE("file:"),
         SAF("saf:"),
@@ -57,7 +56,11 @@ value class FileNodeId(val raw: String) {
             return FileNodeId(Prefix.SAF.scheme + URLEncoder.encode(contentUri, "UTF-8"))
         }
 
-        fun media(volume: String, collection: String, id: Long): FileNodeId {
+        fun media(
+            volume: String,
+            collection: String,
+            id: Long,
+        ): FileNodeId {
             require(volume.isNotEmpty() && ':' !in volume) { "invalid media: volume \"$volume\"" }
             require(collection.isNotEmpty() && ':' !in collection) {
                 "invalid media: collection \"$collection\""
@@ -70,27 +73,42 @@ value class FileNodeId(val raw: String) {
             return FileNodeId(Prefix.USB.scheme + path)
         }
 
-        fun sftp(serverId: String, remotePath: String): FileNodeId {
+        fun sftp(
+            serverId: String,
+            remotePath: String,
+        ): FileNodeId {
             require(serverId.isNotEmpty()) { "sftp: serverId must not be empty" }
             return FileNodeId("${Prefix.SFTP.scheme}$serverId:$remotePath")
         }
 
-        fun ftp(serverId: String, remotePath: String): FileNodeId {
+        fun ftp(
+            serverId: String,
+            remotePath: String,
+        ): FileNodeId {
             require(serverId.isNotEmpty()) { "ftp: serverId must not be empty" }
             return FileNodeId("${Prefix.FTP.scheme}$serverId:$remotePath")
         }
 
-        fun ftps(serverId: String, remotePath: String): FileNodeId {
+        fun ftps(
+            serverId: String,
+            remotePath: String,
+        ): FileNodeId {
             require(serverId.isNotEmpty()) { "ftps: serverId must not be empty" }
             return FileNodeId("${Prefix.FTPS.scheme}$serverId:$remotePath")
         }
 
-        fun smb(serverId: String, shareAndPath: String): FileNodeId {
+        fun smb(
+            serverId: String,
+            shareAndPath: String,
+        ): FileNodeId {
             require(serverId.isNotEmpty()) { "smb: serverId must not be empty" }
             return FileNodeId("${Prefix.SMB.scheme}$serverId:$shareAndPath")
         }
 
-        fun webdav(serverId: String, remotePath: String): FileNodeId {
+        fun webdav(
+            serverId: String,
+            remotePath: String,
+        ): FileNodeId {
             require(serverId.isNotEmpty()) { "webdav: serverId must not be empty" }
             return FileNodeId("${Prefix.WEBDAV.scheme}$serverId:$remotePath")
         }
@@ -104,22 +122,24 @@ value class FileNodeId(val raw: String) {
             val body = raw.removePrefix(prefix.scheme)
             if (body.isEmpty()) return null
 
-            val valid = when (prefix) {
-                Prefix.FILE -> isAbsolutePath(body)
-                Prefix.SAF -> runCatching { URLDecoder.decode(body, "UTF-8") }
-                    .getOrNull()
-                    ?.startsWith("content://") == true
-                Prefix.MEDIA -> {
-                    val parts = body.split(":")
-                    parts.size == 3 &&
-                        parts[0].isNotEmpty() &&
-                        parts[1].isNotEmpty() &&
-                        parts[2].toLongOrNull() != null
+            val valid =
+                when (prefix) {
+                    Prefix.FILE -> isAbsolutePath(body)
+                    Prefix.SAF ->
+                        runCatching { URLDecoder.decode(body, "UTF-8") }
+                            .getOrNull()
+                            ?.startsWith("content://") == true
+                    Prefix.MEDIA -> {
+                        val parts = body.split(":")
+                        parts.size == 3 &&
+                            parts[0].isNotEmpty() &&
+                            parts[1].isNotEmpty() &&
+                            parts[2].toLongOrNull() != null
+                    }
+                    Prefix.USB, Prefix.SFTP, Prefix.FTP, Prefix.FTPS, Prefix.SMB, Prefix.WEBDAV -> {
+                        body.isNotEmpty()
+                    }
                 }
-                Prefix.USB, Prefix.SFTP, Prefix.FTP, Prefix.FTPS, Prefix.SMB, Prefix.WEBDAV -> {
-                    body.isNotEmpty()
-                }
-            }
             return if (valid) FileNodeId(raw) else null
         }
     }

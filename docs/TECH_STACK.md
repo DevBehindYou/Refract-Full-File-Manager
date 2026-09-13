@@ -1,3 +1,5 @@
+> Verified implementation status (13 September 2026): see [App verification](testing/VERIFICATION_REPORT.md). The tables below include planned dependencies; the active app uses manual AppContainer wiring, SQLiteOpenHelper, SharedPreferences and platform media APIs. Room, DataStore, Media3, Coil and Navigation Compose are not present in the app dependency graph.
+
 # Technology Stack
 
 **Rule: every dependency must earn its place.** Each entry below states what it does, why

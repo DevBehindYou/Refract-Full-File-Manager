@@ -20,7 +20,6 @@ import dagger.multibindings.IntoMap
 @Module
 @InstallIn(SingletonComponent::class)
 interface BackendModule {
-
     @Binds
     @IntoMap
     @BackendKey(BackendType.FILE)

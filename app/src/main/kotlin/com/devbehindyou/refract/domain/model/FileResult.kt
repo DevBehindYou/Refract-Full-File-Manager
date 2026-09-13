@@ -7,31 +7,36 @@ package com.devbehindyou.refract.domain.model
  */
 sealed interface FileResult<out T> {
     data class Success<T>(val value: T) : FileResult<T>
+
     data class Failure(val error: FileError) : FileResult<Nothing>
 }
 
 inline fun <T, R> FileResult<T>.fold(
     onSuccess: (T) -> R,
     onFailure: (FileError) -> R,
-): R = when (this) {
-    is FileResult.Success -> onSuccess(value)
-    is FileResult.Failure -> onFailure(error)
-}
+): R =
+    when (this) {
+        is FileResult.Success -> onSuccess(value)
+        is FileResult.Failure -> onFailure(error)
+    }
 
-inline fun <T, R> FileResult<T>.map(transform: (T) -> R): FileResult<R> = when (this) {
-    is FileResult.Success -> FileResult.Success(transform(value))
-    is FileResult.Failure -> this
-}
+inline fun <T, R> FileResult<T>.map(transform: (T) -> R): FileResult<R> =
+    when (this) {
+        is FileResult.Success -> FileResult.Success(transform(value))
+        is FileResult.Failure -> this
+    }
 
-fun <T> FileResult<T>.getOrNull(): T? = when (this) {
-    is FileResult.Success -> value
-    is FileResult.Failure -> null
-}
+fun <T> FileResult<T>.getOrNull(): T? =
+    when (this) {
+        is FileResult.Success -> value
+        is FileResult.Failure -> null
+    }
 
-inline fun <T> FileResult<T>.getOrElse(onFailure: (FileError) -> T): T = when (this) {
-    is FileResult.Success -> value
-    is FileResult.Failure -> onFailure(error)
-}
+inline fun <T> FileResult<T>.getOrElse(onFailure: (FileError) -> T): T =
+    when (this) {
+        is FileResult.Success -> value
+        is FileResult.Failure -> onFailure(error)
+    }
 
 /**
  * `architecture/FILE_OPERATIONS.md` §4's `copyFile` example calls this bare — `.getOrReturn()`
@@ -47,7 +52,8 @@ inline fun <T> FileResult<T>.getOrElse(onFailure: (FileError) -> T): T = when (t
  * val input = backend.openInput(id).getOrReturn { return FileResult.Failure(it) }
  * ```
  */
-inline fun <T> FileResult<T>.getOrReturn(onFailure: (FileError) -> Nothing): T = when (this) {
-    is FileResult.Success -> value
-    is FileResult.Failure -> onFailure(error)
-}
+inline fun <T> FileResult<T>.getOrReturn(onFailure: (FileError) -> Nothing): T =
+    when (this) {
+        is FileResult.Success -> value
+        is FileResult.Failure -> onFailure(error)
+    }

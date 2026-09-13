@@ -11,9 +11,8 @@ import com.devbehindyou.refract.domain.model.TransferBubbleItem
 
 class TransferBubbleDatabaseHelper(
     context: Context,
-    dbName: String = DATABASE_NAME,
+    dbName: String? = DATABASE_NAME,
 ) : SQLiteOpenHelper(context, dbName, null, DATABASE_VERSION) {
-
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             """
@@ -53,7 +52,11 @@ class TransferBubbleDatabaseHelper(
         db.setForeignKeyConstraintsEnabled(true)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+    override fun onUpgrade(
+        db: SQLiteDatabase,
+        oldVersion: Int,
+        newVersion: Int,
+    ) {
         // Schema migrations will be handled sequentially when bumping DATABASE_VERSION
     }
 
@@ -61,15 +64,16 @@ class TransferBubbleDatabaseHelper(
         val db = readableDatabase
         val bubbles = mutableListOf<TransferBubble>()
 
-        val bubbleCursor = db.query(
-            TABLE_BUBBLES,
-            null,
-            null,
-            null,
-            null,
-            null,
-            "$COL_SORT_ORDER ASC, $COL_CREATED_AT ASC",
-        )
+        val bubbleCursor =
+            db.query(
+                TABLE_BUBBLES,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "$COL_SORT_ORDER ASC, $COL_CREATED_AT ASC",
+            )
 
         bubbleCursor.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(COL_BUBBLE_ID)
@@ -102,17 +106,21 @@ class TransferBubbleDatabaseHelper(
         return bubbles
     }
 
-    private fun getItemsForBubble(db: SQLiteDatabase, bubbleId: String): List<TransferBubbleItem> {
+    private fun getItemsForBubble(
+        db: SQLiteDatabase,
+        bubbleId: String,
+    ): List<TransferBubbleItem> {
         val items = mutableListOf<TransferBubbleItem>()
-        val itemCursor = db.query(
-            TABLE_ITEMS,
-            null,
-            "$COL_ITEM_BUBBLE_ID = ?",
-            arrayOf(bubbleId),
-            null,
-            null,
-            "$COL_ITEM_ADDED_AT ASC",
-        )
+        val itemCursor =
+            db.query(
+                TABLE_ITEMS,
+                null,
+                "$COL_ITEM_BUBBLE_ID = ?",
+                arrayOf(bubbleId),
+                null,
+                null,
+                "$COL_ITEM_ADDED_AT ASC",
+            )
 
         itemCursor.use { cursor ->
             val idIdx = cursor.getColumnIndexOrThrow(COL_ITEM_ID)
@@ -143,30 +151,35 @@ class TransferBubbleDatabaseHelper(
 
     fun insertBubble(bubble: TransferBubble): Boolean {
         val db = writableDatabase
-        val values = ContentValues().apply {
-            put(COL_BUBBLE_ID, bubble.id)
-            put(COL_DISPLAY_NAME, bubble.displayName)
-            put(COL_CREATED_AT, bubble.createdAt)
-            put(COL_SORT_ORDER, bubble.sortOrder)
-            put(COL_PREFERRED_OPERATION, bubble.preferredOperation)
-        }
+        val values =
+            ContentValues().apply {
+                put(COL_BUBBLE_ID, bubble.id)
+                put(COL_DISPLAY_NAME, bubble.displayName)
+                put(COL_CREATED_AT, bubble.createdAt)
+                put(COL_SORT_ORDER, bubble.sortOrder)
+                put(COL_PREFERRED_OPERATION, bubble.preferredOperation)
+            }
         return db.insert(TABLE_BUBBLES, null, values) != -1L
     }
 
-    fun addItems(bubbleId: String, nodes: List<FileNode>) {
+    fun addItems(
+        bubbleId: String,
+        nodes: List<FileNode>,
+    ) {
         val db = writableDatabase
         db.beginTransaction()
         try {
             for (node in nodes) {
-                val values = ContentValues().apply {
-                    put(COL_ITEM_BUBBLE_ID, bubbleId)
-                    put(COL_ITEM_NODE_ID, node.id.raw)
-                    put(COL_ITEM_ORIGINAL_LOCATION, node.parentId?.raw ?: "")
-                    put(COL_ITEM_DISPLAY_NAME, node.displayName)
-                    put(COL_ITEM_SIZE, node.size)
-                    put(COL_ITEM_MIME, node.mimeType)
-                    put(COL_ITEM_ADDED_AT, System.currentTimeMillis())
-                }
+                val values =
+                    ContentValues().apply {
+                        put(COL_ITEM_BUBBLE_ID, bubbleId)
+                        put(COL_ITEM_NODE_ID, node.id.raw)
+                        put(COL_ITEM_ORIGINAL_LOCATION, node.parentId?.raw ?: "")
+                        put(COL_ITEM_DISPLAY_NAME, node.displayName)
+                        put(COL_ITEM_SIZE, node.size)
+                        put(COL_ITEM_MIME, node.mimeType)
+                        put(COL_ITEM_ADDED_AT, System.currentTimeMillis())
+                    }
                 db.insert(TABLE_ITEMS, null, values)
             }
             db.setTransactionSuccessful()

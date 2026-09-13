@@ -22,23 +22,25 @@ import javax.inject.Singleton
  * its root use."
  */
 @Singleton
-class StorageBackendSelector @Inject constructor(
-    private val backends: Map<BackendType, @JvmSuppressWildcards StorageBackend>,
-) {
-
-    fun forNode(id: FileNodeId): StorageBackend {
-        val backendType = when (id.prefix) {
-            FileNodeId.Prefix.FILE -> BackendType.FILE
-            FileNodeId.Prefix.SAF -> BackendType.SAF
-            FileNodeId.Prefix.MEDIA -> BackendType.MEDIASTORE
-            FileNodeId.Prefix.USB -> BackendType.USB
-            FileNodeId.Prefix.SFTP -> BackendType.SFTP
-            FileNodeId.Prefix.FTP -> BackendType.FTP
-            FileNodeId.Prefix.FTPS -> BackendType.FTPS
-            FileNodeId.Prefix.SMB -> BackendType.SMB
-            FileNodeId.Prefix.WEBDAV -> BackendType.WEBDAV
-            null -> error("Malformed FileNodeId with no recognised prefix: $id")
+class StorageBackendSelector
+    @Inject
+    constructor(
+        private val backends: Map<BackendType, @JvmSuppressWildcards StorageBackend>,
+    ) {
+        fun forNode(id: FileNodeId): StorageBackend {
+            val backendType =
+                when (id.prefix) {
+                    FileNodeId.Prefix.FILE -> BackendType.FILE
+                    FileNodeId.Prefix.SAF -> BackendType.SAF
+                    FileNodeId.Prefix.MEDIA -> BackendType.MEDIASTORE
+                    FileNodeId.Prefix.USB -> BackendType.USB
+                    FileNodeId.Prefix.SFTP -> BackendType.SFTP
+                    FileNodeId.Prefix.FTP -> BackendType.FTP
+                    FileNodeId.Prefix.FTPS -> BackendType.FTPS
+                    FileNodeId.Prefix.SMB -> BackendType.SMB
+                    FileNodeId.Prefix.WEBDAV -> BackendType.WEBDAV
+                    null -> error("Malformed FileNodeId with no recognised prefix: $id")
+                }
+            return backends[backendType] ?: error("No StorageBackend bound for $backendType")
         }
-        return backends[backendType] ?: error("No StorageBackend bound for $backendType")
     }
-}

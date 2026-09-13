@@ -5,8 +5,8 @@ import com.devbehindyou.refract.domain.model.FileError
 import com.devbehindyou.refract.domain.model.FileNode
 import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.FileResult
-import com.devbehindyou.refract.domain.model.getOrElse
 import com.devbehindyou.refract.domain.model.StorageType
+import com.devbehindyou.refract.domain.model.getOrElse
 import com.devbehindyou.refract.domain.repository.BackendType
 import com.devbehindyou.refract.domain.repository.InputStreamProvider
 import com.devbehindyou.refract.domain.repository.OutputTarget
@@ -31,7 +31,6 @@ import java.io.OutputStream
  * three (Phase 2 AC2).
  */
 class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
-
     // Arbitrary — this fake is constructed and used directly by tests, never selected through
     // StorageBackendSelector's BackendType-keyed map, so the value carries no real meaning.
     override val type: BackendType = BackendType.FILE
@@ -45,26 +44,28 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
     val rootId: FileNodeId = newId()
 
     init {
-        val root = FileNode(
-            id = rootId,
-            name = rootLabel,
-            displayName = rootLabel,
-            mimeType = null,
-            size = -1,
-            modifiedAt = 0L,
-            isDirectory = true,
-            isHidden = false,
-            parentId = null,
-            storageType = StorageType.VIRTUAL,
-            access = AccessFlags.FULL,
-            childCount = 0,
-            extras = null,
-        )
+        val root =
+            FileNode(
+                id = rootId,
+                name = rootLabel,
+                displayName = rootLabel,
+                mimeType = null,
+                size = -1,
+                modifiedAt = 0L,
+                isDirectory = true,
+                isHidden = false,
+                parentId = null,
+                storageType = StorageType.VIRTUAL,
+                access = AccessFlags.FULL,
+                childCount = 0,
+                extras = null,
+            )
         nodes[rootId] = root
         childIds[rootId] = mutableListOf()
     }
 
     private fun newId(): FileNodeId = FileNodeId.file("/mem/${nextId++}")
+
     private fun tick(): Long = ++clockMillis
 
     private fun setChildCount(id: FileNodeId) {
@@ -77,14 +78,15 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
     override suspend fun getNode(id: FileNodeId): FileResult<FileNode> =
         nodes[id]?.let { FileResult.Success(it) } ?: FileResult.Failure(FileError.FileNotFound(id.raw))
 
-    override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> = flow {
-        val kids = childIds[id]
-        if (kids == null) {
-            emit(FileResult.Failure(FileError.FileNotFound(id.raw)))
-            return@flow
+    override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> =
+        flow {
+            val kids = childIds[id]
+            if (kids == null) {
+                emit(FileResult.Failure(FileError.FileNotFound(id.raw)))
+                return@flow
+            }
+            emit(FileResult.Success(kids.mapNotNull { nodes[it] }))
         }
-        emit(FileResult.Success(kids.mapNotNull { nodes[it] }))
-    }
 
     override suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider> {
         val node = nodes[id] ?: return FileResult.Failure(FileError.FileNotFound(id.raw))
@@ -110,32 +112,36 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
                 name = name,
                 mime = mime,
                 isNew = existingId == null,
-            )
+            ),
         )
     }
 
-    override suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode> {
+    override suspend fun createDirectory(
+        parent: FileNodeId,
+        name: String,
+    ): FileResult<FileNode> {
         val parentNode = nodes[parent] ?: return FileResult.Failure(FileError.FileNotFound(parent.raw))
         if (!parentNode.access.writable) return FileResult.Failure(FileError.AccessDenied(name))
         if (childIds.getValue(parent).any { nodes[it]?.name == name }) {
             return FileResult.Failure(FileError.FileAlreadyExists(name))
         }
         val id = newId()
-        val node = FileNode(
-            id = id,
-            name = name,
-            displayName = name,
-            mimeType = null,
-            size = -1,
-            modifiedAt = tick(),
-            isDirectory = true,
-            isHidden = name.startsWith("."),
-            parentId = parent,
-            storageType = parentNode.storageType,
-            access = AccessFlags.FULL,
-            childCount = 0,
-            extras = null,
-        )
+        val node =
+            FileNode(
+                id = id,
+                name = name,
+                displayName = name,
+                mimeType = null,
+                size = -1,
+                modifiedAt = tick(),
+                isDirectory = true,
+                isHidden = name.startsWith("."),
+                parentId = parent,
+                storageType = parentNode.storageType,
+                access = AccessFlags.FULL,
+                childCount = 0,
+                extras = null,
+            )
         nodes[id] = node
         childIds[id] = mutableListOf()
         childIds.getValue(parent).add(id)
@@ -157,7 +163,10 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
         return FileResult.Success(Unit)
     }
 
-    override suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode> {
+    override suspend fun rename(
+        id: FileNodeId,
+        newName: String,
+    ): FileResult<FileNode> {
         val node = nodes[id] ?: return FileResult.Failure(FileError.FileNotFound(id.raw))
         if (!node.access.renamable) return FileResult.Failure(FileError.AccessDenied(node.name))
         val siblings = node.parentId?.let { childIds[it] }.orEmpty()
@@ -169,10 +178,14 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
         return FileResult.Success(updated)
     }
 
-    override suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode> {
+    override suspend fun moveWithin(
+        id: FileNodeId,
+        newParent: FileNodeId,
+    ): FileResult<FileNode> {
         val node = nodes[id] ?: return FileResult.Failure(FileError.FileNotFound(id.raw))
-        val newParentNode = nodes[newParent]
-            ?: return FileResult.Failure(FileError.FileNotFound(newParent.raw))
+        val newParentNode =
+            nodes[newParent]
+                ?: return FileResult.Failure(FileError.FileNotFound(newParent.raw))
         if (!newParentNode.access.writable) return FileResult.Failure(FileError.AccessDenied(node.name))
         if (childIds.getValue(newParent).any { nodes[it]?.name == node.name }) {
             return FileResult.Failure(FileError.FileAlreadyExists(node.name))
@@ -188,16 +201,24 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
         return FileResult.Success(updated)
     }
 
-    override suspend fun exists(parent: FileNodeId, name: String): Boolean =
-        childIds[parent]?.any { nodes[it]?.name == name } == true
+    override suspend fun exists(
+        parent: FileNodeId,
+        name: String,
+    ): Boolean = childIds[parent]?.any { nodes[it]?.name == name } == true
 
     override suspend fun freeSpace(id: FileNodeId): Long = Long.MAX_VALUE / 2
 
     /** Test-only helper, not part of [StorageBackend] — lets tests seed a small file directly. */
-    suspend fun putFile(parent: FileNodeId, name: String, bytes: ByteArray, mime: String? = null): FileNodeId {
-        val target = openOutput(parent, name, mime).getOrElse {
-            error("putFile setup failed: $it")
-        } as InMemoryOutputTarget
+    suspend fun putFile(
+        parent: FileNodeId,
+        name: String,
+        bytes: ByteArray,
+        mime: String? = null,
+    ): FileNodeId {
+        val target =
+            openOutput(parent, name, mime).getOrElse {
+                error("putFile setup failed: $it")
+            } as InMemoryOutputTarget
         target.stream().use { it.write(bytes) }
         target.commitForTest()
         return target.id
@@ -214,28 +235,33 @@ class InMemoryBackend(rootLabel: String = "root") : StorageBackend {
     ) {
         fileContents[id] = bytes
         val existing = nodes[id]
-        nodes[id] = FileNode(
-            id = id,
-            name = name,
-            displayName = name,
-            mimeType = mime,
-            size = bytes.size.toLong(),
-            modifiedAt = if (lastModified != 0L) lastModified else tick(),
-            isDirectory = false,
-            isHidden = name.startsWith("."),
-            parentId = parent,
-            storageType = existing?.storageType ?: nodes[parent]?.storageType ?: StorageType.VIRTUAL,
-            access = existing?.access ?: AccessFlags.FULL,
-            childCount = null,
-            extras = null,
-        )
+        nodes[id] =
+            FileNode(
+                id = id,
+                name = name,
+                displayName = name,
+                mimeType = mime,
+                size = bytes.size.toLong(),
+                modifiedAt = if (lastModified != 0L) lastModified else tick(),
+                isDirectory = false,
+                isHidden = name.startsWith("."),
+                parentId = parent,
+                storageType = existing?.storageType ?: nodes[parent]?.storageType ?: StorageType.VIRTUAL,
+                access = existing?.access ?: AccessFlags.FULL,
+                childCount = null,
+                extras = null,
+            )
         if (isNew) {
             childIds.getValue(parent).add(id)
             setChildCount(parent)
         }
     }
 
-    internal fun removeCommitted(parent: FileNodeId, id: FileNodeId, isNew: Boolean) {
+    internal fun removeCommitted(
+        parent: FileNodeId,
+        id: FileNodeId,
+        isNew: Boolean,
+    ) {
         if (isNew) {
             nodes.remove(id)
             childIds[parent]?.remove(id)
@@ -258,13 +284,20 @@ private class InMemoryOutputTarget(
     private var discarded = false
     private var committed = false
 
-    override fun stream(): OutputStream = object : OutputStream() {
-        override fun write(b: Int) = buffer.write(b)
-        override fun write(b: ByteArray, off: Int, len: Int) = buffer.write(b, off, len)
-        override fun close() {
-            if (!discarded) commit()
+    override fun stream(): OutputStream =
+        object : OutputStream() {
+            override fun write(b: Int) = buffer.write(b)
+
+            override fun write(
+                b: ByteArray,
+                off: Int,
+                len: Int,
+            ) = buffer.write(b, off, len)
+
+            override fun close() {
+                if (!discarded) commit()
+            }
         }
-    }
 
     override fun setLastModified(epochMillis: Long) {
         lastModified = epochMillis

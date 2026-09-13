@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class FileNodeSortTest {
-
     private fun node(
         name: String,
         size: Long = 0,
@@ -30,10 +29,11 @@ class FileNodeSortTest {
 
     @Test
     fun `natural order sorts file2 before file10`() {
-        val names = listOf("file10.txt", "file2.txt", "file1.txt")
-            .map(::node)
-            .sortedWith(compareBy(NaturalOrderComparator.ROOT) { it.name })
-            .map { it.name }
+        val names =
+            listOf("file10.txt", "file2.txt", "file1.txt")
+                .map(::node)
+                .sortedWith(compareBy(NaturalOrderComparator.ROOT) { it.name })
+                .map { it.name }
 
         assertEquals(listOf("file1.txt", "file2.txt", "file10.txt"), names)
     }
@@ -86,10 +86,11 @@ class FileNodeSortTest {
     @Test
     fun `folders sort before files regardless of name when foldersFirst is true`() {
         val spec = SortSpec(field = SortField.NAME, ascending = true, foldersFirst = true)
-        val nodes = listOf(
-            node("z-file.txt"),
-            node("a-folder", isDirectory = true),
-        )
+        val nodes =
+            listOf(
+                node("z-file.txt"),
+                node("a-folder", isDirectory = true),
+            )
 
         val sorted = nodes.sortedWith(spec.comparator())
 
@@ -99,12 +100,13 @@ class FileNodeSortTest {
     @Test
     fun `descending name sort reverses within the folders-first grouping, not the grouping itself`() {
         val spec = SortSpec(field = SortField.NAME, ascending = false, foldersFirst = true)
-        val nodes = listOf(
-            node("b-file.txt"),
-            node("a-file.txt"),
-            node("z-folder", isDirectory = true),
-            node("m-folder", isDirectory = true),
-        )
+        val nodes =
+            listOf(
+                node("b-file.txt"),
+                node("a-file.txt"),
+                node("z-folder", isDirectory = true),
+                node("m-folder", isDirectory = true),
+            )
 
         val sorted = nodes.sortedWith(spec.comparator()).map { it.name }
 
@@ -124,11 +126,12 @@ class FileNodeSortTest {
     @Test
     fun `date sort orders oldest to newest ascending`() {
         val spec = SortSpec(field = SortField.DATE, ascending = true, foldersFirst = false)
-        val nodes = listOf(
-            node("newest", modifiedAt = 300),
-            node("oldest", modifiedAt = 10),
-            node("middle", modifiedAt = 100),
-        )
+        val nodes =
+            listOf(
+                node("newest", modifiedAt = 300),
+                node("oldest", modifiedAt = 10),
+                node("middle", modifiedAt = 100),
+            )
 
         val sorted = nodes.sortedWith(spec.comparator()).map { it.name }
 
@@ -138,12 +141,13 @@ class FileNodeSortTest {
     @Test
     fun `type sort groups by mime type, then falls back to natural name order within each group`() {
         val spec = SortSpec(field = SortField.TYPE, ascending = true, foldersFirst = false)
-        val nodes = listOf(
-            node("z-doc.pdf", mimeType = "application/pdf"),
-            node("b-image.png", mimeType = "image/png"),
-            node("a-doc.pdf", mimeType = "application/pdf"),
-            node("a-image.png", mimeType = "image/png"),
-        )
+        val nodes =
+            listOf(
+                node("z-doc.pdf", mimeType = "application/pdf"),
+                node("b-image.png", mimeType = "image/png"),
+                node("a-doc.pdf", mimeType = "application/pdf"),
+                node("a-image.png", mimeType = "image/png"),
+            )
 
         val sorted = nodes.sortedWith(spec.comparator()).map { it.name }
 
@@ -155,10 +159,11 @@ class FileNodeSortTest {
     @Test
     fun `type sort treats a null mime type as sorting before any known type`() {
         val spec = SortSpec(field = SortField.TYPE, ascending = true, foldersFirst = false)
-        val nodes = listOf(
-            node("known.txt", mimeType = "text/plain"),
-            node("unknown", mimeType = null),
-        )
+        val nodes =
+            listOf(
+                node("known.txt", mimeType = "text/plain"),
+                node("unknown", mimeType = null),
+            )
 
         val sorted = nodes.sortedWith(spec.comparator()).map { it.name }
 

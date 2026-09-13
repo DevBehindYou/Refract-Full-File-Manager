@@ -1,3 +1,5 @@
+> Verification status (13 September 2026): roadmap completion labels describe intent or implementation claims, not release certification. The [verification report](../testing/VERIFICATION_REPORT.md) records current evidence and prioritized remaining work.
+
 # Implementation Roadmap
 
 Thirteen phases, 0 through 12. Each phase has a goal, a deliverable list, and **acceptance

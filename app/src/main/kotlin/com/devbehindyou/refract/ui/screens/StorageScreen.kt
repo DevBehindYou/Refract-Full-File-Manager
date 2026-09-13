@@ -33,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -59,6 +58,7 @@ import com.devbehindyou.refract.data.volume.StorageVolumes
 import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.NetworkProtocol
 import com.devbehindyou.refract.domain.model.NetworkServerConfig
+import com.devbehindyou.refract.domain.model.StorageType
 import com.devbehindyou.refract.domain.model.StorageVolumeInfo
 import com.devbehindyou.refract.ui.util.FileUtils
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +70,7 @@ fun StorageScreen(
     volumes: List<StorageVolumeInfo>,
     onBrowseVolume: (StorageVolumeInfo) -> Unit,
     onBrowseFolder: (FileNodeId) -> Unit = {},
+    onOpenStorageIntelligence: ((FileNodeId) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -86,54 +87,57 @@ fun StorageScreen(
     }
 
     val cacheSize by produceState(initialValue = 0L) {
-        value = withContext(Dispatchers.IO) {
-            StorageVolumes.getAppCacheSize(context)
-        }
+        value =
+            withContext(Dispatchers.IO) {
+                StorageVolumes.getAppCacheSize(context)
+            }
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp)
-            .testTag("storage_screen")
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(16.dp)
+                .testTag("storage_screen"),
     ) {
         Text(
             text = "Storage Overview",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp),
         )
 
         volumes.forEach { volume ->
             VolumeDetailCard(
                 volume = volume,
-                onBrowse = { onBrowseVolume(volume) }
+                onBrowse = { onBrowseVolume(volume) },
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
         // Network & Remote Storage Section
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "Network & Remote Storage",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             IconButton(
                 onClick = { showAddServerDialog = true },
-                modifier = Modifier.testTag("add_network_server_button")
+                modifier = Modifier.testTag("add_network_server_button"),
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Add Network Location",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -141,33 +145,36 @@ fun StorageScreen(
         if (savedServers.isEmpty()) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                ),
-                modifier = Modifier.fillMaxWidth()
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    ),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Cloud,
                         contentDescription = null,
                         modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "No Network Locations Added",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Connect to FTP, FTPS, SFTP, WebDAV, or SMB servers to browse and transfer files remotely.",
+                        text =
+                            "Connect to FTP, FTPS, SFTP, WebDAV, or SMB servers " +
+                                "to browse and transfer files remotely.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(onClick = { showAddServerDialog = true }) {
@@ -183,7 +190,7 @@ fun StorageScreen(
                     NetworkServerCard(
                         server = server,
                         onConnect = { onBrowseFolder(server.toRootNodeId()) },
-                        onDelete = { serverToDelete = server }
+                        onDelete = { serverToDelete = server },
                     )
                 }
             }
@@ -194,10 +201,11 @@ fun StorageScreen(
         // App Cache & Diagnostics
         Card(
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-            ),
-            modifier = Modifier.fillMaxWidth()
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                ),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -205,21 +213,76 @@ fun StorageScreen(
                         imageVector = Icons.Default.CleaningServices,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "App Cache & Cleanup",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "Refract temporary cache: ${FileUtils.formatBytes(cacheSize)}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Storage Intelligence Card
+        Card(
+            shape = RoundedCornerShape(18.dp),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                ),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CleaningServices,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(26.dp),
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Storage Intelligence",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "Detect duplicates, large files & empty folders",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                Button(
+                    onClick = {
+                        val primaryRoot =
+                            volumes.firstOrNull()?.rootNodeId ?: FileNodeId.file(
+                                android.os.Environment.getExternalStorageDirectory()?.absolutePath
+                                    ?: context.filesDir.absolutePath,
+                            )
+                        onOpenStorageIntelligence?.invoke(primaryRoot)
+                    },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .testTag("open_storage_intelligence_button"),
+                ) {
+                    Icon(Icons.Default.Storage, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Analyze Storage & Duplicates")
+                }
             }
         }
 
@@ -228,26 +291,29 @@ fun StorageScreen(
         // System Storage Info
         Card(
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-            ),
-            modifier = Modifier.fillMaxWidth()
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                ),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Default.Info,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Android protects certain system partitions. Free and total storage reflect available shared storage volumes.",
+                    text =
+                        "Android protects certain system partitions. " +
+                            "Free and total storage reflect available shared storage volumes.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -260,7 +326,7 @@ fun StorageScreen(
                 credentialsStore.saveServer(config, password)
                 refreshServers()
                 showAddServerDialog = false
-            }
+            },
         )
     }
 
@@ -275,7 +341,7 @@ fun StorageScreen(
                         credentialsStore.deleteServer(server.id)
                         refreshServers()
                         serverToDelete = null
-                    }
+                    },
                 ) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
@@ -284,7 +350,7 @@ fun StorageScreen(
                 TextButton(onClick = { serverToDelete = null }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }
@@ -297,26 +363,27 @@ private fun NetworkServerCard(
 ) {
     Card(
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            ),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(44.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = server.protocol.name,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -325,18 +392,25 @@ private fun NetworkServerCard(
                 Text(
                     text = server.name,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
-                val userPrefix = if (server.anonymous) "anonymous@" else if (server.username.isNotEmpty()) "${server.username}@" else ""
+                val userPrefix =
+                    if (server.anonymous) {
+                        "anonymous@"
+                    } else if (server.username.isNotEmpty()) {
+                        "${server.username}@"
+                    } else {
+                        ""
+                    }
                 Text(
                     text = "$userPrefix${server.host}:${server.port}${server.remotePath}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Button(
                 onClick = onConnect,
-                modifier = Modifier.height(36.dp)
+                modifier = Modifier.height(36.dp),
             ) {
                 Text("Connect", style = MaterialTheme.typography.labelMedium)
             }
@@ -345,7 +419,7 @@ private fun NetworkServerCard(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete Server",
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -371,15 +445,16 @@ private fun AddNetworkServerDialog(
         title = { Text("Add Network Location", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text("Protocol", style = MaterialTheme.typography.labelMedium)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     NetworkProtocol.entries.forEach { proto ->
                         FilterChip(
@@ -388,7 +463,7 @@ private fun AddNetworkServerDialog(
                                 selectedProtocol = proto
                                 portText = proto.defaultPort.toString()
                             },
-                            label = { Text(proto.name, style = MaterialTheme.typography.labelSmall) }
+                            label = { Text(proto.name, style = MaterialTheme.typography.labelSmall) },
                         )
                     }
                 }
@@ -399,12 +474,12 @@ private fun AddNetworkServerDialog(
                     label = { Text("Server Name") },
                     placeholder = { Text("e.g. Office NAS") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     OutlinedTextField(
                         value = host,
@@ -412,7 +487,7 @@ private fun AddNetworkServerDialog(
                         label = { Text("Host / Address") },
                         placeholder = { Text("192.168.1.100") },
                         singleLine = true,
-                        modifier = Modifier.weight(0.7f)
+                        modifier = Modifier.weight(0.7f),
                     )
                     OutlinedTextField(
                         value = portText,
@@ -420,7 +495,7 @@ private fun AddNetworkServerDialog(
                         label = { Text("Port") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
-                        modifier = Modifier.weight(0.3f)
+                        modifier = Modifier.weight(0.3f),
                     )
                 }
 
@@ -430,16 +505,16 @@ private fun AddNetworkServerDialog(
                     label = { Text("Remote Path / Share") },
                     placeholder = { Text("/") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Checkbox(
                         checked = anonymous,
-                        onCheckedChange = { anonymous = it }
+                        onCheckedChange = { anonymous = it },
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Anonymous Access", style = MaterialTheme.typography.bodyMedium)
@@ -451,7 +526,7 @@ private fun AddNetworkServerDialog(
                         onValueChange = { username = it },
                         label = { Text("Username") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     OutlinedTextField(
@@ -461,7 +536,7 @@ private fun AddNetworkServerDialog(
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -471,19 +546,20 @@ private fun AddNetworkServerDialog(
                 onClick = {
                     val port = portText.toIntOrNull() ?: selectedProtocol.defaultPort
                     val effectiveName = name.ifBlank { "${selectedProtocol.name} - $host" }
-                    val config = NetworkServerConfig(
-                        id = UUID.randomUUID().toString(),
-                        name = effectiveName,
-                        protocol = selectedProtocol,
-                        host = host.trim(),
-                        port = port,
-                        username = username.trim(),
-                        remotePath = if (remotePath.startsWith("/")) remotePath else "/$remotePath",
-                        anonymous = anonymous,
-                    )
+                    val config =
+                        NetworkServerConfig(
+                            id = UUID.randomUUID().toString(),
+                            name = effectiveName,
+                            protocol = selectedProtocol,
+                            host = host.trim(),
+                            port = port,
+                            username = username.trim(),
+                            remotePath = if (remotePath.startsWith("/")) remotePath else "/$remotePath",
+                            anonymous = anonymous,
+                        )
                     onSave(config, if (anonymous) null else password)
                 },
-                enabled = host.isNotBlank()
+                enabled = host.isNotBlank(),
             ) {
                 Text("Save")
             }
@@ -492,7 +568,7 @@ private fun AddNetworkServerDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -509,29 +585,30 @@ private fun VolumeDetailCard(
 
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            ),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Storage,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                     }
@@ -540,12 +617,17 @@ private fun VolumeDetailCard(
                         Text(
                             text = volume.label,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = if (volume.type == com.devbehindyou.refract.domain.model.StorageType.INTERNAL_SHARED) "Primary Device Storage" else "External Storage",
+                            text =
+                                if (volume.type == StorageType.INTERNAL_SHARED) {
+                                    "Primary Device Storage"
+                                } else {
+                                    "External Storage"
+                                },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -554,7 +636,7 @@ private fun VolumeDetailCard(
                     text = "$percentInt%",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
 
@@ -562,10 +644,11 @@ private fun VolumeDetailCard(
 
             LinearProgressIndicator(
                 progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(6.dp)),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(6.dp)),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
             )
@@ -574,42 +657,42 @@ private fun VolumeDetailCard(
 
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
                     Text(
                         text = "Used",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = FileUtils.formatBytes(used),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "Free",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = FileUtils.formatBytes(free),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "Total",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = FileUtils.formatBytes(total),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -618,7 +701,7 @@ private fun VolumeDetailCard(
 
             Button(
                 onClick = onBrowse,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Default.Folder, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))

@@ -37,8 +37,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -48,20 +50,25 @@ import com.devbehindyou.refract.ui.util.FileUtils
 
 private data class FileTypeVisual(val icon: androidx.compose.ui.graphics.vector.ImageVector, val tint: Color)
 
-private fun visualFor(node: FileNode): FileTypeVisual = when {
-    node.isDirectory -> FileTypeVisual(Icons.Filled.Folder, Color(0xFFFFC107))
-    node.mimeType?.startsWith("image/") == true -> FileTypeVisual(Icons.Filled.Image, Color(0xFF4CAF50))
-    node.mimeType?.startsWith("video/") == true -> FileTypeVisual(Icons.Filled.Movie, Color(0xFFE91E63))
-    node.mimeType?.startsWith("audio/") == true -> FileTypeVisual(Icons.Filled.AudioFile, Color(0xFF9C27B0))
-    node.mimeType == "application/pdf" ||
-        node.mimeType?.startsWith("text/") == true ||
-        node.mimeType?.contains("document") == true -> FileTypeVisual(Icons.Filled.Description, Color(0xFF2196F3))
-    node.mimeType?.contains("zip") == true ||
-        node.mimeType?.contains("compressed") == true ||
-        node.mimeType?.contains("archive") == true -> FileTypeVisual(Icons.Filled.FolderZip, Color(0xFF795548))
-    node.mimeType == "application/vnd.android.package-archive" -> FileTypeVisual(Icons.Filled.Android, Color(0xFF8BC34A))
-    else -> FileTypeVisual(Icons.AutoMirrored.Filled.InsertDriveFile, Color(0xFF9E9E9E))
-}
+private fun visualFor(node: FileNode): FileTypeVisual =
+    when {
+        node.isDirectory -> FileTypeVisual(Icons.Filled.Folder, Color(0xFFFFC107))
+        node.mimeType?.startsWith("image/") == true -> FileTypeVisual(Icons.Filled.Image, Color(0xFF4CAF50))
+        node.mimeType?.startsWith("video/") == true -> FileTypeVisual(Icons.Filled.Movie, Color(0xFFE91E63))
+        node.mimeType?.startsWith("audio/") == true -> FileTypeVisual(Icons.Filled.AudioFile, Color(0xFF9C27B0))
+        node.mimeType == "application/pdf" ||
+            node.mimeType?.startsWith("text/") == true ||
+            node.mimeType?.contains("document") == true -> FileTypeVisual(Icons.Filled.Description, Color(0xFF2196F3))
+        node.mimeType?.contains("zip") == true ||
+            node.mimeType?.contains("compressed") == true ||
+            node.mimeType?.contains("archive") == true -> FileTypeVisual(Icons.Filled.FolderZip, Color(0xFF795548))
+        node.mimeType == "application/vnd.android.package-archive" ->
+            FileTypeVisual(
+                Icons.Filled.Android,
+                Color(0xFF8BC34A),
+            )
+        else -> FileTypeVisual(Icons.AutoMirrored.Filled.InsertDriveFile, Color(0xFF9E9E9E))
+    }
 
 /**
  * [isSelectionMode] is derived by the caller from whether any item is currently selected
@@ -88,52 +95,92 @@ fun FileListItem(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else Color.Transparent
-            )
-            .combinedClickable(
-                onClick = { if (isSelectionMode) onToggleSelect() else onClick() },
-                onLongClick = onToggleSelect,
-            )
-            .semantics {
-                contentDescription = buildString {
-                    append(if (node.isDirectory) "Folder " else "File ")
-                    append(node.name)
-                    if (!node.isDirectory) {
-                        append(", ")
-                        append(FileUtils.formatBytes(node.size))
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(
+                            alpha = 0.4f,
+                        )
+                    } else {
+                        Color.Transparent
+                    },
+                )
+                .combinedClickable(
+                    onClick = { if (isSelectionMode) onToggleSelect() else onClick() },
+                    onLongClick = onToggleSelect,
+                )
+                .semantics {
+                    contentDescription =
+                        buildString {
+                            append(if (node.isDirectory) "Folder " else "File ")
+                            append(node.name)
+                            if (!node.isDirectory) {
+                                append(", ")
+                                append(FileUtils.formatBytes(node.size))
+                            }
+                        }
+                    if (isSelectionMode) {
+                        selected = isSelected
+                        role = Role.Checkbox
                     }
+                    customActions =
+                        listOfNotNull(
+                            CustomAccessibilityAction("Rename") {
+                                onRename()
+                                true
+                            },
+                            CustomAccessibilityAction("Delete") {
+                                onDelete()
+                                true
+                            },
+                            CustomAccessibilityAction("Details") {
+                                onShowDetails()
+                                true
+                            },
+                            if (onQuickPeek != null) {
+                                CustomAccessibilityAction("Quick preview") {
+                                    onQuickPeek()
+                                    true
+                                }
+                            } else {
+                                null
+                            },
+                            if (onHide != null) {
+                                CustomAccessibilityAction("Hide") {
+                                    onHide()
+                                    true
+                                }
+                            } else {
+                                null
+                            },
+                        )
                 }
-                if (isSelectionMode) {
-                    selected = isSelected
-                    role = Role.Checkbox
-                }
-            }
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .testTag("file_item_${node.id.raw}")
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .testTag("file_item_${node.id.raw}"),
     ) {
         if (isSelectionMode) {
             Icon(
                 imageVector = if (isSelected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
                 contentDescription = null,
                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
             Spacer(modifier = Modifier.width(16.dp))
         } else {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(visual.tint.copy(alpha = 0.15f), CircleShape),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .background(visual.tint.copy(alpha = 0.15f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = visual.icon,
                     contentDescription = null,
                     tint = visual.tint,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
@@ -150,11 +197,12 @@ fun FileListItem(
                     maxLines = 1,
                 )
                 Text(
-                    text = if (node.isDirectory) {
-                        node.childCount?.let { "$it item${if (it == 1) "" else "s"}" } ?: "Folder"
-                    } else {
-                        "${FileUtils.formatBytes(node.size)} • ${FileUtils.formatDate(node.modifiedAt)}"
-                    },
+                    text =
+                        if (node.isDirectory) {
+                            node.childCount?.let { "$it item${if (it == 1) "" else "s"}" } ?: "Folder"
+                        } else {
+                            "${FileUtils.formatBytes(node.size)} • ${FileUtils.formatDate(node.modifiedAt)}"
+                        },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -165,31 +213,57 @@ fun FileListItem(
                 Box {
                     IconButton(
                         onClick = { showMenu = true },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .semantics { contentDescription = "More options for ${node.name}" }
-                            .testTag("file_item_menu_${node.id.raw}")
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .semantics { contentDescription = "More options for ${node.name}" }
+                                .testTag("file_item_menu_${node.id.raw}"),
                     ) {
                         Icon(Icons.Filled.MoreVert, contentDescription = null)
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        val isZip = node.name.endsWith(".zip", ignoreCase = true) || node.mimeType?.contains("zip") == true
+                        val isZip =
+                            node.name.endsWith(".zip", ignoreCase = true) ||
+                                node.mimeType?.contains("zip") == true
                         if (isZip && onExtract != null) {
-                            DropdownMenuItem(text = { Text("Extract") }, onClick = { showMenu = false; onExtract() })
+                            DropdownMenuItem(text = { Text("Extract") }, onClick = {
+                                showMenu = false
+                                onExtract()
+                            })
                         }
-                        val isMedia = node.mimeType?.startsWith("image/") == true || node.mimeType?.startsWith("video/") == true
+                        val isMedia =
+                            node.mimeType?.startsWith("image/") == true ||
+                                node.mimeType?.startsWith("video/") == true
                         if (isMedia && onQuickPeek != null) {
-                            DropdownMenuItem(text = { Text("Quick preview") }, onClick = { showMenu = false; onQuickPeek() })
+                            DropdownMenuItem(text = { Text("Quick preview") }, onClick = {
+                                showMenu = false
+                                onQuickPeek()
+                            })
                         }
                         if (onCompress != null) {
-                            DropdownMenuItem(text = { Text("Compress to ZIP") }, onClick = { showMenu = false; onCompress() })
+                            DropdownMenuItem(text = { Text("Compress to ZIP") }, onClick = {
+                                showMenu = false
+                                onCompress()
+                            })
                         }
                         if (onHide != null) {
-                            DropdownMenuItem(text = { Text("Hide") }, onClick = { showMenu = false; onHide() })
+                            DropdownMenuItem(text = { Text("Hide") }, onClick = {
+                                showMenu = false
+                                onHide()
+                            })
                         }
-                        DropdownMenuItem(text = { Text("Details") }, onClick = { showMenu = false; onShowDetails() })
-                        DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
-                        DropdownMenuItem(text = { Text("Delete") }, onClick = { showMenu = false; onDelete() })
+                        DropdownMenuItem(text = { Text("Details") }, onClick = {
+                            showMenu = false
+                            onShowDetails()
+                        })
+                        DropdownMenuItem(text = { Text("Rename") }, onClick = {
+                            showMenu = false
+                            onRename()
+                        })
+                        DropdownMenuItem(text = { Text("Delete") }, onClick = {
+                            showMenu = false
+                            onDelete()
+                        })
                     }
                 }
             }

@@ -83,6 +83,7 @@ sealed interface FileError {
     }
 
     // Conflict
+
     /** Normally intercepted before reaching the generic error UI — see the class KDoc. */
     data class FileAlreadyExists(val name: String) : FileError {
         override val severity = Severity.SILENT
@@ -154,6 +155,7 @@ sealed interface FileError {
     }
 
     // Fallback
+
     /** [marker] is a short opaque tag (e.g. a class name) — never a message or stack trace. */
     data class Unknown(val marker: String) : FileError {
         override val severity = Severity.BLOCKING
@@ -166,13 +168,21 @@ enum class Severity { BLOCKING, TRANSIENT, SILENT }
 
 sealed interface RecoveryAction {
     data object Retry : RecoveryAction
+
     data object Refresh : RecoveryAction
+
     data class RequestAccess(val target: AccessTarget) : RecoveryAction
+
     data object OpenTroubleshooting : RecoveryAction
+
     data object OpenStorage : RecoveryAction
+
     data object OpenWith : RecoveryAction
+
     data object ViewFailures : RecoveryAction
+
     data object Rename : RecoveryAction
+
     data object Dismiss : RecoveryAction
 }
 
@@ -183,9 +193,13 @@ sealed interface RecoveryAction {
  */
 sealed interface AccessTarget {
     data class Volume(val volumeId: String, val volumeLabel: String) : AccessTarget
+
     data object AllFiles : AccessTarget
+
     data object MediaImages : AccessTarget
+
     data object MediaVideo : AccessTarget
+
     data object MediaAudio : AccessTarget
 }
 
@@ -195,7 +209,10 @@ sealed interface AccessTarget {
  */
 sealed interface NameProblem {
     data class IllegalCharacters(val characters: Set<Char>) : NameProblem
+
     data object Empty : NameProblem
+
     data object ReservedName : NameProblem
+
     data object TrailingDotOrSpace : NameProblem
 }

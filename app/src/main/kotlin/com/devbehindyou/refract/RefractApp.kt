@@ -29,6 +29,8 @@ interface AppContainer {
     val networkCredentialsStore: com.devbehindyou.refract.data.backend.network.NetworkCredentialsStore
     val transferBubbleRepository: com.devbehindyou.refract.domain.repository.TransferBubbleRepository
     val hiddenFilesRepository: com.devbehindyou.refract.domain.repository.HiddenFilesRepository
+    val storageAnalyzerUseCase: com.devbehindyou.refract.domain.usecase.StorageAnalyzerUseCase
+    val mediaPreviewHelper: com.devbehindyou.refract.data.preview.MediaPreviewHelper
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
@@ -49,10 +51,20 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     private val fileSystemBackend by lazy { FileSystemBackend(application) }
     private val safBackend by lazy { SafBackend(application) }
     private val mediaStoreBackend by lazy { MediaStoreBackend(application) }
-    private val ftpBackend by lazy { com.devbehindyou.refract.data.backend.network.FtpBackend(networkCredentialsStore, BackendType.FTP) }
-    private val ftpsBackend by lazy { com.devbehindyou.refract.data.backend.network.FtpBackend(networkCredentialsStore, BackendType.FTPS) }
-    private val webdavBackend by lazy { com.devbehindyou.refract.data.backend.network.WebDavBackend(networkCredentialsStore) }
-    private val sftpBackend by lazy { com.devbehindyou.refract.data.backend.network.SftpBackend(networkCredentialsStore) }
+    private val ftpBackend by lazy {
+        com.devbehindyou.refract.data.backend.network.FtpBackend(networkCredentialsStore, BackendType.FTP)
+    }
+    private val ftpsBackend by lazy {
+        com.devbehindyou.refract.data.backend.network.FtpBackend(networkCredentialsStore, BackendType.FTPS)
+    }
+    private val webdavBackend by lazy {
+        com.devbehindyou.refract.data.backend.network.WebDavBackend(networkCredentialsStore)
+    }
+    private val sftpBackend by lazy {
+        com.devbehindyou.refract.data.backend.network.SftpBackend(
+            networkCredentialsStore,
+        )
+    }
     private val smbBackend by lazy { com.devbehindyou.refract.data.backend.network.SmbBackend(networkCredentialsStore) }
 
     private val backends: Map<BackendType, StorageBackend> by lazy {
@@ -111,6 +123,19 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     override val imagePreviewHelper: com.devbehindyou.refract.data.preview.ImagePreviewHelper by lazy {
         com.devbehindyou.refract.data.preview.ImagePreviewHelper { id -> storageBackendSelector.forNode(id) }
     }
+
+    override val storageAnalyzerUseCase: com.devbehindyou.refract.domain.usecase.StorageAnalyzerUseCase by lazy {
+        com.devbehindyou.refract.domain.usecase.StorageAnalyzerUseCase(
+            backendSelector = { id -> storageBackendSelector.forNode(id) },
+            readFileContentUseCase = readFileContentUseCase,
+        )
+    }
+
+    override val mediaPreviewHelper: com.devbehindyou.refract.data.preview.MediaPreviewHelper by lazy {
+        com.devbehindyou.refract.data.preview.MediaPreviewHelper(
+            application,
+        ) { id -> storageBackendSelector.forNode(id) }
+    }
 }
 
 /**
@@ -125,4 +150,3 @@ class RefractApp : Application() {
         container = DefaultAppContainer(this)
     }
 }
-

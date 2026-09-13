@@ -35,7 +35,6 @@ import java.io.File
  * across OEMs.
  */
 object StorageVolumes {
-
     fun enumerate(context: Context): List<StorageVolumeInfo> {
         val storageManager = context.getSystemService(StorageManager::class.java) ?: return emptyList()
         val volumes = storageManager.storageVolumes
@@ -73,44 +72,51 @@ object StorageVolumes {
         index: Int,
         directory: File?,
     ): StorageVolumeInfo {
-        val type = when {
-            volume.isPrimary -> StorageType.INTERNAL_SHARED
-            volume.isRemovable -> StorageType.SD_CARD // Can't reliably distinguish USB OTG
-            // from an SD card at this API surface alone — ANDROID_STORAGE_RESEARCH.md §10
-            // flags exactly this as an open, device-verification-only question.
-            else -> StorageType.VIRTUAL
-        }
-        val space = directory?.takeIf { it.canRead() }?.let { dir ->
-            runCatching { StatFs(dir.absolutePath) }
-                .map { it.totalBytes to it.availableBytes }
-                .getOrNull()
-        } ?: if (volume.isPrimary) {
-            runCatching {
-                val stat = StatFs(context.filesDir.absolutePath)
-                stat.totalBytes to stat.availableBytes
-            }.getOrDefault(0L to 0L)
-        } else {
-            0L to 0L
-        }
+        val type =
+            when {
+                volume.isPrimary -> StorageType.INTERNAL_SHARED
+                volume.isRemovable -> StorageType.SD_CARD // Can't reliably distinguish USB OTG
+                // from an SD card at this API surface alone — ANDROID_STORAGE_RESEARCH.md §10
+                // flags exactly this as an open, device-verification-only question.
+                else -> StorageType.VIRTUAL
+            }
+        val space =
+            directory?.takeIf { it.canRead() }?.let { dir ->
+                runCatching { StatFs(dir.absolutePath) }
+                    .map { it.totalBytes to it.availableBytes }
+                    .getOrNull()
+            } ?: if (volume.isPrimary) {
+                runCatching {
+                    val stat = StatFs(context.filesDir.absolutePath)
+                    stat.totalBytes to stat.availableBytes
+                }.getOrDefault(0L to 0L)
+            } else {
+                0L to 0L
+            }
 
         return StorageVolumeInfo(
             id = volume.uuid ?: if (volume.isPrimary) "primary" else "volume-$index",
-            label = runCatching { volume.getDescription(context) }
-                .getOrNull()
-                ?: if (volume.isPrimary) "Internal storage" else "Storage $index",
+            label =
+                runCatching { volume.getDescription(context) }
+                    .getOrNull()
+                    ?: if (volume.isPrimary) "Internal storage" else "Storage $index",
             type = type,
             totalBytes = space.first,
             freeBytes = space.second,
             isRemovable = volume.isRemovable,
             isMounted = volume.state == Environment.MEDIA_MOUNTED,
-            rootNodeId = null, // See class KDoc — Phase 4's job.
-            requiresGrant = true, // See class KDoc — Phase 4's job.
+            // See class KDoc — Phase 4's job.
+            rootNodeId = null,
+            requiresGrant = true,
         )
     }
 
     fun getAppCacheSize(context: Context): Long {
         return runCatching {
-            fun calculateDirSize(dir: File?, depth: Int = 0): Long {
+            fun calculateDirSize(
+                dir: File?,
+                depth: Int = 0,
+            ): Long {
                 if (dir == null || depth > 4 || !dir.exists()) return 0L
                 var size = 0L
                 dir.listFiles()?.forEach { file ->
@@ -122,4 +128,3 @@ object StorageVolumes {
         }.getOrDefault(0L)
     }
 }
-

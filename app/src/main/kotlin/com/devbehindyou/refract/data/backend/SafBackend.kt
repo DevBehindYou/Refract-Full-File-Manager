@@ -18,6 +18,7 @@ import com.devbehindyou.refract.domain.repository.InputStreamProvider
 import com.devbehindyou.refract.domain.repository.OutputTarget
 import com.devbehindyou.refract.domain.repository.StorageBackend
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.IOException
@@ -40,303 +41,359 @@ import javax.inject.Inject
  * read/write logic once a grant already exists — but OEM DocumentsProvider implementations
  * are also exactly the kind of thing that varies in the field in ways a shadow can't catch.
  */
-class SafBackend @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-) : StorageBackend {
+class SafBackend
+    @Inject
+    constructor(
+        @param:ApplicationContext private val context: Context,
+    ) : StorageBackend {
+        override val type: BackendType = BackendType.SAF
 
-    override val type: BackendType = BackendType.SAF
+        private val resolver: ContentResolver get() = context.contentResolver
 
-    private val resolver: ContentResolver get() = context.contentResolver
+        override fun canHandle(id: FileNodeId): Boolean = id.prefix == FileNodeId.Prefix.SAF
 
-    override fun canHandle(id: FileNodeId): Boolean = id.prefix == FileNodeId.Prefix.SAF
+        override suspend fun getNode(id: FileNodeId): FileResult<FileNode> {
+            val ref = id.toSafRef()
+            val cursor =
+                try {
+                    resolver.query(ref.documentUri, PROJECTION, null, null, null)
+                } catch (e: SecurityException) {
+                    return FileResult.Failure(FileError.AccessDenied(null))
+                } ?: return FileResult.Failure(FileError.ProviderUnavailable(ref.documentUri.authority))
 
-    override suspend fun getNode(id: FileNodeId): FileResult<FileNode> {
-        val ref = id.toSafRef()
-        val cursor = try {
-            resolver.query(ref.documentUri, PROJECTION, null, null, null)
-        } catch (e: SecurityException) {
-            return FileResult.Failure(FileError.AccessDenied(null))
-        } ?: return FileResult.Failure(FileError.ProviderUnavailable(ref.documentUri.authority))
-
-        return cursor.use {
-            if (it.moveToFirst()) {
-                FileResult.Success(it.toFileNode(ref.treeUri, parentId = null))
-            } else {
-                FileResult.Failure(FileError.FileNotFound(null))
+            return cursor.use {
+                if (it.moveToFirst()) {
+                    FileResult.Success(it.toFileNode(ref.treeUri, parentId = null))
+                } else {
+                    FileResult.Failure(FileError.FileNotFound(null))
+                }
             }
         }
-    }
 
-    override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> = flow {
-        val ref = id.toSafRef()
-        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(ref.treeUri, ref.documentId)
+        override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> =
+            flow {
+                val ref = id.toSafRef()
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(ref.treeUri, ref.documentId)
 
-        val cursor = try {
-            resolver.query(childrenUri, PROJECTION, null, null, null)
-        } catch (e: SecurityException) {
-            emit(FileResult.Failure(FileError.AccessDenied(null)))
-            return@flow
-        }
-        if (cursor == null) {
-            emit(FileResult.Failure(FileError.ProviderUnavailable(childrenUri.authority)))
-            return@flow
-        }
+                val cursor =
+                    try {
+                        resolver.query(childrenUri, PROJECTION, null, null, null)
+                    } catch (e: SecurityException) {
+                        emit(FileResult.Failure(FileError.AccessDenied(null)))
+                        return@flow
+                    }
+                if (cursor == null) {
+                    emit(FileResult.Failure(FileError.ProviderUnavailable(childrenUri.authority)))
+                    return@flow
+                }
 
-        var emittedAny = false
-        val chunk = ArrayList<FileNode>(LISTING_CHUNK_SIZE)
-        try {
-            cursor.use {
-                while (it.moveToNext()) {
-                    chunk.add(it.toFileNode(ref.treeUri, parentId = id))
-                    if (chunk.size >= LISTING_CHUNK_SIZE) {
+                var emittedAny = false
+                val chunk = ArrayList<FileNode>(LISTING_CHUNK_SIZE)
+                try {
+                    cursor.use {
+                        while (it.moveToNext()) {
+                            chunk.add(it.toFileNode(ref.treeUri, parentId = id))
+                            if (chunk.size >= LISTING_CHUNK_SIZE) {
+                                emit(FileResult.Success(chunk.toList()))
+                                emittedAny = true
+                                chunk.clear()
+                            }
+                        }
+                    }
+                    if (chunk.isNotEmpty() || !emittedAny) {
                         emit(FileResult.Success(chunk.toList()))
-                        emittedAny = true
-                        chunk.clear()
+                    }
+                } catch (e: RuntimeException) {
+                    if (e is CancellationException) throw e
+                    // A provider crash surfaces as a RuntimeException wrapping DeadObjectException
+                    // here, not a clean checked exception (architecture/DATA_LAYER.md §5). Caught
+                    // specifically so one flaky provider doesn't crash the whole listing flow.
+                    emit(FileResult.Failure(FileError.ProviderUnavailable(childrenUri.authority)))
+                }
+            }
+
+        override suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider> {
+            val ref = id.toSafRef()
+            return try {
+                // Confirm the document is actually openable before handing back a provider —
+                // ContentResolver.openInputStream can throw or return null lazily otherwise.
+                val checkStream =
+                    resolver.openInputStream(ref.documentUri)
+                        ?: return FileResult.Failure(FileError.IoFailure(null))
+                checkStream.close()
+                FileResult.Success(
+                    InputStreamProvider {
+                        resolver.openInputStream(ref.documentUri)
+                            ?: error("SAF document vanished between check and read: ${ref.documentUri}")
+                    },
+                )
+            } catch (e: SecurityException) {
+                FileResult.Failure(FileError.AccessDenied(null))
+            } catch (e: IOException) {
+                FileResult.Failure(e.toFileError(ErrorContext(null)))
+            }
+        }
+
+        override suspend fun openOutput(
+            parent: FileNodeId,
+            name: String,
+            mime: String?,
+        ): FileResult<OutputTarget> {
+            val parentRef = parent.toSafRef()
+            val existingId = findChildDocumentId(parentRef, name)
+            val documentUri =
+                if (existingId != null) {
+                    DocumentsContract.buildDocumentUriUsingTree(parentRef.treeUri, existingId)
+                } else {
+                    try {
+                        DocumentsContract.createDocument(
+                            resolver,
+                            parentRef.documentUri,
+                            mime ?: "application/octet-stream",
+                            name,
+                        ) ?: return FileResult.Failure(FileError.AccessDenied(name))
+                    } catch (e: SecurityException) {
+                        return FileResult.Failure(FileError.AccessDenied(name))
                     }
                 }
-            }
-            if (chunk.isNotEmpty() || !emittedAny) {
-                emit(FileResult.Success(chunk.toList()))
-            }
-        } catch (e: RuntimeException) {
-            // A provider crash surfaces as a RuntimeException wrapping DeadObjectException
-            // here, not a clean checked exception (architecture/DATA_LAYER.md §5). Caught
-            // specifically so one flaky provider doesn't crash the whole listing flow.
-            if (!emittedAny) {
-                emit(FileResult.Failure(FileError.ProviderUnavailable(childrenUri.authority)))
-            }
+            return FileResult.Success(SafOutputTarget(resolver, documentUri, name))
         }
-    }
 
-    override suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider> {
-        val ref = id.toSafRef()
-        return try {
-            // Confirm the document is actually openable before handing back a provider —
-            // ContentResolver.openInputStream can throw or return null lazily otherwise.
-            val checkStream = resolver.openInputStream(ref.documentUri)
-                ?: return FileResult.Failure(FileError.IoFailure(null))
-            checkStream.close()
-            FileResult.Success(
-                InputStreamProvider {
-                    resolver.openInputStream(ref.documentUri)
-                        ?: error("SAF document vanished between check and read: ${ref.documentUri}")
+        override suspend fun createDirectory(
+            parent: FileNodeId,
+            name: String,
+        ): FileResult<FileNode> {
+            val parentRef = parent.toSafRef()
+            if (findChildDocumentId(parentRef, name) != null) {
+                return FileResult.Failure(FileError.FileAlreadyExists(name))
+            }
+            val newUri =
+                try {
+                    DocumentsContract.createDocument(
+                        resolver,
+                        parentRef.documentUri,
+                        DocumentsContract.Document.MIME_TYPE_DIR,
+                        name,
+                    )
+                } catch (e: SecurityException) {
+                    return FileResult.Failure(FileError.AccessDenied(name))
+                } ?: return FileResult.Failure(FileError.AccessDenied(name))
+
+            return getNode(FileNodeId.saf(newUri.toString()))
+        }
+
+        override suspend fun delete(id: FileNodeId): FileResult<Unit> {
+            val ref = id.toSafRef()
+            return try {
+                if (DocumentsContract.deleteDocument(resolver, ref.documentUri)) {
+                    FileResult.Success(Unit)
+                } else {
+                    FileResult.Failure(FileError.AccessDenied(null))
                 }
-            )
-        } catch (e: SecurityException) {
-            FileResult.Failure(FileError.AccessDenied(null))
-        } catch (e: IOException) {
-            FileResult.Failure(e.toFileError(ErrorContext(null)))
-        }
-    }
-
-    override suspend fun openOutput(
-        parent: FileNodeId,
-        name: String,
-        mime: String?,
-    ): FileResult<OutputTarget> {
-        val parentRef = parent.toSafRef()
-        val existingId = findChildDocumentId(parentRef, name)
-        val documentUri = if (existingId != null) {
-            DocumentsContract.buildDocumentUriUsingTree(parentRef.treeUri, existingId)
-        } else {
-            try {
-                DocumentsContract.createDocument(
-                    resolver,
-                    parentRef.documentUri,
-                    mime ?: "application/octet-stream",
-                    name,
-                ) ?: return FileResult.Failure(FileError.AccessDenied(name))
             } catch (e: SecurityException) {
-                return FileResult.Failure(FileError.AccessDenied(name))
-            }
-        }
-        return FileResult.Success(SafOutputTarget(resolver, documentUri, name))
-    }
-
-    override suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode> {
-        val parentRef = parent.toSafRef()
-        if (findChildDocumentId(parentRef, name) != null) {
-            return FileResult.Failure(FileError.FileAlreadyExists(name))
-        }
-        val newUri = try {
-            DocumentsContract.createDocument(
-                resolver,
-                parentRef.documentUri,
-                DocumentsContract.Document.MIME_TYPE_DIR,
-                name,
-            )
-        } catch (e: SecurityException) {
-            return FileResult.Failure(FileError.AccessDenied(name))
-        } ?: return FileResult.Failure(FileError.AccessDenied(name))
-
-        return getNode(FileNodeId.saf(newUri.toString()))
-    }
-
-    override suspend fun delete(id: FileNodeId): FileResult<Unit> {
-        val ref = id.toSafRef()
-        return try {
-            if (DocumentsContract.deleteDocument(resolver, ref.documentUri)) {
-                FileResult.Success(Unit)
-            } else {
                 FileResult.Failure(FileError.AccessDenied(null))
+            } catch (e: IOException) {
+                FileResult.Failure(e.toFileError(ErrorContext(null)))
             }
-        } catch (e: SecurityException) {
-            FileResult.Failure(FileError.AccessDenied(null))
-        } catch (e: IOException) {
-            FileResult.Failure(e.toFileError(ErrorContext(null)))
-        }
-    }
-
-    override suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode> {
-        val ref = id.toSafRef()
-        val renamed = try {
-            DocumentsContract.renameDocument(resolver, ref.documentUri, newName)
-        } catch (e: SecurityException) {
-            return FileResult.Failure(FileError.AccessDenied(newName))
-        } ?: return FileResult.Failure(FileError.AccessDenied(newName))
-
-        // renameDocument can return a *different* URI than the one passed in — some
-        // providers reassign the document id on rename (architecture/DATA_LAYER.md §5
-        // implies this via the general "provider optionality" theme, though this specific
-        // detail is this file's own extrapolation from DocumentsContract's own documented
-        // return-value contract, not a direct doc quote).
-        return getNode(FileNodeId.saf(renamed.toString()))
-    }
-
-    override suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode> {
-        val ref = id.toSafRef()
-        val newParentRef = newParent.toSafRef()
-        val currentParentId = currentParentDocumentId(ref) ?: return FileResult.Failure(FileError.InvalidDestination(null))
-        val currentParentUri = DocumentsContract.buildDocumentUriUsingTree(ref.treeUri, currentParentId)
-
-        val moved = try {
-            DocumentsContract.moveDocument(resolver, ref.documentUri, currentParentUri, newParentRef.documentUri)
-        } catch (e: UnsupportedOperationException) {
-            null
-        } catch (e: SecurityException) {
-            return FileResult.Failure(FileError.AccessDenied(null))
         }
 
-        if (moved != null) {
-            return getNode(FileNodeId.saf(moved.toString()))
+        override suspend fun rename(
+            id: FileNodeId,
+            newName: String,
+        ): FileResult<FileNode> {
+            val ref = id.toSafRef()
+            val renamed =
+                try {
+                    DocumentsContract.renameDocument(resolver, ref.documentUri, newName)
+                } catch (e: SecurityException) {
+                    return FileResult.Failure(FileError.AccessDenied(newName))
+                } ?: return FileResult.Failure(FileError.AccessDenied(newName))
+
+            // renameDocument can return a *different* URI than the one passed in — some
+            // providers reassign the document id on rename (architecture/DATA_LAYER.md §5
+            // implies this via the general "provider optionality" theme, though this specific
+            // detail is this file's own extrapolation from DocumentsContract's own documented
+            // return-value contract, not a direct doc quote).
+            return getNode(FileNodeId.saf(renamed.toString()))
         }
 
-        // FLAG_SUPPORTS_MOVE isn't set, or the provider doesn't support moveDocument at all
-        // — fall back to copy+delete, per architecture/DATA_LAYER.md §5's explicit guidance.
-        return copyThenDeleteFallback(ref, newParentRef)
-    }
+        override suspend fun moveWithin(
+            id: FileNodeId,
+            newParent: FileNodeId,
+        ): FileResult<FileNode> {
+            val ref = id.toSafRef()
+            val newParentRef = newParent.toSafRef()
+            val currentParentId =
+                currentParentDocumentId(ref)
+                    ?: return FileResult.Failure(FileError.InvalidDestination(null))
+            val currentParentUri = DocumentsContract.buildDocumentUriUsingTree(ref.treeUri, currentParentId)
 
-    override suspend fun exists(parent: FileNodeId, name: String): Boolean {
-        val parentRef = parent.toSafRef()
-        return findChildDocumentId(parentRef, name) != null
-    }
-
-    override suspend fun freeSpace(id: FileNodeId): Long = 0L
-    // SAF exposes no portable free-space query on the document/tree URI itself — a real
-    // number would need DocumentsContract.EXTRA_LOADING / provider-specific extras that
-    // aren't guaranteed to exist. 0L is an honest "unknown", not a fabricated estimate.
-
-    /**
-     * SAF has no reliable, provider-portable "does a child with this name exist" query —
-     * `selection`/`selectionArgs` on `ContentResolver.query()` aren't required to be
-     * honoured by a `DocumentsProvider` implementation. This lists all children and checks
-     * names client-side, same as [exists] and the duplicate-name checks in [openOutput] and
-     * [createDirectory] — an honest simplification given SAF's provider heterogeneity, not
-     * an oversight.
-     */
-    private suspend fun findChildDocumentId(parentRef: SafRef, name: String): String? {
-        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(parentRef.treeUri, parentRef.documentId)
-        val cursor = try {
-            resolver.query(childrenUri, PROJECTION, null, null, null)
-        } catch (e: SecurityException) {
-            null
-        } ?: return null
-
-        return cursor.use {
-            while (it.moveToNext()) {
-                val displayName = it.getString(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
-                if (displayName == name) {
-                    return@use it.getString(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID))
+            val moved =
+                try {
+                    DocumentsContract.moveDocument(
+                        resolver,
+                        ref.documentUri,
+                        currentParentUri,
+                        newParentRef.documentUri,
+                    )
+                } catch (e: UnsupportedOperationException) {
+                    null
+                } catch (e: SecurityException) {
+                    return FileResult.Failure(FileError.AccessDenied(null))
                 }
+
+            if (moved != null) {
+                return getNode(FileNodeId.saf(moved.toString()))
             }
-            null
+
+            // FLAG_SUPPORTS_MOVE isn't set, or the provider doesn't support moveDocument at all
+            // — fall back to copy+delete, per architecture/DATA_LAYER.md §5's explicit guidance.
+            return copyThenDeleteFallback(ref, newParentRef)
         }
-    }
 
-    /**
-     * `DocumentsContract` has no query for "what is this document's parent" — the same
-     * heterogeneity problem as [findChildDocumentId]. [moveWithin] needs the *current*
-     * parent to call `moveDocument`, so this walks up from the tree root, which is the only
-     * portable reference point available, rather than assuming any hierarchical structure
-     * in the document id itself (some providers use opaque, non-hierarchical ids).
-     */
-    private suspend fun currentParentDocumentId(ref: SafRef): String? {
-        val rootDocId = DocumentsContract.getTreeDocumentId(ref.treeUri)
-        return findParentRecursively(ref.treeUri, rootDocId, ref.documentId)
-    }
+        override suspend fun exists(
+            parent: FileNodeId,
+            name: String,
+        ): Boolean {
+            val parentRef = parent.toSafRef()
+            return findChildDocumentId(parentRef, name) != null
+        }
 
-    private suspend fun findParentRecursively(treeUri: Uri, candidateParentId: String, targetId: String): String? {
-        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, candidateParentId)
-        val cursor = try {
-            resolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID), null, null, null)
-        } catch (e: SecurityException) {
-            null
-        } ?: return null
+        override suspend fun freeSpace(id: FileNodeId): Long = 0L
+        // SAF exposes no portable free-space query on the document/tree URI itself — a real
+        // number would need DocumentsContract.EXTRA_LOADING / provider-specific extras that
+        // aren't guaranteed to exist. 0L is an honest "unknown", not a fabricated estimate.
 
-        val childIds = cursor.use {
-            buildList {
+        /**
+         * SAF has no reliable, provider-portable "does a child with this name exist" query —
+         * `selection`/`selectionArgs` on `ContentResolver.query()` aren't required to be
+         * honoured by a `DocumentsProvider` implementation. This lists all children and checks
+         * names client-side, same as [exists] and the duplicate-name checks in [openOutput] and
+         * [createDirectory] — an honest simplification given SAF's provider heterogeneity, not
+         * an oversight.
+         */
+        private suspend fun findChildDocumentId(
+            parentRef: SafRef,
+            name: String,
+        ): String? {
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(parentRef.treeUri, parentRef.documentId)
+            val cursor =
+                try {
+                    resolver.query(childrenUri, PROJECTION, null, null, null)
+                } catch (e: SecurityException) {
+                    null
+                } ?: return null
+
+            return cursor.use {
                 while (it.moveToNext()) {
-                    add(it.getString(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)))
+                    val displayName =
+                        it.getString(
+                            it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                        )
+                    if (displayName == name) {
+                        return@use it.getString(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID))
+                    }
                 }
+                null
             }
         }
-        if (targetId in childIds) return candidateParentId
-        for (childId in childIds) {
-            findParentRecursively(treeUri, childId, targetId)?.let { return it }
-        }
-        return null
-    }
 
-    private suspend fun copyThenDeleteFallback(source: SafRef, newParentRef: SafRef): FileResult<FileNode> {
-        val sourceNode = when (val result = getNode(FileNodeId.saf(source.documentUri.toString()))) {
-            is FileResult.Success -> result.value
-            is FileResult.Failure -> return result
+        /**
+         * `DocumentsContract` has no query for "what is this document's parent" — the same
+         * heterogeneity problem as [findChildDocumentId]. [moveWithin] needs the *current*
+         * parent to call `moveDocument`, so this walks up from the tree root, which is the only
+         * portable reference point available, rather than assuming any hierarchical structure
+         * in the document id itself (some providers use opaque, non-hierarchical ids).
+         */
+        private suspend fun currentParentDocumentId(ref: SafRef): String? {
+            val rootDocId = DocumentsContract.getTreeDocumentId(ref.treeUri)
+            return findParentRecursively(ref.treeUri, rootDocId, ref.documentId)
         }
-        val target = when (val result = openOutput(FileNodeId.saf(newParentRef.documentUri.toString()), sourceNode.name, sourceNode.mimeType)) {
-            is FileResult.Success -> result.value
-            is FileResult.Failure -> return result
+
+        private suspend fun findParentRecursively(
+            treeUri: Uri,
+            candidateParentId: String,
+            targetId: String,
+        ): String? {
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, candidateParentId)
+            val cursor =
+                try {
+                    resolver.query(
+                        childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID), null, null, null,
+                    )
+                } catch (e: SecurityException) {
+                    null
+                } ?: return null
+
+            val childIds =
+                cursor.use {
+                    buildList {
+                        while (it.moveToNext()) {
+                            add(it.getString(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)))
+                        }
+                    }
+                }
+            if (targetId in childIds) return candidateParentId
+            for (childId in childIds) {
+                findParentRecursively(treeUri, childId, targetId)?.let { return it }
+            }
+            return null
         }
-        val inputResult = openInput(FileNodeId.saf(source.documentUri.toString()))
-        val input = when (inputResult) {
-            is FileResult.Success -> inputResult.value
-            is FileResult.Failure -> {
+
+        private suspend fun copyThenDeleteFallback(
+            source: SafRef,
+            newParentRef: SafRef,
+        ): FileResult<FileNode> {
+            val sourceNode =
+                when (val result = getNode(FileNodeId.saf(source.documentUri.toString()))) {
+                    is FileResult.Success -> result.value
+                    is FileResult.Failure -> return result
+                }
+            val target =
+                when (
+                    val result =
+                        openOutput(
+                            FileNodeId.saf(newParentRef.documentUri.toString()),
+                            sourceNode.name,
+                            sourceNode.mimeType,
+                        )
+                ) {
+                    is FileResult.Success -> result.value
+                    is FileResult.Failure -> return result
+                }
+            val inputResult = openInput(FileNodeId.saf(source.documentUri.toString()))
+            val input =
+                when (inputResult) {
+                    is FileResult.Success -> inputResult.value
+                    is FileResult.Failure -> {
+                        target.discard()
+                        return inputResult
+                    }
+                }
+            try {
+                input.stream().use { inStream -> target.stream().use { outStream -> inStream.copyTo(outStream) } }
+            } catch (e: IOException) {
                 target.discard()
-                return inputResult
+                return FileResult.Failure(e.toFileError(ErrorContext(sourceNode.name)))
             }
+            val committed = target.toNode()
+            if (committed is FileResult.Failure) return committed
+            val deleteResult = delete(FileNodeId.saf(source.documentUri.toString()))
+            return if (deleteResult is FileResult.Failure) deleteResult else committed
         }
-        try {
-            input.stream().use { inStream -> target.stream().use { outStream -> inStream.copyTo(outStream) } }
-        } catch (e: IOException) {
-            target.discard()
-            return FileResult.Failure(e.toFileError(ErrorContext(sourceNode.name)))
-        }
-        val committed = target.toNode()
-        if (committed is FileResult.Failure) return committed
-        val deleteResult = delete(FileNodeId.saf(source.documentUri.toString()))
-        return if (deleteResult is FileResult.Failure) deleteResult else committed
-    }
 
-    companion object {
-        private val PROJECTION = arrayOf(
-            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-            DocumentsContract.Document.COLUMN_MIME_TYPE,
-            DocumentsContract.Document.COLUMN_SIZE,
-            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
-            DocumentsContract.Document.COLUMN_FLAGS,
-        )
+        companion object {
+            private val PROJECTION =
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    DocumentsContract.Document.COLUMN_SIZE,
+                    DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                    DocumentsContract.Document.COLUMN_FLAGS,
+                )
+        }
     }
-}
 
 internal data class SafRef(val documentUri: Uri, val treeUri: Uri, val documentId: String)
 
@@ -356,12 +413,18 @@ internal fun FileNodeId.toSafRef(): SafRef {
     return SafRef(documentUri, treeUri, documentId)
 }
 
-internal fun safId(treeUri: Uri, documentId: String): FileNodeId {
+internal fun safId(
+    treeUri: Uri,
+    documentId: String,
+): FileNodeId {
     val documentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
     return FileNodeId.saf(documentUri.toString())
 }
 
-private fun Cursor.toFileNode(treeUri: Uri, parentId: FileNodeId?): FileNode {
+private fun Cursor.toFileNode(
+    treeUri: Uri,
+    parentId: FileNodeId?,
+): FileNode {
     val docId = getString(getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID))
     val id = safId(treeUri, docId)
     val name = getString(getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)) ?: docId
@@ -388,12 +451,14 @@ private fun Cursor.toFileNode(treeUri: Uri, parentId: FileNodeId?): FileNode {
         // this tree's authority/root, not done per-node here. SAF is most commonly (not
         // exclusively) used for non-primary volumes historically.
         storageType = StorageType.SD_CARD,
-        access = AccessFlags(
-            readable = true, // queryable at all implies at least readable
-            writable = flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE != 0,
-            deletable = flags and DocumentsContract.Document.FLAG_SUPPORTS_DELETE != 0,
-            renamable = flags and DocumentsContract.Document.FLAG_SUPPORTS_RENAME != 0,
-        ),
+        access =
+            AccessFlags(
+                // Queryable at all implies at least readable.
+                readable = true,
+                writable = flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE != 0,
+                deletable = flags and DocumentsContract.Document.FLAG_SUPPORTS_DELETE != 0,
+                renamable = flags and DocumentsContract.Document.FLAG_SUPPORTS_RENAME != 0,
+            ),
         childCount = null,
         extras = null,
     )
@@ -407,8 +472,9 @@ private class SafOutputTarget(
     private var discarded = false
     private var lastModified: Long = 0L
 
-    override fun stream() = resolver.openOutputStream(documentUri, "wt")
-        ?: error("SAF document has no writable stream: $documentUri")
+    override fun stream() =
+        resolver.openOutputStream(documentUri, "wt")
+            ?: error("SAF document has no writable stream: $documentUri")
 
     override fun setLastModified(epochMillis: Long) {
         lastModified = epochMillis
@@ -429,24 +495,25 @@ private class SafOutputTarget(
 
     override suspend fun toNode(): FileResult<FileNode> {
         if (discarded) return FileResult.Failure(FileError.OperationCancelled)
-        val cursor = try {
-            resolver.query(
-                documentUri,
-                arrayOf(
-                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                    DocumentsContract.Document.COLUMN_MIME_TYPE,
-                    DocumentsContract.Document.COLUMN_SIZE,
-                    DocumentsContract.Document.COLUMN_LAST_MODIFIED,
-                    DocumentsContract.Document.COLUMN_FLAGS,
-                ),
-                null,
-                null,
-                null,
-            )
-        } catch (e: SecurityException) {
-            return FileResult.Failure(FileError.AccessDenied(name))
-        } ?: return FileResult.Failure(FileError.ProviderUnavailable(documentUri.authority))
+        val cursor =
+            try {
+                resolver.query(
+                    documentUri,
+                    arrayOf(
+                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                        DocumentsContract.Document.COLUMN_MIME_TYPE,
+                        DocumentsContract.Document.COLUMN_SIZE,
+                        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                        DocumentsContract.Document.COLUMN_FLAGS,
+                    ),
+                    null,
+                    null,
+                    null,
+                )
+            } catch (e: SecurityException) {
+                return FileResult.Failure(FileError.AccessDenied(name))
+            } ?: return FileResult.Failure(FileError.ProviderUnavailable(documentUri.authority))
 
         val treeDocId = DocumentsContract.getTreeDocumentId(documentUri)
         val treeUri = DocumentsContract.buildTreeDocumentUri(documentUri.authority, treeDocId)

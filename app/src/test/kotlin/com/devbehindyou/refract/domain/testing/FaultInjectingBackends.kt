@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import java.io.IOException
 import java.io.OutputStream
 
-/**
+/*
  * Four decorators over a real [StorageBackend] (usually [InMemoryBackend]), named exactly per
  * `testing/TEST_STRATEGY.md` §3: "These make failure paths testable deterministically, which
  * is the only way to prove [FILE_OPERATIONS.md]'s invariants without relying on real device I/O
@@ -34,7 +34,6 @@ class FailAfterNBytes(
     private val thresholdBytes: Long,
     private val delegate: StorageBackend,
 ) : StorageBackend by delegate {
-
     override suspend fun openOutput(
         parent: FileNodeId,
         name: String,
@@ -63,7 +62,11 @@ class FailAfterNBytes(
                     written++
                 }
 
-                override fun write(b: ByteArray, off: Int, len: Int) {
+                override fun write(
+                    b: ByteArray,
+                    off: Int,
+                    len: Int,
+                ) {
                     if (written + len > thresholdBytes) {
                         val allowed = (thresholdBytes - written).coerceAtLeast(0).toInt()
                         if (allowed > 0) realStream.write(b, off, allowed)
@@ -88,24 +91,28 @@ class FailAfterNBytes(
  * unchanged — simulates a backend that lost write access (e.g. a revoked SAF grant).
  */
 class DenyWrite(private val delegate: StorageBackend) : StorageBackend by delegate {
-
     override suspend fun openOutput(
         parent: FileNodeId,
         name: String,
         mime: String?,
     ): FileResult<OutputTarget> = FileResult.Failure(FileError.AccessDenied(name))
 
-    override suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode> =
-        FileResult.Failure(FileError.AccessDenied(name))
+    override suspend fun createDirectory(
+        parent: FileNodeId,
+        name: String,
+    ): FileResult<FileNode> = FileResult.Failure(FileError.AccessDenied(name))
 
-    override suspend fun delete(id: FileNodeId): FileResult<Unit> =
-        FileResult.Failure(FileError.AccessDenied(id.raw))
+    override suspend fun delete(id: FileNodeId): FileResult<Unit> = FileResult.Failure(FileError.AccessDenied(id.raw))
 
-    override suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode> =
-        FileResult.Failure(FileError.AccessDenied(newName))
+    override suspend fun rename(
+        id: FileNodeId,
+        newName: String,
+    ): FileResult<FileNode> = FileResult.Failure(FileError.AccessDenied(newName))
 
-    override suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode> =
-        FileResult.Failure(FileError.AccessDenied(id.raw))
+    override suspend fun moveWithin(
+        id: FileNodeId,
+        newParent: FileNodeId,
+    ): FileResult<FileNode> = FileResult.Failure(FileError.AccessDenied(id.raw))
 }
 
 /**
@@ -118,7 +125,9 @@ class SlowBackend(
     private val delegate: StorageBackend,
 ) : StorageBackend {
     override val type: BackendType get() = delegate.type
+
     override fun canHandle(id: FileNodeId): Boolean = delegate.canHandle(id)
+
     override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> = delegate.listChildren(id)
 
     override suspend fun getNode(id: FileNodeId): FileResult<FileNode> {
@@ -140,7 +149,10 @@ class SlowBackend(
         return delegate.openOutput(parent, name, mime)
     }
 
-    override suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode> {
+    override suspend fun createDirectory(
+        parent: FileNodeId,
+        name: String,
+    ): FileResult<FileNode> {
         delay(delayMillis)
         return delegate.createDirectory(parent, name)
     }
@@ -150,17 +162,26 @@ class SlowBackend(
         return delegate.delete(id)
     }
 
-    override suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode> {
+    override suspend fun rename(
+        id: FileNodeId,
+        newName: String,
+    ): FileResult<FileNode> {
         delay(delayMillis)
         return delegate.rename(id, newName)
     }
 
-    override suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode> {
+    override suspend fun moveWithin(
+        id: FileNodeId,
+        newParent: FileNodeId,
+    ): FileResult<FileNode> {
         delay(delayMillis)
         return delegate.moveWithin(id, newParent)
     }
 
-    override suspend fun exists(parent: FileNodeId, name: String): Boolean {
+    override suspend fun exists(
+        parent: FileNodeId,
+        name: String,
+    ): Boolean {
         delay(delayMillis)
         return delegate.exists(parent, name)
     }
@@ -182,7 +203,6 @@ class VanishingSource(
     private val survivesReads: Int = 1,
     private val delegate: StorageBackend,
 ) : StorageBackend by delegate {
-
     private var reads = 0
 
     private fun hasVanished(id: FileNodeId): Boolean {

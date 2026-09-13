@@ -11,9 +11,8 @@ import com.devbehindyou.refract.domain.model.JournalState
 
 class HiddenFilesDatabaseHelper(
     context: Context,
-    dbName: String = DATABASE_NAME,
+    dbName: String? = DATABASE_NAME,
 ) : SQLiteOpenHelper(context, dbName, null, DATABASE_VERSION) {
-
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             """
@@ -44,7 +43,11 @@ class HiddenFilesDatabaseHelper(
         )
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+    override fun onUpgrade(
+        db: SQLiteDatabase,
+        oldVersion: Int,
+        newVersion: Int,
+    ) {
         // Schema migrations
     }
 
@@ -62,11 +65,12 @@ class HiddenFilesDatabaseHelper(
             val timeIdx = it.getColumnIndexOrThrow(COL_HIDDEN_AT)
 
             while (it.moveToNext()) {
-                val mode = try {
-                    HideMode.valueOf(it.getString(modeIdx))
-                } catch (e: Exception) {
-                    HideMode.FAST_OBSCURE
-                }
+                val mode =
+                    try {
+                        HideMode.valueOf(it.getString(modeIdx))
+                    } catch (e: Exception) {
+                        HideMode.FAST_OBSCURE
+                    }
                 list.add(
                     HiddenItem(
                         id = it.getString(idIdx),
@@ -85,15 +89,16 @@ class HiddenFilesDatabaseHelper(
 
     fun insertHiddenItem(item: HiddenItem): Boolean {
         val db = writableDatabase
-        val values = ContentValues().apply {
-            put(COL_ID, item.id)
-            put(COL_ORIGINAL_LOC, item.originalLocation)
-            put(COL_CURRENT_LOC, item.currentLocation)
-            put(COL_ORIGINAL_NAME, item.originalName)
-            put(COL_SIZE, item.size)
-            put(COL_MODE, item.mode.name)
-            put(COL_HIDDEN_AT, item.hiddenAt)
-        }
+        val values =
+            ContentValues().apply {
+                put(COL_ID, item.id)
+                put(COL_ORIGINAL_LOC, item.originalLocation)
+                put(COL_CURRENT_LOC, item.currentLocation)
+                put(COL_ORIGINAL_NAME, item.originalName)
+                put(COL_SIZE, item.size)
+                put(COL_MODE, item.mode.name)
+                put(COL_HIDDEN_AT, item.hiddenAt)
+            }
         return db.insertWithOnConflict(TABLE_HIDDEN_ITEMS, null, values, SQLiteDatabase.CONFLICT_REPLACE) != -1L
     }
 
@@ -104,30 +109,32 @@ class HiddenFilesDatabaseHelper(
 
     fun logJournal(entry: HideJournalEntry): Boolean {
         val db = writableDatabase
-        val values = ContentValues().apply {
-            put(COL_J_OP_ID, entry.operationId)
-            put(COL_J_ORIG_PATH, entry.originalPath)
-            put(COL_J_CURR_PATH, entry.currentPath)
-            put(COL_J_ORIG_NAME, entry.originalName)
-            put(COL_J_STATE, entry.state.name)
-            put(COL_J_MODE, entry.mode.name)
-            put(COL_J_TIMESTAMP, entry.timestamp)
-        }
+        val values =
+            ContentValues().apply {
+                put(COL_J_OP_ID, entry.operationId)
+                put(COL_J_ORIG_PATH, entry.originalPath)
+                put(COL_J_CURR_PATH, entry.currentPath)
+                put(COL_J_ORIG_NAME, entry.originalName)
+                put(COL_J_STATE, entry.state.name)
+                put(COL_J_MODE, entry.mode.name)
+                put(COL_J_TIMESTAMP, entry.timestamp)
+            }
         return db.insertWithOnConflict(TABLE_JOURNAL, null, values, SQLiteDatabase.CONFLICT_REPLACE) != -1L
     }
 
     fun getUnfinishedJournalEntries(): List<HideJournalEntry> {
         val db = readableDatabase
         val list = mutableListOf<HideJournalEntry>()
-        val cursor = db.query(
-            TABLE_JOURNAL,
-            null,
-            "$COL_J_STATE NOT IN (?, ?)",
-            arrayOf(JournalState.COMMITTED.name, JournalState.RESTORED.name),
-            null,
-            null,
-            "$COL_J_TIMESTAMP ASC",
-        )
+        val cursor =
+            db.query(
+                TABLE_JOURNAL,
+                null,
+                "$COL_J_STATE NOT IN (?, ?)",
+                arrayOf(JournalState.COMMITTED.name, JournalState.RESTORED.name),
+                null,
+                null,
+                "$COL_J_TIMESTAMP ASC",
+            )
         cursor.use {
             val idIdx = it.getColumnIndexOrThrow(COL_J_OP_ID)
             val origIdx = it.getColumnIndexOrThrow(COL_J_ORIG_PATH)

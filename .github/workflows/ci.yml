@@ -29,13 +29,13 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: ktlint
-        run: ./gradlew ktlintCheck --configuration-cache
+        run: ./gradlew ktlintCheck
 
       - name: detekt
-        run: ./gradlew detekt --configuration-cache
+        run: ./gradlew detekt
 
-      - name: Android Lint (base + reporting), incl. the 7 custom checks in :lint-rules
-        run: ./gradlew lintBaseDebug lintReportingDebug --configuration-cache
+      - name: Android Lint (debug and release), including custom checks
+        run: ./gradlew :app:lintDebug :app:lintRelease
 
       - name: Upload Lint HTML reports
         if: always()
@@ -46,7 +46,7 @@ jobs:
           retention-days: 14
 
   unit-tests:
-    name: Unit tests (both flavours + :lint-rules)
+    name: Unit tests and APK packaging
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,9 +64,10 @@ jobs:
         run: >
           ./gradlew
           :lint-rules:test
-          testBaseDebugUnitTest
-          testReportingDebugUnitTest
-          --configuration-cache
+          :app:testDebugUnitTest
+          :app:assembleDebug
+          :app:assembleRelease
+          :app:assembleDebugAndroidTest
 
       - name: Upload test reports
         if: always()

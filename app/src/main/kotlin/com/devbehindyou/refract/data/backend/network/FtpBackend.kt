@@ -34,7 +34,6 @@ class FtpBackend(
     private val credentialsStore: NetworkCredentialsStore,
     override val type: BackendType = BackendType.FTP,
 ) : StorageBackend {
-
     override fun canHandle(id: FileNodeId): Boolean {
         return id.prefix == FileNodeId.Prefix.FTP || id.prefix == FileNodeId.Prefix.FTPS
     }
@@ -52,7 +51,10 @@ class FtpBackend(
         return ParsedFtpId(isFtps, serverId, path)
     }
 
-    private fun makeNodeId(parsed: ParsedFtpId, newPath: String): FileNodeId {
+    private fun makeNodeId(
+        parsed: ParsedFtpId,
+        newPath: String,
+    ): FileNodeId {
         val norm = if (newPath.startsWith("/")) newPath else "/$newPath"
         return if (parsed.isFtps) {
             FileNodeId.ftps(parsed.serverId, norm)
@@ -61,298 +63,343 @@ class FtpBackend(
         }
     }
 
-    override suspend fun getNode(id: FileNodeId): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        if (parsed.path == "/" || parsed.path.isEmpty()) {
-            val server = credentialsStore.getServerById(parsed.serverId)
-            val name = server?.name ?: "FTP Server"
-            return@withContext FileResult.Success(
+    override suspend fun getNode(id: FileNodeId): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            if (parsed.path == "/" || parsed.path.isEmpty()) {
+                val server = credentialsStore.getServerById(parsed.serverId)
+                val name = server?.name ?: "FTP Server"
+                return@withContext FileResult.Success(
+                    NetworkNodeHelper.createNode(
+                        id = id,
+                        parentId = null,
+                        name = name,
+                        isDirectory = true,
+                        isVirtual = true,
+                    ),
+                )
+            }
+
+            val parentPath = getParentPath(parsed.path)
+            val parentId = makeNodeId(parsed, parentPath)
+            val name = getFileName(parsed.path)
+
+            // Query parent directory listing to locate this entry
+            val listResult = runCatching { listRemote(parsed, parentPath) }
+            val items = listResult.getOrNull()
+            if (items != null) {
+                val match = items.firstOrNull { it.name == name }
+                if (match != null) {
+                    return@withContext FileResult.Success(match)
+                }
+            }
+
+            // Fallback: create placeholder directory or file node
+            FileResult.Success(
                 NetworkNodeHelper.createNode(
                     id = id,
-                    parentId = null,
+                    parentId = parentId,
                     name = name,
-                    isDirectory = true,
-                    isVirtual = true,
+                    isDirectory = false,
+                    isVirtual = false,
+                ),
+            )
+        }
+
+    override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> =
+        flow {
+            val parsed = parseId(id)
+            val server = credentialsStore.getServerById(parsed.serverId)
+            if (server == null) {
+                emit(FileResult.Failure(FileError.StorageUnavailable("FTP")))
+                return@flow
+            }
+
+            try {
+                val entries = listRemote(parsed, parsed.path)
+                emit(FileResult.Success(entries))
+            } catch (e: Exception) {
+                val error = mapException(e)
+                emit(FileResult.Failure(error))
+            }
+        }.flowOn(Dispatchers.IO)
+
+    override suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            try {
+                val client = connectAndLogin(parsed)
+                val dataSocket = client.openPassiveDataSocket()
+                client.sendCommand("TYPE I")
+                val resp = client.sendCommand("RETR ${parsed.path}")
+                if (!resp.startsWith("150") && !resp.startsWith("125")) {
+                    client.close()
+                    dataSocket.close()
+                    return@withContext FileResult.Failure(FileError.FileNotFound(parsed.path))
+                }
+                FileResult.Success(
+                    InputStreamProvider {
+                        val rawIn = dataSocket.getInputStream()
+                        object : InputStream() {
+                            override fun read(): Int = rawIn.read()
+
+                            override fun read(
+                                b: ByteArray,
+                                off: Int,
+                                len: Int,
+                            ): Int = rawIn.read(b, off, len)
+
+                            override fun close() {
+                                try {
+                                    rawIn.close()
+                                    dataSocket.close()
+                                    client.readResponse()
+                                    client.close()
+                                } catch (_: Exception) {
+                                }
+                            }
+                        }
+                    },
                 )
-            )
-        }
-
-        val parentPath = getParentPath(parsed.path)
-        val parentId = makeNodeId(parsed, parentPath)
-        val name = getFileName(parsed.path)
-
-        // Query parent directory listing to locate this entry
-        val listResult = runCatching { listRemote(parsed, parentPath) }
-        val items = listResult.getOrNull()
-        if (items != null) {
-            val match = items.firstOrNull { it.name == name }
-            if (match != null) {
-                return@withContext FileResult.Success(match)
+            } catch (e: Exception) {
+                FileResult.Failure(mapException(e))
             }
         }
 
-        // Fallback: create placeholder directory or file node
-        FileResult.Success(
-            NetworkNodeHelper.createNode(
-                id = id,
-                parentId = parentId,
-                name = name,
-                isDirectory = false,
-                isVirtual = false,
-            )
-        )
-    }
+    override suspend fun openOutput(
+        parent: FileNodeId,
+        name: String,
+        mime: String?,
+    ): FileResult<OutputTarget> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(parent)
+            val targetPath = if (parsed.path.endsWith("/")) "${parsed.path}$name" else "${parsed.path}/$name"
+            val targetNodeId = makeNodeId(parsed, targetPath)
 
-    override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> = flow {
-        val parsed = parseId(id)
-        val server = credentialsStore.getServerById(parsed.serverId)
-        if (server == null) {
-            emit(FileResult.Failure(FileError.StorageUnavailable("FTP")))
-            return@flow
-        }
+            try {
+                val client = connectAndLogin(parsed)
+                val dataSocket = client.openPassiveDataSocket()
+                client.sendCommand("TYPE I")
+                val resp = client.sendCommand("STOR $targetPath")
+                if (!resp.startsWith("150") && !resp.startsWith("125")) {
+                    client.close()
+                    dataSocket.close()
+                    return@withContext FileResult.Failure(FileError.AccessDenied("STOR rejected"))
+                }
 
-        try {
-            val entries = listRemote(parsed, parsed.path)
-            emit(FileResult.Success(entries))
-        } catch (e: Exception) {
-            val error = mapException(e)
-            emit(FileResult.Failure(error))
-        }
-    }.flowOn(Dispatchers.IO)
+                val dataOut = dataSocket.getOutputStream()
+                var discarded = false
 
-    override suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        try {
-            val client = connectAndLogin(parsed)
-            val dataSocket = client.openPassiveDataSocket()
-            client.sendCommand("TYPE I")
-            val resp = client.sendCommand("RETR ${parsed.path}")
-            if (!resp.startsWith("150") && !resp.startsWith("125")) {
-                client.close()
-                dataSocket.close()
-                return@withContext FileResult.Failure(FileError.FileNotFound(parsed.path))
-            }
-            FileResult.Success(
-                InputStreamProvider {
-                    val rawIn = dataSocket.getInputStream()
-                    object : InputStream() {
-                        override fun read(): Int = rawIn.read()
-                        override fun read(b: ByteArray, off: Int, len: Int): Int = rawIn.read(b, off, len)
-                        override fun close() {
+                val target =
+                    object : OutputTarget {
+                        override fun stream(): OutputStream = dataOut
+
+                        override fun setLastModified(epochMillis: Long) {
+                            // FTP does not support direct timestamp setting in standard RFC 959 without MFMT extension
+                        }
+
+                        override fun discard() {
+                            discarded = true
                             try {
-                                rawIn.close()
+                                dataOut.close()
+                                dataSocket.close()
+                                client.close()
+                                val cleanClient = connectAndLogin(parsed)
+                                cleanClient.sendCommand("DELE $targetPath")
+                                cleanClient.close()
+                            } catch (_: Exception) {
+                            }
+                        }
+
+                        override fun sync() {
+                            dataOut.flush()
+                        }
+
+                        override suspend fun toNode(): FileResult<FileNode> {
+                            if (discarded) {
+                                return FileResult.Failure(FileError.OperationCancelled)
+                            }
+                            try {
+                                dataOut.flush()
+                                dataOut.close()
                                 dataSocket.close()
                                 client.readResponse()
                                 client.close()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) {
+                            }
+
+                            return FileResult.Success(
+                                NetworkNodeHelper.createNode(
+                                    id = targetNodeId,
+                                    parentId = parent,
+                                    name = name,
+                                    size = 0L,
+                                    modifiedAt = System.currentTimeMillis(),
+                                    isDirectory = false,
+                                    mimeType = mime,
+                                ),
+                            )
                         }
                     }
-                }
-            )
-        } catch (e: Exception) {
-            FileResult.Failure(mapException(e))
-        }
-    }
 
-    override suspend fun openOutput(parent: FileNodeId, name: String, mime: String?): FileResult<OutputTarget> = withContext(Dispatchers.IO) {
-        val parsed = parseId(parent)
-        val targetPath = if (parsed.path.endsWith("/")) "${parsed.path}$name" else "${parsed.path}/$name"
-        val targetNodeId = makeNodeId(parsed, targetPath)
-
-        try {
-            val client = connectAndLogin(parsed)
-            val dataSocket = client.openPassiveDataSocket()
-            client.sendCommand("TYPE I")
-            val resp = client.sendCommand("STOR $targetPath")
-            if (!resp.startsWith("150") && !resp.startsWith("125")) {
-                client.close()
-                dataSocket.close()
-                return@withContext FileResult.Failure(FileError.AccessDenied("STOR rejected"))
+                FileResult.Success(target)
+            } catch (e: Exception) {
+                FileResult.Failure(mapException(e))
             }
+        }
 
-            val dataOut = dataSocket.getOutputStream()
-            var discarded = false
+    override suspend fun createDirectory(
+        parent: FileNodeId,
+        name: String,
+    ): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(parent)
+            val newPath = if (parsed.path.endsWith("/")) "${parsed.path}$name" else "${parsed.path}/$name"
+            val newNodeId = makeNodeId(parsed, newPath)
 
-            val target = object : OutputTarget {
-                override fun stream(): OutputStream = dataOut
-
-                override fun setLastModified(epochMillis: Long) {
-                    // FTP does not support direct timestamp setting in standard RFC 959 without MFMT extension
-                }
-
-                override fun discard() {
-                    discarded = true
-                    try {
-                        dataOut.close()
-                        dataSocket.close()
-                        client.close()
-                        val cleanClient = connectAndLogin(parsed)
-                        cleanClient.sendCommand("DELE $targetPath")
-                        cleanClient.close()
-                    } catch (_: Exception) {}
-                }
-
-                override fun sync() {
-                    dataOut.flush()
-                }
-
-                override suspend fun toNode(): FileResult<FileNode> {
-                    if (discarded) {
-                        return FileResult.Failure(FileError.OperationCancelled)
-                    }
-                    try {
-                        dataOut.flush()
-                        dataOut.close()
-                        dataSocket.close()
-                        client.readResponse()
-                        client.close()
-                    } catch (_: Exception) {}
-
-                    return FileResult.Success(
+            try {
+                val client = connectAndLogin(parsed)
+                val resp = client.sendCommand("MKD $newPath")
+                client.close()
+                if (resp.startsWith("257")) {
+                    FileResult.Success(
                         NetworkNodeHelper.createNode(
-                            id = targetNodeId,
+                            id = newNodeId,
                             parentId = parent,
                             name = name,
-                            size = 0L,
-                            modifiedAt = System.currentTimeMillis(),
-                            isDirectory = false,
-                            mimeType = mime,
-                        )
+                            isDirectory = true,
+                        ),
                     )
+                } else if (resp.startsWith("550")) {
+                    FileResult.Failure(FileError.FileAlreadyExists(name))
+                } else {
+                    FileResult.Failure(FileError.AccessDenied("MKD rejected"))
                 }
+            } catch (e: Exception) {
+                FileResult.Failure(mapException(e))
             }
-
-            FileResult.Success(target)
-        } catch (e: Exception) {
-            FileResult.Failure(mapException(e))
         }
-    }
 
-    override suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(parent)
-        val newPath = if (parsed.path.endsWith("/")) "${parsed.path}$name" else "${parsed.path}/$name"
-        val newNodeId = makeNodeId(parsed, newPath)
+    override suspend fun delete(id: FileNodeId): FileResult<Unit> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            try {
+                val client = connectAndLogin(parsed)
+                var resp = client.sendCommand("DELE ${parsed.path}")
+                if (!resp.startsWith("250")) {
+                    resp = client.sendCommand("RMD ${parsed.path}")
+                }
+                client.close()
+                if (resp.startsWith("250")) {
+                    FileResult.Success(Unit)
+                } else {
+                    FileResult.Failure(FileError.AccessDenied("Delete failed"))
+                }
+            } catch (e: Exception) {
+                FileResult.Failure(mapException(e))
+            }
+        }
 
-        try {
-            val client = connectAndLogin(parsed)
-            val resp = client.sendCommand("MKD $newPath")
-            client.close()
-            if (resp.startsWith("257")) {
-                FileResult.Success(
-                    NetworkNodeHelper.createNode(
-                        id = newNodeId,
-                        parentId = parent,
-                        name = name,
-                        isDirectory = true,
+    override suspend fun rename(
+        id: FileNodeId,
+        newName: String,
+    ): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            val parentPath = getParentPath(parsed.path)
+            val newPath = if (parentPath.endsWith("/")) "$parentPath$newName" else "$parentPath/$newName"
+            val newNodeId = makeNodeId(parsed, newPath)
+
+            try {
+                val client = connectAndLogin(parsed)
+                client.sendCommand("RNFR ${parsed.path}")
+                val resp = client.sendCommand("RNTO $newPath")
+                client.close()
+                if (resp.startsWith("250")) {
+                    FileResult.Success(
+                        NetworkNodeHelper.createNode(
+                            id = newNodeId,
+                            parentId = makeNodeId(parsed, parentPath),
+                            name = newName,
+                            isDirectory = false,
+                        ),
                     )
-                )
-            } else if (resp.startsWith("550")) {
-                FileResult.Failure(FileError.FileAlreadyExists(name))
-            } else {
-                FileResult.Failure(FileError.AccessDenied("MKD rejected"))
+                } else {
+                    FileResult.Failure(FileError.AccessDenied("Rename failed"))
+                }
+            } catch (e: Exception) {
+                FileResult.Failure(mapException(e))
             }
-        } catch (e: Exception) {
-            FileResult.Failure(mapException(e))
         }
-    }
 
-    override suspend fun delete(id: FileNodeId): FileResult<Unit> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        try {
-            val client = connectAndLogin(parsed)
-            var resp = client.sendCommand("DELE ${parsed.path}")
-            if (!resp.startsWith("250")) {
-                resp = client.sendCommand("RMD ${parsed.path}")
-            }
-            client.close()
-            if (resp.startsWith("250")) {
-                FileResult.Success(Unit)
-            } else {
-                FileResult.Failure(FileError.AccessDenied("Delete failed"))
-            }
-        } catch (e: Exception) {
-            FileResult.Failure(mapException(e))
-        }
-    }
-
-    override suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        val parentPath = getParentPath(parsed.path)
-        val newPath = if (parentPath.endsWith("/")) "$parentPath$newName" else "$parentPath/$newName"
-        val newNodeId = makeNodeId(parsed, newPath)
-
-        try {
-            val client = connectAndLogin(parsed)
-            client.sendCommand("RNFR ${parsed.path}")
-            val resp = client.sendCommand("RNTO $newPath")
-            client.close()
-            if (resp.startsWith("250")) {
-                FileResult.Success(
-                    NetworkNodeHelper.createNode(
-                        id = newNodeId,
-                        parentId = makeNodeId(parsed, parentPath),
-                        name = newName,
-                        isDirectory = false,
+    override suspend fun moveWithin(
+        id: FileNodeId,
+        newParent: FileNodeId,
+    ): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            val parsedParent = parseId(newParent)
+            val fileName = getFileName(parsed.path)
+            val newPath =
+                if (parsedParent.path.endsWith(
+                        "/",
                     )
-                )
-            } else {
-                FileResult.Failure(FileError.AccessDenied("Rename failed"))
-            }
-        } catch (e: Exception) {
-            FileResult.Failure(mapException(e))
-        }
-    }
+                ) {
+                    "${parsedParent.path}$fileName"
+                } else {
+                    "${parsedParent.path}/$fileName"
+                }
+            val newNodeId = makeNodeId(parsed, newPath)
 
-    override suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        val parsedParent = parseId(newParent)
-        val fileName = getFileName(parsed.path)
-        val newPath = if (parsedParent.path.endsWith("/")) "${parsedParent.path}$fileName" else "${parsedParent.path}/$fileName"
-        val newNodeId = makeNodeId(parsed, newPath)
-
-        try {
-            val client = connectAndLogin(parsed)
-            client.sendCommand("RNFR ${parsed.path}")
-            val resp = client.sendCommand("RNTO $newPath")
-            client.close()
-            if (resp.startsWith("250")) {
-                FileResult.Success(
-                    NetworkNodeHelper.createNode(
-                        id = newNodeId,
-                        parentId = newParent,
-                        name = fileName,
-                        isDirectory = false,
+            try {
+                val client = connectAndLogin(parsed)
+                client.sendCommand("RNFR ${parsed.path}")
+                val resp = client.sendCommand("RNTO $newPath")
+                client.close()
+                if (resp.startsWith("250")) {
+                    FileResult.Success(
+                        NetworkNodeHelper.createNode(
+                            id = newNodeId,
+                            parentId = newParent,
+                            name = fileName,
+                            isDirectory = false,
+                        ),
                     )
-                )
-            } else {
-                FileResult.Failure(FileError.AccessDenied("Move failed"))
+                } else {
+                    FileResult.Failure(FileError.AccessDenied("Move failed"))
+                }
+            } catch (e: Exception) {
+                FileResult.Failure(mapException(e))
             }
-        } catch (e: Exception) {
-            FileResult.Failure(mapException(e))
         }
-    }
 
-    override suspend fun exists(parent: FileNodeId, name: String): Boolean = withContext(Dispatchers.IO) {
-        val parsed = parseId(parent)
-        try {
-            val items = listRemote(parsed, parsed.path)
-            items.any { it.name == name }
-        } catch (_: Exception) {
-            false
+    override suspend fun exists(
+        parent: FileNodeId,
+        name: String,
+    ): Boolean =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(parent)
+            try {
+                val items = listRemote(parsed, parsed.path)
+                items.any { it.name == name }
+            } catch (_: Exception) {
+                false
+            }
         }
-    }
 
     override suspend fun freeSpace(id: FileNodeId): Long = 0L
 
     private fun connectAndLogin(parsed: ParsedFtpId): FtpProtocolClient {
-        val server = credentialsStore.getServerById(parsed.serverId)
-            ?: error("Server configuration not found for id: ${parsed.serverId}")
+        val server =
+            credentialsStore.getServerById(parsed.serverId)
+                ?: error("Server configuration not found for id: ${parsed.serverId}")
 
-        val client = FtpProtocolClient(
-            host = server.host,
-            port = server.port,
-            isFtps = parsed.isFtps || server.protocol == NetworkProtocol.FTPS,
-        )
+        val client =
+            FtpProtocolClient(
+                host = server.host,
+                port = server.port,
+                isFtps = parsed.isFtps || server.protocol == NetworkProtocol.FTPS,
+            )
         client.connect()
 
         val pass = credentialsStore.getPassword(server.id) ?: ""
@@ -363,7 +410,10 @@ class FtpBackend(
         return client
     }
 
-    private fun listRemote(parsed: ParsedFtpId, remotePath: String): List<FileNode> {
+    private fun listRemote(
+        parsed: ParsedFtpId,
+        remotePath: String,
+    ): List<FileNode> {
         val client = connectAndLogin(parsed)
         try {
             val dataSocket = client.openPassiveDataSocket()
@@ -386,7 +436,11 @@ class FtpBackend(
         }
     }
 
-    private fun parseFtpListLine(line: String, parentId: FileNodeId, parsed: ParsedFtpId): FileNode? {
+    private fun parseFtpListLine(
+        line: String,
+        parentId: FileNodeId,
+        parsed: ParsedFtpId,
+    ): FileNode? {
         val trimmed = line.trim()
         if (trimmed.isEmpty()) return null
 
@@ -487,6 +541,10 @@ internal class FtpProtocolClient(
 
         if (isFtps) {
             val authResp = sendCommand("AUTH TLS")
+            if (!authResp.startsWith("234")) {
+                sock.close()
+                error("FTPS server rejected TLS: $authResp")
+            }
             if (authResp.startsWith("234")) {
                 val sslFactory = SSLSocketFactory.getDefault() as SSLSocketFactory
                 val sslSock = sslFactory.createSocket(sock, host, port, true)
@@ -499,7 +557,10 @@ internal class FtpProtocolClient(
         }
     }
 
-    fun login(user: String, pass: String) {
+    fun login(
+        user: String,
+        pass: String,
+    ) {
         val userResp = sendCommand("USER $user")
         if (userResp.startsWith("331")) {
             val passResp = sendCommand("PASS $pass")
@@ -554,9 +615,11 @@ internal class FtpProtocolClient(
     fun close() {
         try {
             sendCommand("QUIT")
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         try {
             socket?.close()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 }

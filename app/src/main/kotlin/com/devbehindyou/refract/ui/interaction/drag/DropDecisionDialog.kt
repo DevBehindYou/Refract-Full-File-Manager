@@ -51,11 +51,12 @@ fun DropDecisionDialog(
             },
             text = {
                 Text(
-                    text = if (itemCount == 1) {
-                        "Stage \"${payload.items.first().displayName}\" into $targetName for later transfer?"
-                    } else {
-                        "Stage $itemCount items into $targetName for later transfer?"
-                    },
+                    text =
+                        if (itemCount == 1) {
+                            "Stage \"${payload.items.first().displayName}\" into $targetName for later transfer?"
+                        } else {
+                            "Stage $itemCount items into $targetName for later transfer?"
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -96,11 +97,12 @@ fun DropDecisionDialog(
         text = {
             Column {
                 Text(
-                    text = if (itemCount == 1) {
-                        "Choose action for \"${payload.items.first().name}\" to \"$targetName\":"
-                    } else {
-                        "Choose action for $itemCount items to \"$targetName\":"
-                    },
+                    text =
+                        if (itemCount == 1) {
+                            "Choose action for \"${payload.items.first().name}\" to \"$targetName\":"
+                        } else {
+                            "Choose action for $itemCount items to \"$targetName\":"
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }

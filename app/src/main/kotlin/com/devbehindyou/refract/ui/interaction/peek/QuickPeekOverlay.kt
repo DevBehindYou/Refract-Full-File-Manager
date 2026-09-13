@@ -82,35 +82,39 @@ fun QuickPeekOverlay(
         modifier = modifier,
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { controller.dismiss() },
-                ),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.65f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { controller.dismiss() },
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             if (activeNode != null) {
                 Card(
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-                    modifier = Modifier
-                        .padding(24.dp)
-                        .widthIn(min = 280.dp, max = 460.dp)
-                        .clip(RoundedCornerShape(24.dp)),
+                    modifier =
+                        Modifier
+                            .padding(24.dp)
+                            .widthIn(min = 280.dp, max = 460.dp)
+                            .clip(RoundedCornerShape(24.dp)),
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         // Media Display Area
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 200.dp, max = 380.dp)
-                                .background(MaterialTheme.colorScheme.surfaceContainerLowest),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 200.dp, max = 380.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceContainerLowest),
                             contentAlignment = Alignment.Center,
                         ) {
                             val bitmap = controller.previewBitmap
@@ -126,9 +130,10 @@ fun QuickPeekOverlay(
                                         bitmap = bitmap.asImageBitmap(),
                                         contentDescription = activeNode.displayName,
                                         contentScale = ContentScale.Fit,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .heightIn(max = 380.dp),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 380.dp),
                                     )
                                 }
                                 activeNode.mimeType?.startsWith("video/") == true -> {
@@ -163,9 +168,10 @@ fun QuickPeekOverlay(
 
                         // Bottom Metadata Bar
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
                         ) {
                             Text(
                                 text = activeNode.displayName,

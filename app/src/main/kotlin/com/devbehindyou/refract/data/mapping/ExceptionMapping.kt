@@ -6,8 +6,8 @@ import com.devbehindyou.refract.domain.model.FileError
 import kotlinx.coroutines.CancellationException
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.nio.file.AccessDeniedException as NioAccessDeniedException
 import java.util.zip.ZipException
+import java.nio.file.AccessDeniedException as NioAccessDeniedException
 
 /**
  * The exception -> [FileError] boundary (`architecture/DATA_LAYER.md` §4). Every backend
@@ -30,19 +30,23 @@ import java.util.zip.ZipException
  * that tracked its own byte count, `StatFs` queried separately) should construct
  * [FileError.DiskFull] directly rather than route through this generic mapper.
  */
-fun Throwable.toFileError(context: ErrorContext? = null): FileError = when (this) {
-    is CancellationException -> throw this
-    is FileNotFoundException -> FileError.FileNotFound(context?.name)
-    is NioAccessDeniedException -> FileError.AccessDenied(context?.name)
-    is SecurityException -> FileError.AccessDenied(context?.name)
-    is ErrnoException -> errnoToFileError(this, context)
-    is ZipException -> FileError.CorruptedArchive(context?.name)
-    is OutOfMemoryError -> FileError.OutOfMemory
-    is IOException -> FileError.IoFailure(context?.name)
-    else -> FileError.Unknown(this::class.simpleName ?: "UnknownThrowable")
-}
+fun Throwable.toFileError(context: ErrorContext? = null): FileError =
+    when (this) {
+        is CancellationException -> throw this
+        is FileNotFoundException -> FileError.FileNotFound(context?.name)
+        is NioAccessDeniedException -> FileError.AccessDenied(context?.name)
+        is SecurityException -> FileError.AccessDenied(context?.name)
+        is ErrnoException -> errnoToFileError(this, context)
+        is ZipException -> FileError.CorruptedArchive(context?.name)
+        is OutOfMemoryError -> FileError.OutOfMemory
+        is IOException -> FileError.IoFailure(context?.name)
+        else -> FileError.Unknown(this::class.simpleName ?: "UnknownThrowable")
+    }
 
-private fun errnoToFileError(exception: ErrnoException, context: ErrorContext?): FileError =
+private fun errnoToFileError(
+    exception: ErrnoException,
+    context: ErrorContext?,
+): FileError =
     when (exception.errno) {
         OsConstants.ENOSPC -> FileError.DiskFull(required = 0L, available = 0L)
         OsConstants.EACCES -> FileError.AccessDenied(context?.name)

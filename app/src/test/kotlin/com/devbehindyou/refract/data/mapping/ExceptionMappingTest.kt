@@ -11,8 +11,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.nio.file.AccessDeniedException as NioAccessDeniedException
 import java.util.zip.ZipException
+import java.nio.file.AccessDeniedException as NioAccessDeniedException
 
 /**
  * Every branch of [toFileError], per Phase 3 AC5: "every mapped exception has a test; no
@@ -21,7 +21,6 @@ import java.util.zip.ZipException
  */
 @RunWith(RobolectricTestRunner::class)
 class ExceptionMappingTest {
-
     @Test
     fun `FileNotFoundException maps to FileError FileNotFound`() {
         val error = FileNotFoundException("gone").toFileError(ErrorContext("gone.txt"))

@@ -12,6 +12,8 @@ indent_size = 4
 indent_size = 4
 max_line_length = 120
 ktlint_standard_filename = disabled
+# Compose UI functions follow the existing PascalCase component convention.
+ktlint_function_naming_ignore_when_annotated_with = Composable
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
 

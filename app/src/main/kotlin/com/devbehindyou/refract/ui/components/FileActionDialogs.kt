@@ -45,16 +45,17 @@ fun NewFolderDialog(
                     label = { Text("Folder Name") },
                     isError = isError,
                     singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("new_folder_input")
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .testTag("new_folder_input"),
                 )
                 if (isError) {
                     Text(
                         text = "Name cannot be empty or contain '/'",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
             }
@@ -67,7 +68,7 @@ fun NewFolderDialog(
                     }
                 },
                 enabled = folderName.isNotBlank() && !folderName.contains("/"),
-                modifier = Modifier.testTag("confirm_create_folder_button")
+                modifier = Modifier.testTag("confirm_create_folder_button"),
             ) {
                 Text("Create")
             }
@@ -75,11 +76,11 @@ fun NewFolderDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.testTag("cancel_create_folder_button")
+                modifier = Modifier.testTag("cancel_create_folder_button"),
             ) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -105,9 +106,10 @@ fun RenameDialog(
                 label = { Text("New name") },
                 isError = isError,
                 singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("rename_input")
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("rename_input"),
             )
         },
         confirmButton = {
@@ -118,7 +120,7 @@ fun RenameDialog(
                     }
                 },
                 enabled = name.isNotBlank() && !name.contains("/"),
-                modifier = Modifier.testTag("confirm_rename_button")
+                modifier = Modifier.testTag("confirm_rename_button"),
             ) {
                 Text("Rename")
             }
@@ -126,11 +128,11 @@ fun RenameDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.testTag("cancel_rename_button")
+                modifier = Modifier.testTag("cancel_rename_button"),
             ) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -145,7 +147,7 @@ fun FileDetailsDialog(
             Text(
                 text = if (node.isDirectory) "Folder Details" else "File Details",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -161,11 +163,12 @@ fun FileDetailsDialog(
                 DetailRow(label = "Modified", value = FileUtils.formatDate(node.modifiedAt))
                 DetailRow(
                     label = "Permissions",
-                    value = listOfNotNull(
-                        if (node.access.readable) "Read" else null,
-                        if (node.access.writable) "Write" else null,
-                        if (node.access.deletable) "Delete" else null
-                    ).joinToString(", ")
+                    value =
+                        listOfNotNull(
+                            if (node.access.readable) "Read" else null,
+                            if (node.access.writable) "Write" else null,
+                            if (node.access.deletable) "Delete" else null,
+                        ).joinToString(", "),
                 )
             }
         },
@@ -173,23 +176,26 @@ fun FileDetailsDialog(
             Button(onClick = onDismiss) {
                 Text("Close")
             }
-        }
+        },
     )
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(
+    label: String,
+    value: String,
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(10.dp))
     }

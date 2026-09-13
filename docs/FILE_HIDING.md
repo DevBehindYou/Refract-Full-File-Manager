@@ -1,3 +1,5 @@
+> Verification update (13 September 2026): bounded footer parsing, collision protection and repository round trips now have regression coverage. Recovery code is not wired into startup and no process-kill test has run; journal CRUD tests do not prove crash safety. See [App verification](testing/VERIFICATION_REPORT.md).
+
 # Multi-Mode File Hiding Architecture
 
 Refract eliminates the confusion of a single ambiguous "Hide" button by introducing three explicitly differentiated hiding mechanisms tailored for distinct privacy needs, transparent technical tradeoffs, and crash recovery guarantees.

@@ -1,6 +1,5 @@
 package com.devbehindyou.refract.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,7 +19,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -62,11 +60,12 @@ fun HiddenFilesScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    val tabs = listOf(
-        "Fast Obscured" to HideMode.FAST_OBSCURE,
-        "Hidden Gallery" to HideMode.GALLERY,
-        "Private Storage" to HideMode.PRIVATE_STORAGE,
-    )
+    val tabs =
+        listOf(
+            "Fast Obscured" to HideMode.FAST_OBSCURE,
+            "Hidden Gallery" to HideMode.GALLERY,
+            "Private Storage" to HideMode.PRIVATE_STORAGE,
+        )
 
     val currentMode = tabs[selectedTab].second
     val currentItems = hiddenItems.filter { it.mode == currentMode }
@@ -90,7 +89,10 @@ fun HiddenFilesScreen(
                                             HideMode.FAST_OBSCURE -> repository.restoreFastObscured(item)
                                             HideMode.GALLERY -> repository.unhideFromGallery(item)
                                             HideMode.PRIVATE_STORAGE -> {
-                                                val parent = FileNodeId.file(item.originalLocation).raw.substringBeforeLast('/')
+                                                val parent =
+                                                    FileNodeId.file(
+                                                        item.originalLocation,
+                                                    ).raw.substringBeforeLast('/')
                                                 repository.restoreFromPrivateStorage(item, FileNodeId.file(parent))
                                             }
                                         }
@@ -108,9 +110,10 @@ fun HiddenFilesScreen(
         modifier = modifier,
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             PrimaryTabRow(selectedTabIndex = selectedTab) {
                 tabs.forEachIndexed { index, (title, _) ->
@@ -124,18 +127,20 @@ fun HiddenFilesScreen(
 
             if (currentItems.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            imageVector = when (currentMode) {
-                                HideMode.FAST_OBSCURE -> Icons.Default.VisibilityOff
-                                HideMode.GALLERY -> Icons.Default.Visibility
-                                HideMode.PRIVATE_STORAGE -> Icons.Default.Lock
-                            },
+                            imageVector =
+                                when (currentMode) {
+                                    HideMode.FAST_OBSCURE -> Icons.Default.VisibilityOff
+                                    HideMode.GALLERY -> Icons.Default.Visibility
+                                    HideMode.PRIVATE_STORAGE -> Icons.Default.Lock
+                                },
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 16.dp),
@@ -158,7 +163,10 @@ fun HiddenFilesScreen(
                                         HideMode.FAST_OBSCURE -> repository.restoreFastObscured(item)
                                         HideMode.GALLERY -> repository.unhideFromGallery(item)
                                         HideMode.PRIVATE_STORAGE -> {
-                                            val parent = FileNodeId.file(item.originalLocation).raw.substringBeforeLast('/')
+                                            val parent =
+                                                FileNodeId.file(
+                                                    item.originalLocation,
+                                                ).raw.substringBeforeLast('/')
                                             repository.restoreFromPrivateStorage(item, FileNodeId.file(parent))
                                         }
                                     }
@@ -186,9 +194,10 @@ private fun HiddenItemRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(

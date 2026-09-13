@@ -17,11 +17,11 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class SafUriMappingTest {
-
-    private val treeUri: Uri = DocumentsContract.buildTreeDocumentUri(
-        "com.android.externalstorage.documents",
-        "primary:Download",
-    )
+    private val treeUri: Uri =
+        DocumentsContract.buildTreeDocumentUri(
+            "com.android.externalstorage.documents",
+            "primary:Download",
+        )
 
     @Test
     fun `a tree-root document id round-trips through toSafRef`() {

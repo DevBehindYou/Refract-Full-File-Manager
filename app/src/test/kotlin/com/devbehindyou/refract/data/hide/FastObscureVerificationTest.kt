@@ -11,7 +11,6 @@ import java.security.MessageDigest
 import kotlin.random.Random
 
 class FastObscureVerificationTest {
-
     @TempDir
     lateinit var tempDir: File
 
@@ -102,5 +101,69 @@ class FastObscureVerificationTest {
 
         val result = FastObscureHelper.restoreFile(normalFile)
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `fast obscure and restore round-trips a zero-byte file`() {
+        val file = File(tempDir, "empty.bin")
+        file.writeBytes(ByteArray(0))
+
+        assertEquals(0L, file.length())
+        val originalSha = sha256(file)
+
+        val obscureResult = FastObscureHelper.obscureFile(file)
+        assertTrue(obscureResult.isSuccess, "Obscure of 0-byte file should succeed")
+        val obscuredFile = obscureResult.getOrThrow()
+
+        assertTrue(obscuredFile.exists())
+        assertTrue(obscuredFile.name.endsWith(FastObscureHelper.OBSCURE_EXTENSION))
+
+        val restoreResult = FastObscureHelper.restoreFile(obscuredFile)
+        assertTrue(restoreResult.isSuccess, "Restore of 0-byte obscured file should succeed")
+        val restoredFile = restoreResult.getOrThrow()
+
+        assertTrue(restoredFile.exists())
+        assertEquals("empty.bin", restoredFile.name)
+        assertEquals(0L, restoredFile.length())
+        assertEquals(originalSha, sha256(restoredFile))
+    }
+
+    @Test
+    fun `fast obscure and restore round-trips a file exactly at the 512-byte header boundary`() {
+        val file = File(tempDir, "exact512.dat")
+        val data = ByteArray(512) { i -> (i % 127).toByte() }
+        file.writeBytes(data)
+
+        val originalSha = sha256(file)
+
+        val obscureResult = FastObscureHelper.obscureFile(file)
+        assertTrue(obscureResult.isSuccess)
+        val obscuredFile = obscureResult.getOrThrow()
+
+        val restoreResult = FastObscureHelper.restoreFile(obscuredFile)
+        assertTrue(restoreResult.isSuccess)
+        val restoredFile = restoreResult.getOrThrow()
+
+        assertEquals(512L, restoredFile.length())
+        assertEquals(originalSha, sha256(restoredFile))
+    }
+
+    @Test
+    fun `fast obscure preserves unicode filename through full round-trip`() {
+        val file = File(tempDir, "ファイル_café_документ.txt")
+        file.writeText("Unicode filename test content")
+
+        val originalSha = sha256(file)
+
+        val obscureResult = FastObscureHelper.obscureFile(file)
+        assertTrue(obscureResult.isSuccess)
+        val obscuredFile = obscureResult.getOrThrow()
+
+        val restoreResult = FastObscureHelper.restoreFile(obscuredFile)
+        assertTrue(restoreResult.isSuccess)
+        val restoredFile = restoreResult.getOrThrow()
+
+        assertEquals("ファイル_café_документ.txt", restoredFile.name)
+        assertEquals(originalSha, sha256(restoredFile))
     }
 }

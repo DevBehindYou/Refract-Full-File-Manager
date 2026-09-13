@@ -8,7 +8,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 class FileNodeIdTest {
-
     // --- file: -------------------------------------------------------------------------
 
     @Test
@@ -86,7 +85,7 @@ class FileNodeIdTest {
             "not-a-known-prefix:whatever",
             "file:",
             "http://example.com",
-        ]
+        ],
     )
     fun `parse rejects malformed or unrecognised input`(raw: String) {
         assertNull(FileNodeId.parse(raw))

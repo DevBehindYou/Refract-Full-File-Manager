@@ -10,8 +10,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -101,11 +99,12 @@ private fun BubbleItem(
         label = "bubbleScale",
     )
     val containerColor by animateColorAsState(
-        targetValue = if (isTarget) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        },
+        targetValue =
+            if (isTarget) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            },
         label = "bubbleColor",
     )
 
@@ -116,25 +115,27 @@ private fun BubbleItem(
         color = containerColor,
         tonalElevation = elevation,
         shadowElevation = elevation,
-        modifier = modifier
-            .scale(scale)
-            .size(56.dp)
-            .fileDropTarget(
-                controller = dragController,
-                target = ActiveDropTarget(
-                    id = bubbleNodeId.raw,
-                    destinationId = bubbleNodeId,
-                    type = DropTargetType.TRANSFER_BUBBLE,
-                    displayName = bubble.displayName,
+        modifier =
+            modifier
+                .scale(scale)
+                .size(56.dp)
+                .fileDropTarget(
+                    controller = dragController,
+                    target =
+                        ActiveDropTarget(
+                            id = bubbleNodeId.raw,
+                            destinationId = bubbleNodeId,
+                            type = DropTargetType.TRANSFER_BUBBLE,
+                            displayName = bubble.displayName,
+                        ),
+                )
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
                 ),
-            )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
-            ),
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -159,11 +160,12 @@ private fun BubbleItem(
                 Icon(
                     imageVector = Icons.Default.AllInbox,
                     contentDescription = bubble.displayName,
-                    tint = if (isTarget) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    tint =
+                        if (isTarget) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     modifier = Modifier.size(24.dp),
                 )
             }

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -32,8 +30,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -77,6 +73,9 @@ import com.devbehindyou.refract.domain.model.FileResult
 import com.devbehindyou.refract.domain.usecase.ArchiveEntryInfo
 import com.devbehindyou.refract.domain.usecase.FileChecksums
 import com.devbehindyou.refract.domain.usecase.TextContent
+import com.devbehindyou.refract.ui.components.preview.AudioPreviewContent
+import com.devbehindyou.refract.ui.components.preview.MarkdownPreviewContent
+import com.devbehindyou.refract.ui.components.preview.VideoPreviewContent
 import com.devbehindyou.refract.ui.util.FileUtils
 import kotlinx.coroutines.launch
 
@@ -84,7 +83,10 @@ private enum class PreviewType {
     IMAGE,
     PDF,
     TEXT,
+    MARKDOWN,
     ARCHIVE,
+    AUDIO,
+    VIDEO,
     GENERIC,
 }
 
@@ -93,12 +95,20 @@ private fun resolvePreviewType(node: FileNode): PreviewType {
     val mime = node.mimeType.orEmpty().lowercase()
     return when {
         mime.startsWith("image/") || name.endsWith(".jpg") || name.endsWith(".jpeg") ||
-            name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".gif") || name.endsWith(".bmp") -> PreviewType.IMAGE
+            name.endsWith(".png") ||
+            name.endsWith(".webp") || name.endsWith(".gif") || name.endsWith(".bmp") -> PreviewType.IMAGE
+        mime.startsWith("audio/") || name.endsWith(".mp3") || name.endsWith(".m4a") ||
+            name.endsWith(".aac") || name.endsWith(".flac") || name.endsWith(".wav") ||
+            name.endsWith(".ogg") || name.endsWith(".opus") -> PreviewType.AUDIO
+        mime.startsWith("video/") || name.endsWith(".mp4") || name.endsWith(".mkv") ||
+            name.endsWith(".webm") || name.endsWith(".avi") || name.endsWith(".mov") ||
+            name.endsWith(".3gp") -> PreviewType.VIDEO
         mime == "application/pdf" || name.endsWith(".pdf") -> PreviewType.PDF
+        name.endsWith(".md") -> PreviewType.MARKDOWN
         name.endsWith(".zip") || mime.contains("zip") -> PreviewType.ARCHIVE
         mime.startsWith("text/") || mime.contains("json") || mime.contains("xml") ||
             name.endsWith(".txt") || name.endsWith(".json") || name.endsWith(".xml") ||
-            name.endsWith(".kt") || name.endsWith(".java") || name.endsWith(".md") ||
+            name.endsWith(".kt") || name.endsWith(".java") ||
             name.endsWith(".log") || name.endsWith(".gradle") || name.endsWith(".sh") ||
             name.endsWith(".py") || name.endsWith(".html") || name.endsWith(".css") ||
             name.endsWith(".js") || name.endsWith(".csv") -> PreviewType.TEXT
@@ -157,24 +167,29 @@ fun FilePreviewPane(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
             )
-        }
+        },
     ) { padding ->
         Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
             color = MaterialTheme.colorScheme.background,
         ) {
             when (previewType) {
                 PreviewType.IMAGE -> ImagePreviewContent(node, container)
                 PreviewType.PDF -> PdfPreviewContent(node, container)
                 PreviewType.TEXT -> TextPreviewContent(node, container)
+                PreviewType.MARKDOWN -> MarkdownPreviewContent(node, container)
                 PreviewType.ARCHIVE -> ArchivePreviewContent(node, container)
+                PreviewType.AUDIO -> AudioPreviewContent(node, container)
+                PreviewType.VIDEO -> VideoPreviewContent(node, container)
                 PreviewType.GENERIC -> GenericFileContent(node, container, onOpenExternal)
             }
         }
@@ -191,7 +206,7 @@ fun FilePreviewDialog(
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         FilePreviewPane(
             node = node,
@@ -230,14 +245,15 @@ private fun ImagePreviewContent(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(0.5f, 6f)
-                    offset = if (scale > 1f) offset + pan else Offset.Zero
-                }
-            },
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(0.5f, 6f)
+                        offset = if (scale > 1f) offset + pan else Offset.Zero
+                    }
+                },
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -247,14 +263,15 @@ private fun ImagePreviewContent(
                 Image(
                     bitmap = bitmap!!.asImageBitmap(),
                     contentDescription = node.name,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer(
-                            scaleX = scale,
-                            scaleY = scale,
-                            translationX = offset.x,
-                            translationY = offset.y,
-                        )
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offset.x,
+                                translationY = offset.y,
+                            ),
                 )
             }
         }
@@ -301,6 +318,7 @@ private fun PdfPreviewContent(
     }
 
     val coroutineScope = rememberCoroutineScope()
+
     fun loadPage(pageIndex: Int) {
         if (pageIndex < 0 || pageIndex >= pageCount) return
         isLoading = true
@@ -321,9 +339,10 @@ private fun PdfPreviewContent(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -342,12 +361,13 @@ private fun PdfPreviewContent(
         if (pageCount > 1) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -422,9 +442,10 @@ private fun TextPreviewContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -437,7 +458,12 @@ private fun TextPreviewContent(
                     Icon(
                         Icons.AutoMirrored.Filled.WrapText,
                         contentDescription = "Toggle line wrap",
-                        tint = if (wrapLines) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint =
+                            if (wrapLines) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                 }
             }
@@ -446,25 +472,30 @@ private fun TextPreviewContent(
         val scrollState = rememberScrollState()
         val horizontalScrollState = rememberScrollState()
 
-        val modifier = if (wrapLines) {
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-        } else {
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .horizontalScroll(horizontalScrollState)
-        }
+        val modifier =
+            if (wrapLines) {
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .horizontalScroll(horizontalScrollState)
+            }
 
         Row(
-            modifier = modifier.padding(8.dp)
+            modifier = modifier.padding(8.dp),
         ) {
             // Line numbers column
             Column(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                modifier =
+                    Modifier
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            RoundedCornerShape(4.dp),
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
             ) {
                 content.lines.indices.forEach { index ->
                     Text(
@@ -533,29 +564,35 @@ private fun ArchivePreviewContent(
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = "${entries.size} items in archive",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(entries, key = { it.path }) { entry ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         imageVector = if (entry.isDirectory) Icons.Default.FolderZip else Icons.Default.Description,
                         contentDescription = null,
-                        tint = if (entry.isDirectory) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(24.dp)
+                        tint =
+                            if (entry.isDirectory) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.secondary
+                            },
+                        modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -568,7 +605,9 @@ private fun ArchivePreviewContent(
                         )
                         if (!entry.isDirectory) {
                             Text(
-                                text = "${FileUtils.formatBytes(entry.uncompressedSize)} (Compressed: ${FileUtils.formatBytes(entry.compressedSize)})",
+                                text = "${FileUtils.formatBytes(
+                                    entry.uncompressedSize,
+                                )} (Compressed: ${FileUtils.formatBytes(entry.compressedSize)})",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -591,10 +630,11 @@ private fun GenericFileContent(
     val coroutineScope = rememberCoroutineScope()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -602,7 +642,7 @@ private fun GenericFileContent(
             imageVector = Icons.Default.Description,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(72.dp)
+            modifier = Modifier.size(72.dp),
         )
 
         Text(
@@ -614,7 +654,7 @@ private fun GenericFileContent(
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetadataRow(label = "Size", value = FileUtils.formatBytes(node.size))
@@ -671,7 +711,10 @@ private fun GenericFileContent(
 }
 
 @Composable
-private fun MetadataRow(label: String, value: String) {
+private fun MetadataRow(
+    label: String,
+    value: String,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -685,7 +728,12 @@ private fun MetadataRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
-            fontFamily = if (label.contains("MD5") || label.contains("SHA")) FontFamily.Monospace else FontFamily.Default,
+            fontFamily =
+                if (label.contains("MD5") || label.contains("SHA")) {
+                    FontFamily.Monospace
+                } else {
+                    FontFamily.Default
+                },
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )

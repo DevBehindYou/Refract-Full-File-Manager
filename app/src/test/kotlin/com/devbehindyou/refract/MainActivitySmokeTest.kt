@@ -22,7 +22,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [27, 34])
 class MainActivitySmokeTest {
-
     @Test
     fun mainActivityLaunchesWithoutCrashing() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->

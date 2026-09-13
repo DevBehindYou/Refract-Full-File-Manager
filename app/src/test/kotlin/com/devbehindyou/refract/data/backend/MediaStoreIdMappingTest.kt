@@ -12,7 +12,6 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class MediaStoreIdMappingTest {
-
     @Test
     fun `a real row id parses to a non-root ref with the right collection uri`() {
         val id = FileNodeId.media("external", "images", 10432L)

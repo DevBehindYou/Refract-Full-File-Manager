@@ -1,0 +1,358 @@
+package com.devbehindyou.refract.ui.components.preview
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.WrapText
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.devbehindyou.refract.AppContainer
+import com.devbehindyou.refract.domain.model.FileNode
+import com.devbehindyou.refract.domain.model.FileResult
+import com.devbehindyou.refract.domain.usecase.TextContent
+
+@Composable
+fun MarkdownPreviewContent(
+    node: FileNode,
+    container: AppContainer,
+    modifier: Modifier = Modifier,
+) {
+    var textContent by remember { mutableStateOf<TextContent?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isRenderedMode by remember { mutableStateOf(true) }
+
+    LaunchedEffect(node.id) {
+        isLoading = true
+        when (val res = container.readFileContentUseCase.readText(node.id)) {
+            is FileResult.Success -> {
+                textContent = res.value
+                isLoading = false
+            }
+            is FileResult.Failure -> {
+                errorMessage = "Failed to load Markdown document"
+                isLoading = false
+            }
+        }
+    }
+
+    if (isLoading) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (errorMessage != null) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
+        }
+        return
+    }
+
+    val content = textContent ?: return
+
+    Column(modifier = modifier.fillMaxSize()) {
+        MarkdownHeaderBar(
+            lineCount = content.totalLinesCount,
+            isRendered = isRenderedMode,
+            onToggleMode = { isRenderedMode = it },
+        )
+
+        if (isRenderedMode) {
+            RenderedMarkdownView(lines = content.lines, modifier = Modifier.fillMaxSize())
+        } else {
+            RawMarkdownView(lines = content.lines, modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+@Composable
+private fun MarkdownHeaderBar(
+    lineCount: Int,
+    isRendered: Boolean,
+    onToggleMode: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "$lineCount lines",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = isRendered,
+                    onClick = { onToggleMode(true) },
+                    label = { Text("Rendered", style = MaterialTheme.typography.labelSmall) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Visibility,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    },
+                )
+                FilterChip(
+                    selected = !isRendered,
+                    onClick = { onToggleMode(false) },
+                    label = { Text("Raw", style = MaterialTheme.typography.labelSmall) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Code,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenderedMarkdownView(
+    lines: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    var inCodeBlock = false
+    val codeBuffer = mutableListOf<String>()
+
+    LazyColumn(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(lines) { rawLine ->
+            val line = rawLine.trimEnd()
+            when {
+                line.startsWith("```") -> {
+                    inCodeBlock = !inCodeBlock
+                    if (!inCodeBlock && codeBuffer.isNotEmpty()) {
+                        val block = codeBuffer.joinToString("\n")
+                        codeBuffer.clear()
+                        MarkdownCodeBlock(code = block)
+                    }
+                }
+                inCodeBlock -> {
+                    codeBuffer.add(line)
+                }
+                line.startsWith("# ") -> {
+                    Text(
+                        text = line.removePrefix("# "),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                line.startsWith("## ") -> {
+                    Text(
+                        text = line.removePrefix("## "),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                line.startsWith("### ") -> {
+                    Text(
+                        text = line.removePrefix("### "),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                line.startsWith("- ") || line.startsWith("* ") -> {
+                    Row(modifier = Modifier.padding(start = 8.dp)) {
+                        Text(text = "• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = line.substring(2),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+                line.startsWith("> ") -> {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = line.removePrefix("> "),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(12.dp),
+                        )
+                    }
+                }
+                line.startsWith("---") || line.startsWith("***") -> {
+                    Spacer(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant),
+                    )
+                }
+                line.isBlank() -> {
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                else -> {
+                    Text(
+                        text = line,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownCodeBlock(
+    code: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = code,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier =
+                Modifier
+                    .padding(12.dp)
+                    .horizontalScroll(rememberScrollState()),
+        )
+    }
+}
+
+@Composable
+private fun RawMarkdownView(
+    lines: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    var wrapLines by remember { mutableStateOf(false) }
+    val verticalScroll = rememberScrollState()
+    val horizontalScroll = rememberScrollState()
+
+    val contentModifier =
+        if (wrapLines) {
+            modifier.verticalScroll(verticalScroll)
+        } else {
+            modifier
+                .verticalScroll(verticalScroll)
+                .horizontalScroll(horizontalScroll)
+        }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            IconButton(onClick = { wrapLines = !wrapLines }, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.AutoMirrored.Filled.WrapText,
+                    contentDescription = "Toggle wrap",
+                    tint =
+                        if (wrapLines) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                )
+            }
+        }
+
+        Row(modifier = contentModifier.padding(8.dp)) {
+            Column(
+                modifier =
+                    Modifier
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            RoundedCornerShape(4.dp),
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                lines.indices.forEach { idx ->
+                    Text(
+                        text = "${idx + 1}",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                lines.forEach { line ->
+                    Text(
+                        text = line.ifEmpty { " " },
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
+    }
+}

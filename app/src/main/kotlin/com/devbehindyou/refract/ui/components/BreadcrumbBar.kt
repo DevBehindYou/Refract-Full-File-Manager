@@ -51,27 +51,32 @@ fun BreadcrumbBar(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .testTag("breadcrumb_bar")
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .testTag("breadcrumb_bar"),
     ) {
-        val rootTargetMod = if (dragController != null && breadcrumbs.isNotEmpty()) {
-            FileNodeId.parse(breadcrumbs.first().path)?.let { targetId ->
-                Modifier.fileDropTarget(
-                    controller = dragController,
-                    target = ActiveDropTarget(
-                        id = breadcrumbs.first().path,
-                        destinationId = targetId,
-                        type = DropTargetType.BREADCRUMB,
-                        displayName = "Storage",
-                        isWritable = true,
-                    ),
-                    onHoverSpringOpen = { onBreadcrumbClick(breadcrumbs.first()) },
-                )
-            } ?: Modifier
-        } else Modifier
+        val rootTargetMod =
+            if (dragController != null && breadcrumbs.isNotEmpty()) {
+                FileNodeId.parse(breadcrumbs.first().path)?.let { targetId ->
+                    Modifier.fileDropTarget(
+                        controller = dragController,
+                        target =
+                            ActiveDropTarget(
+                                id = breadcrumbs.first().path,
+                                destinationId = targetId,
+                                type = DropTargetType.BREADCRUMB,
+                                displayName = "Storage",
+                                isWritable = true,
+                            ),
+                        onHoverSpringOpen = { onBreadcrumbClick(breadcrumbs.first()) },
+                    )
+                } ?: Modifier
+            } else {
+                Modifier
+            }
 
         SuggestionChip(
             modifier = rootTargetMod,
@@ -85,15 +90,16 @@ fun BreadcrumbBar(
                     Icon(
                         imageVector = Icons.Default.Home,
                         contentDescription = "Root",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Storage")
                 }
             },
-            colors = SuggestionChipDefaults.suggestionChipColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
+            colors =
+                SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                ),
         )
 
         breadcrumbs.drop(1).forEach { item ->
@@ -101,27 +107,32 @@ fun BreadcrumbBar(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier
-                    .padding(horizontal = 2.dp)
-                    .size(18.dp)
+                modifier =
+                    Modifier
+                        .padding(horizontal = 2.dp)
+                        .size(18.dp),
             )
 
             val isLast = item == breadcrumbs.last()
-            val chipTargetMod = if (dragController != null) {
-                FileNodeId.parse(item.path)?.let { targetId ->
-                    Modifier.fileDropTarget(
-                        controller = dragController,
-                        target = ActiveDropTarget(
-                            id = item.path,
-                            destinationId = targetId,
-                            type = DropTargetType.BREADCRUMB,
-                            displayName = item.name,
-                            isWritable = true,
-                        ),
-                        onHoverSpringOpen = { onBreadcrumbClick(item) },
-                    )
-                } ?: Modifier
-            } else Modifier
+            val chipTargetMod =
+                if (dragController != null) {
+                    FileNodeId.parse(item.path)?.let { targetId ->
+                        Modifier.fileDropTarget(
+                            controller = dragController,
+                            target =
+                                ActiveDropTarget(
+                                    id = item.path,
+                                    destinationId = targetId,
+                                    type = DropTargetType.BREADCRUMB,
+                                    displayName = item.name,
+                                    isWritable = true,
+                                ),
+                            onHoverSpringOpen = { onBreadcrumbClick(item) },
+                        )
+                    } ?: Modifier
+                } else {
+                    Modifier
+                }
 
             SuggestionChip(
                 modifier = chipTargetMod,
@@ -132,18 +143,21 @@ fun BreadcrumbBar(
                         fontWeight = if (isLast) FontWeight.Bold else FontWeight.Normal,
                     )
                 },
-                colors = SuggestionChipDefaults.suggestionChipColors(
-                    containerColor = if (isLast) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                    },
-                    labelColor = if (isLast) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
+                colors =
+                    SuggestionChipDefaults.suggestionChipColors(
+                        containerColor =
+                            if (isLast) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            },
+                        labelColor =
+                            if (isLast) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                    ),
             )
         }
     }

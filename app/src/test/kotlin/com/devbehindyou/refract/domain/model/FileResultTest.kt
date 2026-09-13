@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class FileResultTest {
-
     private val success: FileResult<Int> = FileResult.Success(42)
     private val failure: FileResult<Int> = FileResult.Failure(FileError.FileNotFound("thing.txt"))
 

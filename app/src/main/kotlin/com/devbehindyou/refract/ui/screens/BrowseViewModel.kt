@@ -14,14 +14,14 @@ import com.devbehindyou.refract.domain.model.OperationOptions
 import com.devbehindyou.refract.domain.model.OperationSnapshot
 import com.devbehindyou.refract.domain.model.OperationStatus
 import com.devbehindyou.refract.domain.model.OperationType
+import com.devbehindyou.refract.domain.model.TransferBubble
+import com.devbehindyou.refract.domain.repository.TransferBubbleRepository
 import com.devbehindyou.refract.domain.usecase.CreateDirectoryUseCase
 import com.devbehindyou.refract.domain.usecase.DeleteFileUseCase
 import com.devbehindyou.refract.domain.usecase.FileOperationsEngine
 import com.devbehindyou.refract.domain.usecase.GetDirectoryListingUseCase
 import com.devbehindyou.refract.domain.usecase.GetNodeUseCase
 import com.devbehindyou.refract.domain.usecase.RenameFileUseCase
-import com.devbehindyou.refract.domain.model.TransferBubble
-import com.devbehindyou.refract.domain.repository.TransferBubbleRepository
 import com.devbehindyou.refract.ui.components.BreadcrumbItem
 import com.devbehindyou.refract.ui.interaction.drag.DropDecision
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +40,7 @@ enum class SortOption(val label: String) {
 }
 
 enum class ClipboardOp { COPY, MOVE }
+
 data class ClipboardState(val items: List<FileNode>, val operation: ClipboardOp)
 
 data class BrowseUiState(
@@ -69,7 +70,6 @@ class BrowseViewModel(
     private val fileOperationsEngine: FileOperationsEngine,
     private val transferBubbleRepository: TransferBubbleRepository,
 ) : ViewModel() {
-
     private val folderHistory = mutableListOf<FileNodeId>()
     private val _uiState = MutableStateFlow(BrowseUiState(currentFolderId = initialFolderId))
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
@@ -82,70 +82,76 @@ class BrowseViewModel(
         loadDirectory(initialFolderId)
     }
 
-    fun loadDirectory(folderId: FileNodeId, isRefresh: Boolean = false) {
+    fun loadDirectory(
+        folderId: FileNodeId,
+        isRefresh: Boolean = false,
+    ) {
         listingJob?.cancel()
-        listingJob = viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    currentFolderId = folderId,
-                    isLoading = !isRefresh,
-                    isRefreshing = isRefresh,
-                    errorMessage = null,
-                    selectedIds = emptySet(),
-                )
-            }
+        listingJob =
+            viewModelScope.launch {
+                _uiState.update {
+                    it.copy(
+                        currentFolderId = folderId,
+                        isLoading = !isRefresh,
+                        isRefreshing = isRefresh,
+                        errorMessage = null,
+                        selectedIds = emptySet(),
+                    )
+                }
 
-            // Resolve folder node for name and breadcrumbs
-            val nodeResult = getNodeUseCase(folderId)
-            val folderName = when (nodeResult) {
-                is FileResult.Success -> nodeResult.value.displayName
-                is FileResult.Failure -> folderId.raw.substringAfterLast('/').ifEmpty { "Folder" }
-            }
-            updateBreadcrumbs(folderId, folderName)
-
-            val accumulated = mutableListOf<FileNode>()
-            var lastPush = 0L
-            var pushedAny = false
-            var sawFailure = false
-
-            getDirectoryListingUseCase(folderId).collect { result ->
-                when (result) {
-                    is FileResult.Success -> {
-                        accumulated.addAll(result.value)
-                        val now = System.currentTimeMillis()
-                        val isFirst = !pushedAny
-                        if (isFirst || now - lastPush >= 120L) {
-                            applyNewItems(accumulated.toList())
-                            lastPush = now
-                            pushedAny = true
-                        }
+                // Resolve folder node for name and breadcrumbs
+                val nodeResult = getNodeUseCase(folderId)
+                val folderName =
+                    when (nodeResult) {
+                        is FileResult.Success -> nodeResult.value.displayName
+                        is FileResult.Failure -> folderId.raw.substringAfterLast('/').ifEmpty { "Folder" }
                     }
-                    is FileResult.Failure -> {
-                        sawFailure = true
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                isRefreshing = false,
-                                errorMessage = result.error.message(),
-                            )
+                updateBreadcrumbs(folderId, folderName)
+
+                val accumulated = mutableListOf<FileNode>()
+                var lastPush = 0L
+                var pushedAny = false
+                var sawFailure = false
+
+                getDirectoryListingUseCase(folderId).collect { result ->
+                    when (result) {
+                        is FileResult.Success -> {
+                            accumulated.addAll(result.value)
+                            val now = System.currentTimeMillis()
+                            val isFirst = !pushedAny
+                            if (isFirst || now - lastPush >= 120L) {
+                                applyNewItems(accumulated.toList())
+                                lastPush = now
+                                pushedAny = true
+                            }
+                        }
+                        is FileResult.Failure -> {
+                            sawFailure = true
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isRefreshing = false,
+                                    errorMessage = result.error.message(),
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            if (!sawFailure) {
-                applyNewItems(accumulated.toList())
-                _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
+                if (!sawFailure) {
+                    applyNewItems(accumulated.toList())
+                    _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
+                }
             }
-        }
     }
 
     private suspend fun applyNewItems(items: List<FileNode>) {
         val query = _uiState.value.searchQuery
         val sort = _uiState.value.sortOption
-        val filtered = withContext(Dispatchers.Default) {
-            filterAndSort(items, query, sort)
-        }
+        val filtered =
+            withContext(Dispatchers.Default) {
+                filterAndSort(items, query, sort)
+            }
         _uiState.update {
             it.copy(
                 rawItems = items,
@@ -155,26 +161,35 @@ class BrowseViewModel(
         }
     }
 
-    private fun filterAndSort(items: List<FileNode>, query: String, sort: SortOption): List<FileNode> {
-        val filtered = if (query.isBlank()) {
-            items
-        } else {
-            items.filter { it.name.contains(query, ignoreCase = true) }
-        }
+    private fun filterAndSort(
+        items: List<FileNode>,
+        query: String,
+        sort: SortOption,
+    ): List<FileNode> {
+        val filtered =
+            if (query.isBlank()) {
+                items
+            } else {
+                items.filter { it.name.contains(query, ignoreCase = true) }
+            }
         val comparator = comparatorFor(sort)
         return filtered.sortedWith(comparator)
     }
 
     private fun comparatorFor(sortOption: SortOption): Comparator<FileNode> {
-        val byField: Comparator<FileNode> = when (sortOption) {
-            SortOption.NAME -> compareBy { it.name.lowercase() }
-            SortOption.DATE_MODIFIED -> compareByDescending { it.modifiedAt }
-            SortOption.SIZE -> compareByDescending { it.size }
-        }
+        val byField: Comparator<FileNode> =
+            when (sortOption) {
+                SortOption.NAME -> compareBy { it.name.lowercase() }
+                SortOption.DATE_MODIFIED -> compareByDescending { it.modifiedAt }
+                SortOption.SIZE -> compareByDescending { it.size }
+            }
         return compareByDescending<FileNode> { it.isDirectory }.then(byField)
     }
 
-    private fun updateBreadcrumbs(folderId: FileNodeId, folderName: String) {
+    private fun updateBreadcrumbs(
+        folderId: FileNodeId,
+        folderName: String,
+    ) {
         val raw = folderId.raw
         val prefix = folderId.prefix?.scheme ?: ""
         val pathPart = raw.removePrefix(prefix)
@@ -189,7 +204,7 @@ class BrowseViewModel(
                 BreadcrumbItem(
                     name = segment,
                     path = "$prefix$runningPath",
-                )
+                ),
             )
         }
 
@@ -240,9 +255,10 @@ class BrowseViewModel(
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         viewModelScope.launch {
-            val filtered = withContext(Dispatchers.Default) {
-                filterAndSort(_uiState.value.rawItems, query, _uiState.value.sortOption)
-            }
+            val filtered =
+                withContext(Dispatchers.Default) {
+                    filterAndSort(_uiState.value.rawItems, query, _uiState.value.sortOption)
+                }
             _uiState.update { it.copy(filteredItems = filtered) }
         }
     }
@@ -257,9 +273,10 @@ class BrowseViewModel(
     fun setSortOption(option: SortOption) {
         _uiState.update { it.copy(sortOption = option) }
         viewModelScope.launch {
-            val filtered = withContext(Dispatchers.Default) {
-                filterAndSort(_uiState.value.rawItems, _uiState.value.searchQuery, option)
-            }
+            val filtered =
+                withContext(Dispatchers.Default) {
+                    filterAndSort(_uiState.value.rawItems, _uiState.value.searchQuery, option)
+                }
             _uiState.update { it.copy(filteredItems = filtered) }
         }
     }
@@ -291,7 +308,10 @@ class BrowseViewModel(
         }
     }
 
-    fun rename(nodeId: FileNodeId, newName: String) {
+    fun rename(
+        nodeId: FileNodeId,
+        newName: String,
+    ) {
         viewModelScope.launch {
             when (val result = renameFileUseCase(nodeId, newName)) {
                 is FileResult.Success -> refresh()
@@ -302,14 +322,15 @@ class BrowseViewModel(
 
     fun deleteNodes(nodeIds: List<FileNodeId>) {
         viewModelScope.launch {
-            val op = FileOperation(
-                id = OperationId.random(),
-                type = OperationType.DELETE,
-                sources = nodeIds,
-                destination = null,
-                options = OperationOptions(),
-                createdAt = System.currentTimeMillis(),
-            )
+            val op =
+                FileOperation(
+                    id = OperationId.random(),
+                    type = OperationType.DELETE,
+                    sources = nodeIds,
+                    destination = null,
+                    options = OperationOptions(),
+                    createdAt = System.currentTimeMillis(),
+                )
             runOperation(op)
         }
     }
@@ -346,19 +367,21 @@ class BrowseViewModel(
         val clip = _uiState.value.clipboard ?: return
         val currentFolder = _uiState.value.currentFolderId
 
-        val opType = when (clip.operation) {
-            ClipboardOp.COPY -> OperationType.COPY
-            ClipboardOp.MOVE -> OperationType.MOVE
-        }
+        val opType =
+            when (clip.operation) {
+                ClipboardOp.COPY -> OperationType.COPY
+                ClipboardOp.MOVE -> OperationType.MOVE
+            }
 
-        val op = FileOperation(
-            id = OperationId.random(),
-            type = opType,
-            sources = clip.items.map { it.id },
-            destination = currentFolder,
-            options = OperationOptions(collisionPolicy = collisionPolicy),
-            createdAt = System.currentTimeMillis(),
-        )
+        val op =
+            FileOperation(
+                id = OperationId.random(),
+                type = opType,
+                sources = clip.items.map { it.id },
+                destination = currentFolder,
+                options = OperationOptions(collisionPolicy = collisionPolicy),
+                createdAt = System.currentTimeMillis(),
+            )
 
         runOperation(op)
         _uiState.update { it.copy(clipboard = null) }
@@ -367,79 +390,85 @@ class BrowseViewModel(
     fun compressSelected() {
         val selectedNodes = _uiState.value.rawItems.filter { it.id in _uiState.value.selectedIds }
         if (selectedNodes.isEmpty()) return
-        val operation = FileOperation(
-            id = OperationId.random(),
-            type = OperationType.COMPRESS,
-            sources = selectedNodes.map { it.id },
-            destination = _uiState.value.currentFolderId,
-            options = OperationOptions(),
-            createdAt = System.currentTimeMillis(),
-        )
+        val operation =
+            FileOperation(
+                id = OperationId.random(),
+                type = OperationType.COMPRESS,
+                sources = selectedNodes.map { it.id },
+                destination = _uiState.value.currentFolderId,
+                options = OperationOptions(),
+                createdAt = System.currentTimeMillis(),
+            )
         clearSelection()
         runOperation(operation)
     }
 
     fun compressSingle(node: FileNode) {
-        val operation = FileOperation(
-            id = OperationId.random(),
-            type = OperationType.COMPRESS,
-            sources = listOf(node.id),
-            destination = _uiState.value.currentFolderId,
-            options = OperationOptions(),
-            createdAt = System.currentTimeMillis(),
-        )
+        val operation =
+            FileOperation(
+                id = OperationId.random(),
+                type = OperationType.COMPRESS,
+                sources = listOf(node.id),
+                destination = _uiState.value.currentFolderId,
+                options = OperationOptions(),
+                createdAt = System.currentTimeMillis(),
+            )
         runOperation(operation)
     }
 
     fun extractArchive(node: FileNode) {
-        val operation = FileOperation(
-            id = OperationId.random(),
-            type = OperationType.EXTRACT,
-            sources = listOf(node.id),
-            destination = _uiState.value.currentFolderId,
-            options = OperationOptions(),
-            createdAt = System.currentTimeMillis(),
-        )
+        val operation =
+            FileOperation(
+                id = OperationId.random(),
+                type = OperationType.EXTRACT,
+                sources = listOf(node.id),
+                destination = _uiState.value.currentFolderId,
+                options = OperationOptions(),
+                createdAt = System.currentTimeMillis(),
+            )
         runOperation(operation)
     }
 
     private fun runOperation(operation: FileOperation) {
         operationJob?.cancel()
-        operationJob = viewModelScope.launch {
-            fileOperationsEngine.execute(operation).collect { snapshot ->
-                _uiState.update { it.copy(activeOperation = snapshot) }
-                if (snapshot.status is OperationStatus.Completed ||
-                    snapshot.status is OperationStatus.PartiallyCompleted
-                ) {
-                    refresh()
+        operationJob =
+            viewModelScope.launch {
+                fileOperationsEngine.execute(operation).collect { snapshot ->
+                    _uiState.update { it.copy(activeOperation = snapshot) }
+                    if (snapshot.status is OperationStatus.Completed ||
+                        snapshot.status is OperationStatus.PartiallyCompleted
+                    ) {
+                        refresh()
+                    }
                 }
             }
-        }
     }
 
     fun executeDrop(decision: DropDecision) {
         when (decision) {
             is DropDecision.Move -> {
-                val operation = FileOperation(
-                    id = OperationId.random(),
-                    type = OperationType.MOVE,
-                    sources = decision.payload.itemIds,
-                    destination = decision.destination,
-                    options = OperationOptions(collisionPolicy = CollisionPolicy.ASK),
-                    createdAt = System.currentTimeMillis(),
-                )
+                val operation =
+                    FileOperation(
+                        id = OperationId.random(),
+                        type = OperationType.MOVE,
+                        sources = decision.payload.itemIds,
+                        destination = decision.destination,
+                        options = OperationOptions(collisionPolicy = CollisionPolicy.ASK),
+                        createdAt = System.currentTimeMillis(),
+                    )
                 clearSelection()
                 runOperation(operation)
             }
             is DropDecision.Copy -> {
-                val operation = FileOperation(
-                    id = OperationId.random(),
-                    type = OperationType.COPY,
-                    sources = decision.payload.itemIds,
-                    destination = decision.destination,
-                    options = OperationOptions(collisionPolicy = CollisionPolicy.ASK),
-                    createdAt = System.currentTimeMillis(),
-                )
+                val operation =
+                    FileOperation(
+                        id = OperationId.random(),
+                        type = OperationType.COPY,
+                        sources = decision.payload.itemIds,
+                        destination = decision.destination,
+                        options = OperationOptions(collisionPolicy = CollisionPolicy.ASK),
+                        createdAt = System.currentTimeMillis(),
+                    )
                 clearSelection()
                 runOperation(operation)
             }
@@ -458,7 +487,10 @@ class BrowseViewModel(
         }
     }
 
-    fun addFilesToBubble(bubbleId: String, files: List<FileNode>) {
+    fun addFilesToBubble(
+        bubbleId: String,
+        files: List<FileNode>,
+    ) {
         viewModelScope.launch {
             transferBubbleRepository.addItemsToBubble(bubbleId, files)
         }
@@ -472,7 +504,10 @@ class BrowseViewModel(
         }
     }
 
-    fun removeBubbleItem(bubbleId: String, itemId: Long) {
+    fun removeBubbleItem(
+        bubbleId: String,
+        itemId: Long,
+    ) {
         viewModelScope.launch {
             transferBubbleRepository.removeItemFromBubble(bubbleId, itemId)
         }
@@ -490,17 +525,22 @@ class BrowseViewModel(
         }
     }
 
-    fun transferBubble(bubble: TransferBubble, isMove: Boolean, clearAfter: Boolean) {
+    fun transferBubble(
+        bubble: TransferBubble,
+        isMove: Boolean,
+        clearAfter: Boolean,
+    ) {
         if (bubble.items.isEmpty()) return
         val currentFolder = _uiState.value.currentFolderId
-        val operation = FileOperation(
-            id = OperationId.random(),
-            type = if (isMove) OperationType.MOVE else OperationType.COPY,
-            sources = bubble.items.map { it.fileNodeId },
-            destination = currentFolder,
-            options = OperationOptions(collisionPolicy = CollisionPolicy.ASK),
-            createdAt = System.currentTimeMillis(),
-        )
+        val operation =
+            FileOperation(
+                id = OperationId.random(),
+                type = if (isMove) OperationType.MOVE else OperationType.COPY,
+                sources = bubble.items.map { it.fileNodeId },
+                destination = currentFolder,
+                options = OperationOptions(collisionPolicy = CollisionPolicy.ASK),
+                createdAt = System.currentTimeMillis(),
+            )
         runOperation(operation)
         if (isMove || clearAfter) {
             viewModelScope.launch {
@@ -518,30 +558,31 @@ class BrowseViewModel(
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    private fun FileError.message(): String = when (this) {
-        is FileError.FileNotFound -> "File not found: ${name.orEmpty()}"
-        is FileError.FileAlreadyExists -> "File already exists: $name"
-        is FileError.AccessDenied -> "Access denied: ${name.orEmpty()}"
-        is FileError.PermissionDenied -> "Permission denied"
-        is FileError.PlatformRestricted -> "Access restricted by Android OS"
-        is FileError.ProviderUnavailable -> "Storage provider unavailable"
-        is FileError.StorageUnavailable -> "Storage volume unavailable: ${volumeLabel.orEmpty()}"
-        is FileError.ReadOnlyStorage -> "Storage is read-only"
-        is FileError.DiskFull -> "Insufficient storage space"
-        is FileError.OutOfMemory -> "Out of memory"
-        is FileError.PathTooLong -> "Path is too long: ${name.orEmpty()}"
-        is FileError.InvalidDestination -> "Invalid destination: ${name.orEmpty()}"
-        is FileError.InvalidName -> "Invalid name: $name"
-        is FileError.OperationCancelled -> "Operation cancelled"
-        is FileError.IncompleteWrite -> "Write incomplete for $name"
-        is FileError.PartialFailure -> "Partial failure: $failedCount of $totalCount failed"
-        is FileError.IoFailure -> "I/O failure: ${name.orEmpty()}"
-        is FileError.UnsupportedFormat -> "Unsupported format: ${mimeType.orEmpty()}"
-        is FileError.CorruptedArchive -> "Corrupted archive: ${name.orEmpty()}"
-        is FileError.SuspiciousArchive -> "Suspicious archive: $reason"
-        is FileError.FileTooLarge -> "File too large: $name"
-        is FileError.Unknown -> "Unknown error ($marker)"
-    }
+    private fun FileError.message(): String =
+        when (this) {
+            is FileError.FileNotFound -> "File not found: ${name.orEmpty()}"
+            is FileError.FileAlreadyExists -> "File already exists: $name"
+            is FileError.AccessDenied -> "Access denied: ${name.orEmpty()}"
+            is FileError.PermissionDenied -> "Permission denied"
+            is FileError.PlatformRestricted -> "Access restricted by Android OS"
+            is FileError.ProviderUnavailable -> "Storage provider unavailable"
+            is FileError.StorageUnavailable -> "Storage volume unavailable: ${volumeLabel.orEmpty()}"
+            is FileError.ReadOnlyStorage -> "Storage is read-only"
+            is FileError.DiskFull -> "Insufficient storage space"
+            is FileError.OutOfMemory -> "Out of memory"
+            is FileError.PathTooLong -> "Path is too long: ${name.orEmpty()}"
+            is FileError.InvalidDestination -> "Invalid destination: ${name.orEmpty()}"
+            is FileError.InvalidName -> "Invalid name: $name"
+            is FileError.OperationCancelled -> "Operation cancelled"
+            is FileError.IncompleteWrite -> "Write incomplete for $name"
+            is FileError.PartialFailure -> "Partial failure: $failedCount of $totalCount failed"
+            is FileError.IoFailure -> "I/O failure: ${name.orEmpty()}"
+            is FileError.UnsupportedFormat -> "Unsupported format: ${mimeType.orEmpty()}"
+            is FileError.CorruptedArchive -> "Corrupted archive: ${name.orEmpty()}"
+            is FileError.SuspiciousArchive -> "Suspicious archive: $reason"
+            is FileError.FileTooLarge -> "File too large: $name"
+            is FileError.Unknown -> "Unknown error ($marker)"
+        }
 
     companion object {
         fun provideFactory(
@@ -553,20 +594,21 @@ class BrowseViewModel(
             deleteFileUseCase: DeleteFileUseCase,
             fileOperationsEngine: FileOperationsEngine,
             transferBubbleRepository: TransferBubbleRepository,
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return BrowseViewModel(
-                    initialFolderId = initialFolderId,
-                    getDirectoryListingUseCase = getDirectoryListingUseCase,
-                    getNodeUseCase = getNodeUseCase,
-                    createDirectoryUseCase = createDirectoryUseCase,
-                    renameFileUseCase = renameFileUseCase,
-                    deleteFileUseCase = deleteFileUseCase,
-                    fileOperationsEngine = fileOperationsEngine,
-                    transferBubbleRepository = transferBubbleRepository,
-                ) as T
+        ): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return BrowseViewModel(
+                        initialFolderId = initialFolderId,
+                        getDirectoryListingUseCase = getDirectoryListingUseCase,
+                        getNodeUseCase = getNodeUseCase,
+                        createDirectoryUseCase = createDirectoryUseCase,
+                        renameFileUseCase = renameFileUseCase,
+                        deleteFileUseCase = deleteFileUseCase,
+                        fileOperationsEngine = fileOperationsEngine,
+                        transferBubbleRepository = transferBubbleRepository,
+                    ) as T
+                }
             }
-        }
     }
 }

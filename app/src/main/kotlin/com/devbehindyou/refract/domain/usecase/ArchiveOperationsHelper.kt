@@ -29,10 +29,11 @@ internal object ArchiveOperationsHelper {
         emitProgress: suspend (String) -> Unit,
     ): FileOperationsEngine.ItemResult {
         val outRes = destBackend.openOutput(destParentId, zipName, "application/zip")
-        val outputTarget = when (outRes) {
-            is FileResult.Success -> outRes.value
-            is FileResult.Failure -> return FileOperationsEngine.ItemResult.Failure(outRes.error)
-        }
+        val outputTarget =
+            when (outRes) {
+                is FileResult.Success -> outRes.value
+                is FileResult.Failure -> return FileOperationsEngine.ItemResult.Failure(outRes.error)
+            }
 
         try {
             outputTarget.stream().use { outStream ->
@@ -158,10 +159,11 @@ internal object ArchiveOperationsHelper {
         emitProgress: suspend (String) -> Unit,
     ): FileOperationsEngine.ItemResult {
         val inRes = sourceBackend.openInput(sourceId)
-        val inProvider = when (inRes) {
-            is FileResult.Success -> inRes.value
-            is FileResult.Failure -> return FileOperationsEngine.ItemResult.Failure(inRes.error)
-        }
+        val inProvider =
+            when (inRes) {
+                is FileResult.Success -> inRes.value
+                is FileResult.Failure -> return FileOperationsEngine.ItemResult.Failure(inRes.error)
+            }
 
         var totalExtractedBytes = 0L
 
@@ -176,21 +178,26 @@ internal object ArchiveOperationsHelper {
 
                         if (normalized.contains("..") && normalized.split('/').any { it == ".." }) {
                             return FileOperationsEngine.ItemResult.Failure(
-                                FileError.SuspiciousArchive(entry.name, "Path traversal sequence detected")
+                                FileError.SuspiciousArchive(entry.name, "Path traversal sequence detected"),
                             )
                         }
 
                         emitProgress(normalized)
 
                         if (entry.isDirectory) {
-                            ensureDirectoryPath(destBackend, destParentId, normalized.split('/').filter { it.isNotEmpty() })
+                            ensureDirectoryPath(
+                                destBackend,
+                                destParentId,
+                                normalized.split('/').filter { it.isNotEmpty() },
+                            )
                         } else {
                             val segments = normalized.split('/').filter { it.isNotEmpty() }
-                            val parentDirId = if (segments.size > 1) {
-                                ensureDirectoryPath(destBackend, destParentId, segments.dropLast(1))
-                            } else {
-                                destParentId
-                            }
+                            val parentDirId =
+                                if (segments.size > 1) {
+                                    ensureDirectoryPath(destBackend, destParentId, segments.dropLast(1))
+                                } else {
+                                    destParentId
+                                }
                             val fileName = segments.last()
 
                             val outRes = destBackend.openOutput(parentDirId, fileName, null)
@@ -210,7 +217,10 @@ internal object ArchiveOperationsHelper {
                                             if (totalExtractedBytes > MAX_EXTRACT_BYTES) {
                                                 outTarget.discard()
                                                 return FileOperationsEngine.ItemResult.Failure(
-                                                    FileError.SuspiciousArchive(entry.name, "Archive bomb detected: exceeded max size limit")
+                                                    FileError.SuspiciousArchive(
+                                                        entry.name,
+                                                        "Archive bomb detected: exceeded max size limit",
+                                                    ),
                                                 )
                                             }
                                             onBytesCopied(read.toLong())

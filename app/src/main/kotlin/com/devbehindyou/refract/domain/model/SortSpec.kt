@@ -31,23 +31,27 @@ data class SortSpec(
  * instance for tests and anywhere determinism matters more than the user's live locale.
  */
 class NaturalOrderComparator(locale: Locale = Locale.getDefault()) : Comparator<String> {
+    private val collator: Collator =
+        Collator.getInstance(locale).apply {
+            strength = Collator.SECONDARY
+        }
 
-    private val collator: Collator = Collator.getInstance(locale).apply {
-        strength = Collator.SECONDARY
-    }
-
-    override fun compare(a: String, b: String): Int {
+    override fun compare(
+        a: String,
+        b: String,
+    ): Int {
         val segmentsA = tokenize(a)
         val segmentsB = tokenize(b)
         var i = 0
         while (i < segmentsA.size && i < segmentsB.size) {
             val segA = segmentsA[i]
             val segB = segmentsB[i]
-            val cmp = if (segA[0].isDigit() && segB[0].isDigit()) {
-                compareNumeric(segA, segB)
-            } else {
-                collator.compare(segA, segB)
-            }
+            val cmp =
+                if (segA[0].isDigit() && segB[0].isDigit()) {
+                    compareNumeric(segA, segB)
+                } else {
+                    collator.compare(segA, segB)
+                }
             if (cmp != 0) return cmp
             i++
         }
@@ -74,7 +78,10 @@ class NaturalOrderComparator(locale: Locale = Locale.getDefault()) : Comparator<
             return segments
         }
 
-        private fun compareNumeric(a: String, b: String): Int {
+        private fun compareNumeric(
+            a: String,
+            b: String,
+        ): Int {
             val trimmedA = a.trimStart('0').ifEmpty { "0" }
             val trimmedB = b.trimStart('0').ifEmpty { "0" }
             val byLength = trimmedA.length.compareTo(trimmedB.length)
@@ -87,13 +94,15 @@ class NaturalOrderComparator(locale: Locale = Locale.getDefault()) : Comparator<
  * reverses within each group, not the grouping itself, matching common file-manager UX. */
 fun SortSpec.comparator(): Comparator<FileNode> {
     val natural = NaturalOrderComparator()
-    val byField: Comparator<FileNode> = when (field) {
-        SortField.NAME -> Comparator { a, b -> natural.compare(a.name, b.name) }
-        SortField.SIZE -> Comparator.comparingLong(FileNode::size)
-        SortField.DATE -> Comparator.comparingLong(FileNode::modifiedAt)
-        SortField.TYPE -> compareBy<FileNode> { it.mimeType ?: "" }
-            .thenComparator { a, b -> natural.compare(a.name, b.name) }
-    }
+    val byField: Comparator<FileNode> =
+        when (field) {
+            SortField.NAME -> Comparator { a, b -> natural.compare(a.name, b.name) }
+            SortField.SIZE -> Comparator.comparingLong(FileNode::size)
+            SortField.DATE -> Comparator.comparingLong(FileNode::modifiedAt)
+            SortField.TYPE ->
+                compareBy<FileNode> { it.mimeType ?: "" }
+                    .thenComparator { a, b -> natural.compare(a.name, b.name) }
+        }
     val directed = if (ascending) byField else byField.reversed()
     return if (foldersFirst) {
         Comparator<FileNode> { a, b -> b.isDirectory.compareTo(a.isDirectory) }.then(directed)

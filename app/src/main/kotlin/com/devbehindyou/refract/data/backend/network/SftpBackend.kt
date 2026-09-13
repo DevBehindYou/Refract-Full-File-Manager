@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
-import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -25,7 +24,6 @@ import java.net.Socket
 class SftpBackend(
     private val credentialsStore: NetworkCredentialsStore,
 ) : StorageBackend {
-
     override val type: BackendType = BackendType.SFTP
 
     override fun canHandle(id: FileNodeId): Boolean = id.prefix == FileNodeId.Prefix.SFTP
@@ -41,53 +39,68 @@ class SftpBackend(
         return ParsedSftpId(serverId, path)
     }
 
-    private fun makeNodeId(serverId: String, path: String): FileNodeId {
+    private fun makeNodeId(
+        serverId: String,
+        path: String,
+    ): FileNodeId {
         val norm = if (path.startsWith("/")) path else "/$path"
         return FileNodeId.sftp(serverId, norm)
     }
 
-    override suspend fun getNode(id: FileNodeId): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        val server = credentialsStore.getServerById(parsed.serverId)
-            ?: return@withContext FileResult.Failure(FileError.StorageUnavailable("SFTP"))
+    override suspend fun getNode(id: FileNodeId): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            val server =
+                credentialsStore.getServerById(parsed.serverId)
+                    ?: return@withContext FileResult.Failure(FileError.StorageUnavailable("SFTP"))
 
-        val name = if (parsed.path == "/" || parsed.path.isEmpty()) server.name else getFileName(parsed.path)
-        val parentPath = getParentPath(parsed.path)
-        val parentId = if (parsed.path == "/" || parsed.path.isEmpty()) null else makeNodeId(parsed.serverId, parentPath)
+            val name = if (parsed.path == "/" || parsed.path.isEmpty()) server.name else getFileName(parsed.path)
+            val parentPath = getParentPath(parsed.path)
+            val parentId =
+                if (parsed.path == "/" || parsed.path.isEmpty()) {
+                    null
+                } else {
+                    makeNodeId(
+                        parsed.serverId,
+                        parentPath,
+                    )
+                }
 
-        FileResult.Success(
-            NetworkNodeHelper.createNode(
-                id = id,
-                parentId = parentId,
-                name = name,
-                isDirectory = parsed.path.endsWith("/") || parsed.path == "/",
-                isVirtual = parsed.path == "/" || parsed.path.isEmpty(),
+            FileResult.Success(
+                NetworkNodeHelper.createNode(
+                    id = id,
+                    parentId = parentId,
+                    name = name,
+                    isDirectory = parsed.path.endsWith("/") || parsed.path == "/",
+                    isVirtual = parsed.path == "/" || parsed.path.isEmpty(),
+                ),
             )
-        )
-    }
-
-    override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> = flow {
-        val parsed = parseId(id)
-        val server = credentialsStore.getServerById(parsed.serverId)
-        if (server == null) {
-            emit(FileResult.Failure(FileError.StorageUnavailable("SFTP")))
-            return@flow
         }
 
-        val reachable = testReachability(server.host, server.port)
-        if (!reachable) {
-            emit(FileResult.Failure(FileError.StorageUnavailable(server.name)))
-            return@flow
-        }
+    override fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>> =
+        flow {
+            val parsed = parseId(id)
+            val server = credentialsStore.getServerById(parsed.serverId)
+            if (server == null) {
+                emit(FileResult.Failure(FileError.StorageUnavailable("SFTP")))
+                return@flow
+            }
 
-        emit(FileResult.Success(emptyList<FileNode>()))
-    }.flowOn(Dispatchers.IO)
+            val reachable = testReachability(server.host, server.port)
+            if (!reachable) {
+                emit(FileResult.Failure(FileError.StorageUnavailable(server.name)))
+                return@flow
+            }
+
+            emit(FileResult.Success(emptyList<FileNode>()))
+        }.flowOn(Dispatchers.IO)
 
     override suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider> =
         withContext<FileResult<InputStreamProvider>>(Dispatchers.IO) {
             val parsed = parseId(id)
-            val server = credentialsStore.getServerById(parsed.serverId)
-                ?: return@withContext FileResult.Failure(FileError.StorageUnavailable("SFTP"))
+            val server =
+                credentialsStore.getServerById(parsed.serverId)
+                    ?: return@withContext FileResult.Failure(FileError.StorageUnavailable("SFTP"))
 
             if (!testReachability(server.host, server.port)) {
                 return@withContext FileResult.Failure(FileError.StorageUnavailable(server.name))
@@ -96,103 +109,143 @@ class SftpBackend(
             FileResult.Failure(FileError.FileNotFound(parsed.path))
         }
 
-    override suspend fun openOutput(parent: FileNodeId, name: String, mime: String?): FileResult<OutputTarget> = withContext(Dispatchers.IO) {
-        val parsed = parseId(parent)
-        val server = credentialsStore.getServerById(parsed.serverId)
-            ?: return@withContext FileResult.Failure(FileError.StorageUnavailable("SFTP"))
+    override suspend fun openOutput(
+        parent: FileNodeId,
+        name: String,
+        mime: String?,
+    ): FileResult<OutputTarget> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(parent)
+            val server =
+                credentialsStore.getServerById(parsed.serverId)
+                    ?: return@withContext FileResult.Failure(FileError.StorageUnavailable("SFTP"))
 
-        if (!testReachability(server.host, server.port)) {
-            return@withContext FileResult.Failure(FileError.StorageUnavailable(server.name))
+            if (!testReachability(server.host, server.port)) {
+                return@withContext FileResult.Failure(FileError.StorageUnavailable(server.name))
+            }
+
+            val targetPath = if (parsed.path.endsWith("/")) "${parsed.path}$name" else "${parsed.path}/$name"
+            val targetNodeId = makeNodeId(parsed.serverId, targetPath)
+
+            val target =
+                object : OutputTarget {
+                    override fun stream(): OutputStream =
+                        object : OutputStream() {
+                            override fun write(b: Int) {
+                                // Discard bytes in stub target
+                            }
+                        }
+
+                    override fun setLastModified(epochMillis: Long) {
+                        // SFTP stub target does not persist timestamps
+                    }
+
+                    override fun discard() {
+                        // SFTP stub target does not retain buffers
+                    }
+
+                    override fun sync() {
+                        // SFTP stub target does not buffer data
+                    }
+
+                    override suspend fun toNode(): FileResult<FileNode> =
+                        FileResult.Success(
+                            NetworkNodeHelper.createNode(
+                                id = targetNodeId,
+                                parentId = parent,
+                                name = name,
+                                isDirectory = false,
+                                mimeType = mime,
+                            ),
+                        )
+                }
+            FileResult.Success(target)
         }
 
-        val targetPath = if (parsed.path.endsWith("/")) "${parsed.path}$name" else "${parsed.path}/$name"
-        val targetNodeId = makeNodeId(parsed.serverId, targetPath)
+    override suspend fun createDirectory(
+        parent: FileNodeId,
+        name: String,
+    ): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(parent)
+            val newPath = if (parsed.path.endsWith("/")) "${parsed.path}$name/" else "${parsed.path}/$name/"
+            val newNodeId = makeNodeId(parsed.serverId, newPath)
 
-        val target = object : OutputTarget {
-            override fun stream(): OutputStream = object : OutputStream() {
-                override fun write(b: Int) {
-                    // Discard bytes in stub target
-                }
-            }
-            override fun setLastModified(epochMillis: Long) {
-                // SFTP stub target does not persist timestamps
-            }
-            override fun discard() {
-                // SFTP stub target does not retain buffers
-            }
-            override fun sync() {
-                // SFTP stub target does not buffer data
-            }
-            override suspend fun toNode(): FileResult<FileNode> = FileResult.Success(
+            FileResult.Success(
                 NetworkNodeHelper.createNode(
-                    id = targetNodeId,
+                    id = newNodeId,
                     parentId = parent,
                     name = name,
-                    isDirectory = false,
-                    mimeType = mime,
-                )
+                    isDirectory = true,
+                ),
             )
         }
-        FileResult.Success(target)
-    }
 
-    override suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(parent)
-        val newPath = if (parsed.path.endsWith("/")) "${parsed.path}$name/" else "${parsed.path}/$name/"
-        val newNodeId = makeNodeId(parsed.serverId, newPath)
+    override suspend fun delete(id: FileNodeId): FileResult<Unit> =
+        withContext(Dispatchers.IO) {
+            FileResult.Success(Unit)
+        }
 
-        FileResult.Success(
-            NetworkNodeHelper.createNode(
-                id = newNodeId,
-                parentId = parent,
-                name = name,
-                isDirectory = true,
+    override suspend fun rename(
+        id: FileNodeId,
+        newName: String,
+    ): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            val parentPath = getParentPath(parsed.path)
+            val newPath = if (parentPath.endsWith("/")) "$parentPath$newName" else "$parentPath/$newName"
+            val newNodeId = makeNodeId(parsed.serverId, newPath)
+
+            FileResult.Success(
+                NetworkNodeHelper.createNode(
+                    id = newNodeId,
+                    parentId = makeNodeId(parsed.serverId, parentPath),
+                    name = newName,
+                    isDirectory = false,
+                ),
             )
-        )
-    }
+        }
 
-    override suspend fun delete(id: FileNodeId): FileResult<Unit> = withContext(Dispatchers.IO) {
-        FileResult.Success(Unit)
-    }
+    override suspend fun moveWithin(
+        id: FileNodeId,
+        newParent: FileNodeId,
+    ): FileResult<FileNode> =
+        withContext(Dispatchers.IO) {
+            val parsed = parseId(id)
+            val parsedParent = parseId(newParent)
+            val fileName = getFileName(parsed.path)
+            val newPath =
+                if (parsedParent.path.endsWith(
+                        "/",
+                    )
+                ) {
+                    "${parsedParent.path}$fileName"
+                } else {
+                    "${parsedParent.path}/$fileName"
+                }
+            val newNodeId = makeNodeId(parsed.serverId, newPath)
 
-    override suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        val parentPath = getParentPath(parsed.path)
-        val newPath = if (parentPath.endsWith("/")) "$parentPath$newName" else "$parentPath/$newName"
-        val newNodeId = makeNodeId(parsed.serverId, newPath)
-
-        FileResult.Success(
-            NetworkNodeHelper.createNode(
-                id = newNodeId,
-                parentId = makeNodeId(parsed.serverId, parentPath),
-                name = newName,
-                isDirectory = false,
+            FileResult.Success(
+                NetworkNodeHelper.createNode(
+                    id = newNodeId,
+                    parentId = newParent,
+                    name = fileName,
+                    isDirectory = false,
+                ),
             )
-        )
-    }
+        }
 
-    override suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode> = withContext(Dispatchers.IO) {
-        val parsed = parseId(id)
-        val parsedParent = parseId(newParent)
-        val fileName = getFileName(parsed.path)
-        val newPath = if (parsedParent.path.endsWith("/")) "${parsedParent.path}$fileName" else "${parsedParent.path}/$fileName"
-        val newNodeId = makeNodeId(parsed.serverId, newPath)
-
-        FileResult.Success(
-            NetworkNodeHelper.createNode(
-                id = newNodeId,
-                parentId = newParent,
-                name = fileName,
-                isDirectory = false,
-            )
-        )
-    }
-
-    override suspend fun exists(parent: FileNodeId, name: String): Boolean = false
+    override suspend fun exists(
+        parent: FileNodeId,
+        name: String,
+    ): Boolean = false
 
     override suspend fun freeSpace(id: FileNodeId): Long = 0L
 
-    private fun testReachability(host: String, port: Int): Boolean {
+    private fun testReachability(
+        host: String,
+        port: Int,
+    ): Boolean {
         return try {
             Socket().use { socket ->
                 socket.connect(InetSocketAddress(host, port), 5_000)

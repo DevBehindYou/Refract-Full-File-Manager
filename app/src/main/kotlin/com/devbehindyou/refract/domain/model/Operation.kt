@@ -85,14 +85,23 @@ data class Conflict(val source: FileNode, val existingDestination: FileNode)
 /** The mutable state of a [FileOperation] as it runs. */
 sealed interface OperationStatus {
     data object Queued : OperationStatus
+
     data object Preparing : OperationStatus
+
     data class Running(val progress: OperationProgress) : OperationStatus
+
     data class Paused(val progress: OperationProgress) : OperationStatus
+
     data class AwaitingInput(val conflict: Conflict) : OperationStatus
+
     data class Completed(val summary: OperationSummary) : OperationStatus
+
     data class PartiallyCompleted(val summary: OperationSummary) : OperationStatus
+
     data class Failed(val error: FileError, val summary: OperationSummary) : OperationStatus
+
     data object Cancelled : OperationStatus
+
     data object Recovering : OperationStatus
 }
 

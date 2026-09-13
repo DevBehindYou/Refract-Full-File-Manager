@@ -62,7 +62,9 @@ fun HideFileDialog(
 
                 HideOptionCard(
                     title = "Fast Obscure",
-                    subtitle = "Masks file signature & header so apps cannot recognize it. Reversible instantly. (Not encryption).",
+                    subtitle =
+                        "Masks file signature & header so apps cannot recognize it. " +
+                            "Reversible instantly. (Not encryption).",
                     icon = Icons.Default.VisibilityOff,
                     selected = selectedMode == HideMode.FAST_OBSCURE,
                     onClick = { selectedMode = HideMode.FAST_OBSCURE },
@@ -82,7 +84,9 @@ fun HideFileDialog(
 
                 HideOptionCard(
                     title = "Refract Private Storage",
-                    subtitle = "Moves into Refract's private app sandbox. Inaccessible to other apps. Caution: removed if Refract is uninstalled.",
+                    subtitle =
+                        "Moves into Refract's private app sandbox. Inaccessible to other apps. " +
+                            "Caution: removed if Refract is uninstalled.",
                     icon = Icons.Default.Lock,
                     selected = selectedMode == HideMode.PRIVATE_STORAGE,
                     onClick = { selectedMode = HideMode.PRIVATE_STORAGE },
@@ -113,16 +117,19 @@ private fun HideOptionCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainer
-            },
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (selected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainer
+                    },
+            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(12.dp),

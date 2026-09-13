@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -17,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -61,11 +59,12 @@ fun Modifier.fileDragSource(
                 onDragStart = { offset ->
                     isCurrentDragSource = true
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    val itemsToDrag = if (selectedNodes.any { it.id == node.id }) {
-                        selectedNodes
-                    } else {
-                        listOf(node)
-                    }
+                    val itemsToDrag =
+                        if (selectedNodes.any { it.id == node.id }) {
+                            selectedNodes
+                        } else {
+                            listOf(node)
+                        }
                     controller.startDrag(
                         items = itemsToDrag,
                         originLocation = originLocation,

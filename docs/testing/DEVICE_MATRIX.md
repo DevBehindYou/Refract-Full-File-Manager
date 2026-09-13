@@ -1,3 +1,5 @@
+> Current execution status (13 September 2026): nine tests passed on a rooted Android 14 / API 34 phone with an SD card. See [Phone verification](PHONE_VERIFICATION.md). Other Android versions and form factors remain untested.
+
 # Device and API Matrix
 
 ## 1. Why this file exists

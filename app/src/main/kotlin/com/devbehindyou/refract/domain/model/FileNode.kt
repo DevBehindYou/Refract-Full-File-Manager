@@ -67,7 +67,10 @@ data class AccessFlags(
  */
 sealed interface NodeExtras {
     data class Image(val widthPx: Int, val heightPx: Int) : NodeExtras
+
     data class Video(val widthPx: Int, val heightPx: Int, val durationMillis: Long) : NodeExtras
+
     data class Audio(val durationMillis: Long) : NodeExtras
+
     data class Apk(val packageName: String, val versionName: String?, val versionCode: Long) : NodeExtras
 }

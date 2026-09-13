@@ -1,3 +1,5 @@
+> Verification update (13 September 2026): file copies now stage output, verify SHA-256 and length, then publish before source deletion. Destination backups protect failed overwrites within the running process. This is not a persistent transaction journal; process-death recovery remains unverified. See [App verification](../testing/VERIFICATION_REPORT.md).
+
 # File Operations Engine
 
 This is the part of the app where bugs destroy user data. It gets the most defensive design

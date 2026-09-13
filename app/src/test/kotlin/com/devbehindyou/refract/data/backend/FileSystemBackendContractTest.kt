@@ -20,12 +20,10 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class FileSystemBackendContractTest : StorageBackendContractTest() {
-
     @get:Rule
     val tempFolder = TemporaryFolder()
 
-    override fun backend(): StorageBackend =
-        FileSystemBackend(ApplicationProvider.getApplicationContext<Context>())
+    override fun backend(): StorageBackend = FileSystemBackend(ApplicationProvider.getApplicationContext<Context>())
 
     override suspend fun rootId(backend: StorageBackend): FileNodeId {
         val root = tempFolder.newFolder("contract-test-root")

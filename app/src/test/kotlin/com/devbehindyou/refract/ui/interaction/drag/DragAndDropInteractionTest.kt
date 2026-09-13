@@ -14,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class DragAndDropInteractionTest {
-
     private lateinit var controller: FileDragController
     private val parentId = FileNodeId.file("/storage/emulated/0/Documents")
     private val targetFolderId = FileNodeId.file("/storage/emulated/0/Documents/Projects")
@@ -25,21 +24,22 @@ class DragAndDropInteractionTest {
         isDirectory: Boolean,
         size: Long = 0L,
         mimeType: String? = null,
-    ): FileNode = FileNode(
-        id = id,
-        name = name,
-        displayName = name,
-        mimeType = mimeType,
-        size = size,
-        modifiedAt = 1000L,
-        isDirectory = isDirectory,
-        isHidden = false,
-        parentId = parentId,
-        storageType = StorageType.INTERNAL_SHARED,
-        access = AccessFlags.FULL,
-        childCount = if (isDirectory) 0 else null,
-        extras = null,
-    )
+    ): FileNode =
+        FileNode(
+            id = id,
+            name = name,
+            displayName = name,
+            mimeType = mimeType,
+            size = size,
+            modifiedAt = 1000L,
+            isDirectory = isDirectory,
+            isHidden = false,
+            parentId = parentId,
+            storageType = StorageType.INTERNAL_SHARED,
+            access = AccessFlags.FULL,
+            childCount = if (isDirectory) 0 else null,
+            extras = null,
+        )
 
     private val file1 by lazy {
         createTestNode(
@@ -90,13 +90,14 @@ class DragAndDropInteractionTest {
     @Test
     fun `hover enter and exit updates active target`() {
         controller.startDrag(listOf(file1), parentId)
-        val target = ActiveDropTarget(
-            id = "projects",
-            destinationId = targetFolderId,
-            type = DropTargetType.FOLDER,
-            displayName = "Projects",
-            isWritable = true,
-        )
+        val target =
+            ActiveDropTarget(
+                id = "projects",
+                destinationId = targetFolderId,
+                type = DropTargetType.FOLDER,
+                displayName = "Projects",
+                isWritable = true,
+            )
 
         controller.onDragEnter(target)
         assertEquals(target, controller.currentDropTarget)
@@ -108,13 +109,14 @@ class DragAndDropInteractionTest {
     @Test
     fun `dropping on writable destination sets pending decision`() {
         controller.startDrag(listOf(file1), parentId)
-        val target = ActiveDropTarget(
-            id = "projects",
-            destinationId = targetFolderId,
-            type = DropTargetType.FOLDER,
-            displayName = "Projects",
-            isWritable = true,
-        )
+        val target =
+            ActiveDropTarget(
+                id = "projects",
+                destinationId = targetFolderId,
+                type = DropTargetType.FOLDER,
+                displayName = "Projects",
+                isWritable = true,
+            )
 
         controller.onDrop(target)
 
@@ -128,13 +130,14 @@ class DragAndDropInteractionTest {
     @Test
     fun `dropping on read only destination does not set pending decision`() {
         controller.startDrag(listOf(file1), parentId)
-        val readOnlyTarget = ActiveDropTarget(
-            id = "system",
-            destinationId = FileNodeId.file("/system"),
-            type = DropTargetType.FOLDER,
-            displayName = "System",
-            isWritable = false,
-        )
+        val readOnlyTarget =
+            ActiveDropTarget(
+                id = "system",
+                destinationId = FileNodeId.file("/system"),
+                type = DropTargetType.FOLDER,
+                displayName = "System",
+                isWritable = false,
+            )
 
         controller.onDrop(readOnlyTarget)
 
@@ -145,13 +148,14 @@ class DragAndDropInteractionTest {
     @Test
     fun `dropping in same folder does not trigger transfer decision`() {
         controller.startDrag(listOf(file1), parentId)
-        val sameFolderTarget = ActiveDropTarget(
-            id = "documents",
-            destinationId = parentId,
-            type = DropTargetType.FOLDER,
-            displayName = "Documents",
-            isWritable = true,
-        )
+        val sameFolderTarget =
+            ActiveDropTarget(
+                id = "documents",
+                destinationId = parentId,
+                type = DropTargetType.FOLDER,
+                displayName = "Documents",
+                isWritable = true,
+            )
 
         controller.onDrop(sameFolderTarget)
 
@@ -194,13 +198,14 @@ class DragAndDropInteractionTest {
         val secondaryPanelId = FileNodeId.file("/storage/emulated/0/Download")
         controller.startDrag(listOf(file1, file2), parentId)
 
-        val panelTarget = ActiveDropTarget(
-            id = secondaryPanelId.raw,
-            destinationId = secondaryPanelId,
-            type = DropTargetType.PANE,
-            displayName = "Downloads (Pane B)",
-            isWritable = true,
-        )
+        val panelTarget =
+            ActiveDropTarget(
+                id = secondaryPanelId.raw,
+                destinationId = secondaryPanelId,
+                type = DropTargetType.PANE,
+                displayName = "Downloads (Pane B)",
+                isWritable = true,
+            )
 
         controller.onDrop(panelTarget)
 
@@ -216,13 +221,14 @@ class DragAndDropInteractionTest {
         val readOnlyPanelId = FileNodeId.file("/system/etc")
         controller.startDrag(listOf(file1), parentId)
 
-        val readOnlyTarget = ActiveDropTarget(
-            id = readOnlyPanelId.raw,
-            destinationId = readOnlyPanelId,
-            type = DropTargetType.PANE,
-            displayName = "System (Read Only)",
-            isWritable = false,
-        )
+        val readOnlyTarget =
+            ActiveDropTarget(
+                id = readOnlyPanelId.raw,
+                destinationId = readOnlyPanelId,
+                type = DropTargetType.PANE,
+                displayName = "System (Read Only)",
+                isWritable = false,
+            )
 
         controller.onDrop(readOnlyTarget)
 

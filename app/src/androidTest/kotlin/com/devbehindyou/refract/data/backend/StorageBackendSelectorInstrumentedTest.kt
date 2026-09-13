@@ -33,30 +33,31 @@ import java.io.File
  */
 @RunWith(AndroidJUnit4::class)
 class StorageBackendSelectorInstrumentedTest {
-
     @Test
-    fun fileIdRoutesToAWorkingFileSystemBackendOnARealDevice() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val backends: Map<BackendType, StorageBackend> = mapOf(
-            BackendType.FILE to FileSystemBackend(context),
-        )
-        val selector = StorageBackendSelector(backends)
+    fun fileIdRoutesToAWorkingFileSystemBackendOnARealDevice() =
+        runBlocking {
+            val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val backends: Map<BackendType, StorageBackend> =
+                mapOf(
+                    BackendType.FILE to FileSystemBackend(context),
+                )
+            val selector = StorageBackendSelector(backends)
 
-        val testDir = File(context.filesDir, "instrumented-test-${System.currentTimeMillis()}").apply { mkdir() }
-        try {
-            val rootId = FileNodeId.file(testDir.absolutePath)
-            val backend = selector.forNode(rootId)
+            val testDir = File(context.filesDir, "instrumented-test-${System.currentTimeMillis()}").apply { mkdir() }
+            try {
+                val rootId = FileNodeId.file(testDir.absolutePath)
+                val backend = selector.forNode(rootId)
 
-            assertEquals(BackendType.FILE, backend.type)
+                assertEquals(BackendType.FILE, backend.type)
 
-            val created = backend.createDirectory(rootId, "child")
-            assertTrue(created is FileResult.Success)
+                val created = backend.createDirectory(rootId, "child")
+                assertTrue(created is FileResult.Success)
 
-            val listed = backend.listChildren(rootId).first()
-            assertTrue(listed is FileResult.Success)
-            assertTrue((listed as FileResult.Success).value.any { it.name == "child" })
-        } finally {
-            testDir.deleteRecursively()
+                val listed = backend.listChildren(rootId).first()
+                assertTrue(listed is FileResult.Success)
+                assertTrue((listed as FileResult.Success).value.any { it.name == "child" })
+            } finally {
+                testDir.deleteRecursively()
+            }
         }
-    }
 }

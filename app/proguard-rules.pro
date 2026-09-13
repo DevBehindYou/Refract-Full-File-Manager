@@ -1,22 +1,24 @@
 # Refract File Manager ProGuard / R8 Rules
-# Keep data models serialized / Room entities
--keepclassmembers class * {
-    @androidx.room.* <methods>;
-    @androidx.room.* <fields>;
-}
+# NOTE: Release build uses isMinifyEnabled = false (Phase 1 constraint).
+# These rules are pre-populated for when minification is enabled.
+# Current persistence layer: SQLiteOpenHelper (NOT Room). No @Entity/@Dao annotations exist.
 
-# Keep Coroutines
+# --- Coroutines ---
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
-# Keep Hilt / Dagger
+# --- Hilt / Dagger generated components ---
 -keep class * extends dagger.hilt.internal.GeneratedComponent {}
 
-# Keep FileNode and domain models
+# --- Domain models (SafeParcelable-style, serialized to SQLite via reflection-free helpers) ---
 -keep class com.devbehindyou.refract.domain.model.** { *; }
 
-# Coil image loader
--keepclassmembers class coil3.** { *; }
+# --- Hide / Obscure data models serialized to SQLite ---
+-keep class com.devbehindyou.refract.data.database.** { *; }
 
-# Media3 ExoPlayer
--keep class androidx.media3.** { *; }
+# --- Network backend enums and sealed classes (BackendType, FileResult, FileError) ---
+-keep class com.devbehindyou.refract.domain.repository.** { *; }
+
+# NOTE: When Coil or Media3 dependencies are added to build.gradle.kts, uncomment:
+# -keepclassmembers class coil3.** { *; }
+# -keep class androidx.media3.** { *; }

@@ -28,7 +28,10 @@ class QuickPeekController {
         isLoading = true
     }
 
-    fun setPreview(bitmap: Bitmap?, res: String? = null) {
+    fun setPreview(
+        bitmap: Bitmap?,
+        res: String? = null,
+    ) {
         previewBitmap = bitmap
         resolution = res
         isLoading = false

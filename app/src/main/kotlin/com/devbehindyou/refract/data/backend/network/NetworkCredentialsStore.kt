@@ -17,7 +17,6 @@ import javax.crypto.spec.SecretKeySpec
  * Manages persistence of saved network locations and encrypted credential storage.
  */
 class NetworkCredentialsStore(private val context: Context) {
-
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -50,7 +49,7 @@ class NetworkCredentialsStore(private val context: Context) {
                         username = obj.optString("username", ""),
                         remotePath = obj.optString("remotePath", "/"),
                         anonymous = obj.optBoolean("anonymous", false),
-                    )
+                    ),
                 )
             }
             list
@@ -63,22 +62,26 @@ class NetworkCredentialsStore(private val context: Context) {
         return getAllServers().firstOrNull { it.id == id }
     }
 
-    fun saveServer(config: NetworkServerConfig, password: String?) {
+    fun saveServer(
+        config: NetworkServerConfig,
+        password: String?,
+    ) {
         val servers = getAllServers().filter { it.id != config.id }.toMutableList()
         servers.add(config)
 
         val jsonArray = JSONArray()
         for (server in servers) {
-            val obj = JSONObject().apply {
-                put("id", server.id)
-                put("name", server.name)
-                put("protocol", server.protocol.name)
-                put("host", server.host)
-                put("port", server.port)
-                put("username", server.username)
-                put("remotePath", server.remotePath)
-                put("anonymous", server.anonymous)
-            }
+            val obj =
+                JSONObject().apply {
+                    put("id", server.id)
+                    put("name", server.name)
+                    put("protocol", server.protocol.name)
+                    put("host", server.host)
+                    put("port", server.port)
+                    put("username", server.username)
+                    put("remotePath", server.remotePath)
+                    put("anonymous", server.anonymous)
+                }
             jsonArray.put(obj)
         }
 
@@ -93,16 +96,17 @@ class NetworkCredentialsStore(private val context: Context) {
         val servers = getAllServers().filter { it.id != id }
         val jsonArray = JSONArray()
         for (server in servers) {
-            val obj = JSONObject().apply {
-                put("id", server.id)
-                put("name", server.name)
-                put("protocol", server.protocol.name)
-                put("host", server.host)
-                put("port", server.port)
-                put("username", server.username)
-                put("remotePath", server.remotePath)
-                put("anonymous", server.anonymous)
-            }
+            val obj =
+                JSONObject().apply {
+                    put("id", server.id)
+                    put("name", server.name)
+                    put("protocol", server.protocol.name)
+                    put("host", server.host)
+                    put("port", server.port)
+                    put("username", server.username)
+                    put("remotePath", server.remotePath)
+                    put("anonymous", server.anonymous)
+                }
             jsonArray.put(obj)
         }
         prefs.edit()
@@ -111,7 +115,10 @@ class NetworkCredentialsStore(private val context: Context) {
             .apply()
     }
 
-    fun savePassword(serverId: String, pass: String) {
+    fun savePassword(
+        serverId: String,
+        pass: String,
+    ) {
         try {
             val cipher = Cipher.getInstance(AES_TRANSFORMATION)
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec)

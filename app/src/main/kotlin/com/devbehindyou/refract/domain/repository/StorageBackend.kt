@@ -30,38 +30,68 @@ fun interface InputStreamProvider {
  */
 interface OutputTarget {
     fun stream(): OutputStream
+
     fun setLastModified(epochMillis: Long)
+
     fun discard()
+
     fun sync()
+
     suspend fun toNode(): FileResult<FileNode>
 }
 
 interface StorageBackend {
     val type: BackendType
     val capabilities: StorageCapabilities
-        get() = when (type) {
-            BackendType.FILE -> StorageCapabilities.FULL_LOCAL
-            BackendType.SAF -> StorageCapabilities.SAF_STORAGE
-            BackendType.MEDIASTORE -> StorageCapabilities.MEDIA_STORE
-            BackendType.USB -> StorageCapabilities.SAF_STORAGE
-            BackendType.SFTP,
-            BackendType.FTP,
-            BackendType.FTPS,
-            BackendType.SMB,
-            BackendType.WEBDAV,
-            -> StorageCapabilities.REMOTE_NETWORK
-        }
+        get() =
+            when (type) {
+                BackendType.FILE -> StorageCapabilities.FULL_LOCAL
+                BackendType.SAF -> StorageCapabilities.SAF_STORAGE
+                BackendType.MEDIASTORE -> StorageCapabilities.MEDIA_STORE
+                BackendType.USB -> StorageCapabilities.SAF_STORAGE
+                BackendType.SFTP,
+                BackendType.FTP,
+                BackendType.FTPS,
+                BackendType.SMB,
+                BackendType.WEBDAV,
+                -> StorageCapabilities.REMOTE_NETWORK
+            }
 
     fun canHandle(id: FileNodeId): Boolean
 
     suspend fun getNode(id: FileNodeId): FileResult<FileNode>
+
     fun listChildren(id: FileNodeId): Flow<FileResult<List<FileNode>>>
+
     suspend fun openInput(id: FileNodeId): FileResult<InputStreamProvider>
-    suspend fun openOutput(parent: FileNodeId, name: String, mime: String?): FileResult<OutputTarget>
-    suspend fun createDirectory(parent: FileNodeId, name: String): FileResult<FileNode>
+
+    suspend fun openOutput(
+        parent: FileNodeId,
+        name: String,
+        mime: String?,
+    ): FileResult<OutputTarget>
+
+    suspend fun createDirectory(
+        parent: FileNodeId,
+        name: String,
+    ): FileResult<FileNode>
+
     suspend fun delete(id: FileNodeId): FileResult<Unit>
-    suspend fun rename(id: FileNodeId, newName: String): FileResult<FileNode>
-    suspend fun moveWithin(id: FileNodeId, newParent: FileNodeId): FileResult<FileNode>
-    suspend fun exists(parent: FileNodeId, name: String): Boolean
+
+    suspend fun rename(
+        id: FileNodeId,
+        newName: String,
+    ): FileResult<FileNode>
+
+    suspend fun moveWithin(
+        id: FileNodeId,
+        newParent: FileNodeId,
+    ): FileResult<FileNode>
+
+    suspend fun exists(
+        parent: FileNodeId,
+        name: String,
+    ): Boolean
+
     suspend fun freeSpace(id: FileNodeId): Long
 }

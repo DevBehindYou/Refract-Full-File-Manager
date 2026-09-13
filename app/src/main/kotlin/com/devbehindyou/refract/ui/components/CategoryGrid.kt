@@ -1,6 +1,5 @@
 package com.devbehindyou.refract.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,16 +44,17 @@ data class CategoryItem(
     val tintColor: Color,
 )
 
-val defaultCategories = listOf(
-    CategoryItem(FileCategory.IMAGE, "Images", Icons.Default.Image, Color(0xFFE57373)),
-    CategoryItem(FileCategory.VIDEO, "Videos", Icons.Default.Videocam, Color(0xFFBA68C8)),
-    CategoryItem(FileCategory.AUDIO, "Audio", Icons.Default.Audiotrack, Color(0xFF64B5F6)),
-    CategoryItem(FileCategory.DOCUMENT, "Docs", Icons.Default.Description, Color(0xFF4DB6AC)),
-    CategoryItem(FileCategory.DOWNLOAD, "Downloads", Icons.Default.Download, Color(0xFFFFB74D)),
-    CategoryItem(FileCategory.ARCHIVE, "Archives", Icons.Default.FolderZip, Color(0xFFA1887F)),
-    CategoryItem(FileCategory.APK, "Apps", Icons.Default.Android, Color(0xFF81C784)),
-    CategoryItem(FileCategory.OTHER, "Other", Icons.Default.MoreHoriz, Color(0xFF90A4AE)),
-)
+val defaultCategories =
+    listOf(
+        CategoryItem(FileCategory.IMAGE, "Images", Icons.Default.Image, Color(0xFFE57373)),
+        CategoryItem(FileCategory.VIDEO, "Videos", Icons.Default.Videocam, Color(0xFFBA68C8)),
+        CategoryItem(FileCategory.AUDIO, "Audio", Icons.Default.Audiotrack, Color(0xFF64B5F6)),
+        CategoryItem(FileCategory.DOCUMENT, "Docs", Icons.Default.Description, Color(0xFF4DB6AC)),
+        CategoryItem(FileCategory.DOWNLOAD, "Downloads", Icons.Default.Download, Color(0xFFFFB74D)),
+        CategoryItem(FileCategory.ARCHIVE, "Archives", Icons.Default.FolderZip, Color(0xFFA1887F)),
+        CategoryItem(FileCategory.APK, "Apps", Icons.Default.Android, Color(0xFF81C784)),
+        CategoryItem(FileCategory.OTHER, "Other", Icons.Default.MoreHoriz, Color(0xFF90A4AE)),
+    )
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -67,20 +67,20 @@ fun CategoryGrid(
             text = "Categories",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 12.dp),
         )
 
         FlowRow(
             maxItemsInEachRow = 4,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             defaultCategories.forEach { item ->
                 CategoryTile(
                     item = item,
                     onClick = { onCategoryClick(item.category) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -94,32 +94,36 @@ fun CategoryTile(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .aspectRatio(1f)
-            .testTag("category_tile_${item.category.name.lowercase()}"),
+        modifier =
+            modifier
+                .aspectRatio(1f)
+                .testTag("category_tile_${item.category.name.lowercase()}"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            ),
         onClick = onClick,
     ) {
         Column(
-            modifier = Modifier
-                .padding(8.dp)
-                .align(Alignment.CenterHorizontally),
+            modifier =
+                Modifier
+                    .padding(8.dp)
+                    .align(Alignment.CenterHorizontally),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) {
             Box(
-                modifier = Modifier
-                    .size(40.dp),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(40.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = item.icon,
                     contentDescription = item.title,
                     tint = item.tintColor,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(26.dp),
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
