@@ -1,9 +1,13 @@
 package com.devbehindyou.refract.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -70,7 +75,7 @@ import kotlinx.coroutines.launch
  * Storage Intelligence Hub providing deep analysis of large files, duplicates,
  * empty directories, and temporary cache files with one-touch transactional cleanup.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun StorageIntelligenceScreen(
     rootId: FileNodeId,
@@ -78,6 +83,7 @@ fun StorageIntelligenceScreen(
     modifier: Modifier = Modifier,
     onOpenFile: ((FileNode) -> Unit)? = null,
 ) {
+    BackHandler(onBack = onNavigateBack)
     val app = LocalContext.current.applicationContext as RefractApp
     val coroutineScope = rememberCoroutineScope()
 
@@ -111,7 +117,7 @@ fun StorageIntelligenceScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Storage Intelligence") },
+                title = { Text("Storage Intelligence", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -131,13 +137,13 @@ fun StorageIntelligenceScreen(
             val selectedCount = selectedIds.count { it.value }
             if (selectedCount > 0) {
                 Surface(tonalElevation = 3.dp) {
-                    Row(
+                    FlowRow(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
                             text = "$selectedCount item(s) selected",
@@ -189,10 +195,10 @@ fun StorageIntelligenceScreen(
                         .padding(vertical = 8.dp),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -233,12 +239,13 @@ fun StorageIntelligenceScreen(
                 }
             }
 
-            // Category filter chips
+            // Category filter chips stay readable and scroll to all four categories.
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 8.dp)
+                        .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 StorageAnalysisCategory.entries.forEach { category ->
@@ -255,73 +262,77 @@ fun StorageIntelligenceScreen(
                             currentCategory = category
                             selectedIds.clear()
                         },
-                        label = { Text("${category.displayName} ($badgeCount)") },
+                        label = { Text("${category.displayName} ($badgeCount)", maxLines = 1) },
                     )
                 }
             }
 
-            // Category content list
-            when (currentCategory) {
-                StorageAnalysisCategory.LARGE_FILES -> {
-                    LargeFilesList(
-                        files = analysisResult.largeFiles,
-                        selectedIds = selectedIds,
-                        onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                        onSelectAll = {
-                            val allSelected = analysisResult.largeFiles.all { selectedIds[it.id.raw] == true }
-                            if (allSelected) {
+            // Do not report empty results before the scan finishes.
+            if (isScanning) {
+                EmptyStateMessage("Scanning files… Results will appear when the scan finishes.")
+            } else {
+                when (currentCategory) {
+                    StorageAnalysisCategory.LARGE_FILES -> {
+                        LargeFilesList(
+                            files = analysisResult.largeFiles,
+                            selectedIds = selectedIds,
+                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
+                            onSelectAll = {
+                                val allSelected = analysisResult.largeFiles.all { selectedIds[it.id.raw] == true }
+                                if (allSelected) {
+                                    selectedIds.clear()
+                                } else {
+                                    analysisResult.largeFiles.forEach { selectedIds[it.id.raw] = true }
+                                }
+                            },
+                            onOpenFile = onOpenFile,
+                        )
+                    }
+                    StorageAnalysisCategory.DUPLICATE_FILES -> {
+                        DuplicateGroupsList(
+                            groups = analysisResult.duplicateGroups,
+                            selectedIds = selectedIds,
+                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
+                            onKeepOnlyOnePerGroup = {
                                 selectedIds.clear()
-                            } else {
-                                analysisResult.largeFiles.forEach { selectedIds[it.id.raw] = true }
-                            }
-                        },
-                        onOpenFile = onOpenFile,
-                    )
-                }
-                StorageAnalysisCategory.DUPLICATE_FILES -> {
-                    DuplicateGroupsList(
-                        groups = analysisResult.duplicateGroups,
-                        selectedIds = selectedIds,
-                        onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                        onKeepOnlyOnePerGroup = {
-                            selectedIds.clear()
-                            for (group in analysisResult.duplicateGroups) {
-                                // Keep first, select the rest for deletion
-                                group.items.drop(1).forEach { selectedIds[it.id.raw] = true }
-                            }
-                        },
-                        onOpenFile = onOpenFile,
-                    )
-                }
-                StorageAnalysisCategory.EMPTY_FOLDERS -> {
-                    EmptyFoldersList(
-                        folders = analysisResult.emptyFolders,
-                        selectedIds = selectedIds,
-                        onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                        onSelectAll = {
-                            val allSelected = analysisResult.emptyFolders.all { selectedIds[it.id.raw] == true }
-                            if (allSelected) {
-                                selectedIds.clear()
-                            } else {
-                                analysisResult.emptyFolders.forEach { selectedIds[it.id.raw] = true }
-                            }
-                        },
-                    )
-                }
-                StorageAnalysisCategory.TEMP_AND_CACHE -> {
-                    TempFilesList(
-                        files = analysisResult.tempCacheFiles,
-                        selectedIds = selectedIds,
-                        onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                        onSelectAll = {
-                            val allSelected = analysisResult.tempCacheFiles.all { selectedIds[it.id.raw] == true }
-                            if (allSelected) {
-                                selectedIds.clear()
-                            } else {
-                                analysisResult.tempCacheFiles.forEach { selectedIds[it.id.raw] = true }
-                            }
-                        },
-                    )
+                                for (group in analysisResult.duplicateGroups) {
+                                    // Keep first, select the rest for deletion
+                                    group.items.drop(1).forEach { selectedIds[it.id.raw] = true }
+                                }
+                            },
+                            onOpenFile = onOpenFile,
+                        )
+                    }
+                    StorageAnalysisCategory.EMPTY_FOLDERS -> {
+                        EmptyFoldersList(
+                            folders = analysisResult.emptyFolders,
+                            selectedIds = selectedIds,
+                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
+                            onSelectAll = {
+                                val allSelected = analysisResult.emptyFolders.all { selectedIds[it.id.raw] == true }
+                                if (allSelected) {
+                                    selectedIds.clear()
+                                } else {
+                                    analysisResult.emptyFolders.forEach { selectedIds[it.id.raw] = true }
+                                }
+                            },
+                        )
+                    }
+                    StorageAnalysisCategory.TEMP_AND_CACHE -> {
+                        TempFilesList(
+                            files = analysisResult.tempCacheFiles,
+                            selectedIds = selectedIds,
+                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
+                            onSelectAll = {
+                                val allSelected = analysisResult.tempCacheFiles.all { selectedIds[it.id.raw] == true }
+                                if (allSelected) {
+                                    selectedIds.clear()
+                                } else {
+                                    analysisResult.tempCacheFiles.forEach { selectedIds[it.id.raw] = true }
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -419,7 +430,7 @@ private fun LargeFilesList(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = "${FileUtils.formatBytes(file.size)} • ${file.id.raw}",
+                                text = "${FileUtils.formatBytes(file.size)} â€¢ ${file.id.raw}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -433,6 +444,7 @@ private fun LargeFilesList(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DuplicateGroupsList(
     groups: List<DuplicateGroup>,
@@ -447,13 +459,10 @@ private fun DuplicateGroupsList(
     }
 
     Column {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = "${groups.size} duplicate group(s)",
@@ -669,7 +678,7 @@ private fun TempFilesList(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = "${FileUtils.formatBytes(file.size)} • ${file.id.raw}",
+                                text = "${FileUtils.formatBytes(file.size)} â€¢ ${file.id.raw}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

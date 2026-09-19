@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-Placeholder mark only — Phase 1 has no design system and no approved brand asset
-(see "No glass" in this phase's constraints). A simple triangle stands in as a
-neutral, unbranded shape until core.designsystem exists.
--->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFECECEC"
-        android:pathData="M54,30 L74,74 L34,74 Z" />
-</vector>
+<!-- Keep the supplied artwork inside the adaptive icon's visible area. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="16.6667%"
+    android:insetTop="16.6667%"
+    android:insetRight="16.6667%"
+    android:insetBottom="16.6667%">
+    <bitmap
+        android:src="@drawable/refract_launcher_art"
+        android:gravity="fill"
+        android:filter="true" />
+</inset>

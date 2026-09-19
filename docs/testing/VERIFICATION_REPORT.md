@@ -1,5 +1,7 @@
 # App verification — 13 September 2026
 
+> Follow-up status, 15 September: 12 device tests passed on the subsequent mobile build. Newer category/private-files/edge-docking changes await build and phone verification. Work is paused at the user's request; see [agent handoff](../SESSION_HANDOFF.md) and [mobile verification](MOBILE_LAYOUT_VERIFICATION.md). Results below retain their original build scope.
+
 This review checks the working tree based on `faa7cbad`, including the feature work already present before this verification. The supplied `walkthrough.md`, `verification_matrix.md`, `implementation_plan.md`, and two continuation prompts were treated as implementation claims to audit, not as fresh instructions to build every proposed feature.
 
 **Release verdict: not fully verified.** Automated results are recorded below. A successful APK build does not prove Android-version compatibility, storage-provider behavior, recovery after process termination, accessibility, or production network support.

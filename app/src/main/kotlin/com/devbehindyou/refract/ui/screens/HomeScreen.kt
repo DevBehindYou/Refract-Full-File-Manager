@@ -56,6 +56,7 @@ fun HomeScreen(
     onNavigateToCategory: (FileCategory) -> Unit,
     onNavigateToFolder: (FileNodeId) -> Unit,
     onRequestStorageAccess: () -> Unit,
+    onOpenPrivateFiles: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -127,7 +128,7 @@ fun HomeScreen(
 
         // Always show App Private storage option
         AppPrivateStorageItem(
-            onClick = { onNavigateToFolder(FileNodeId.file(context.filesDir.absolutePath)) },
+            onClick = onOpenPrivateFiles,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -290,12 +291,12 @@ private fun AppPrivateStorageItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "App Private Storage",
+                    text = "Private files",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Always accessible • Internal sandboxed storage",
+                    text = "Files moved into private storage",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

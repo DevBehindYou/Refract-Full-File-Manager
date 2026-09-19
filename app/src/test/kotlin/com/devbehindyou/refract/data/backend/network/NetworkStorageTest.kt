@@ -234,4 +234,83 @@ class NetworkStorageTest {
             val smbResult = smb.listChildren(badSmbId).first()
             assertTrue("Expected failure for unconfigured SMB server", smbResult is FileResult.Failure)
         }
+
+    // --- Regression guard: the unimplemented-protocol backends must never fabricate success.
+    //
+    // A previous implementation of SftpBackend/SmbBackend returned Success for writes,
+    // directory creation, renames and deletes without ever touching the network:
+    // `openOutput` handed back an OutputTarget whose stream discarded every byte and whose
+    // toNode() reported success, and `delete` returned Success having deleted nothing.
+    // These tests fail loudly if that behaviour ever returns. See
+    // UnimplementedProtocolBackend and BUILD_READINESS_NOTES.md §2.
+
+    @Test
+    fun `unimplemented protocol backends never report a successful write`() =
+        runTest {
+            val store = NetworkCredentialsStore(context)
+
+            for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
+                val parent =
+                    if (backend is SftpBackend) {
+                        FileNodeId.sftp("srv", "/")
+                    } else {
+                        FileNodeId.smb("srv", "/")
+                    }
+
+                val output = backend.openOutput(parent, "payload.bin", "application/octet-stream")
+                assertTrue(
+                    "${backend.type} openOutput must fail rather than return a discarding stream",
+                    output is FileResult.Failure,
+                )
+                assertTrue(
+                    "${backend.type} should report the protocol as unavailable",
+                    (output as FileResult.Failure).error is FileError.ProviderUnavailable,
+                )
+
+                val created = backend.createDirectory(parent, "new-folder")
+                assertTrue(
+                    "${backend.type} createDirectory must not invent a directory",
+                    created is FileResult.Failure,
+                )
+            }
+        }
+
+    @Test
+    fun `unimplemented protocol backends never report a successful delete or rename`() =
+        runTest {
+            val store = NetworkCredentialsStore(context)
+
+            for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
+                val target =
+                    if (backend is SftpBackend) {
+                        FileNodeId.sftp("srv", "/doomed.txt")
+                    } else {
+                        FileNodeId.smb("srv", "/doomed.txt")
+                    }
+
+                assertTrue(
+                    "${backend.type} delete must not claim to have deleted anything",
+                    backend.delete(target) is FileResult.Failure,
+                )
+                assertTrue(
+                    "${backend.type} rename must not invent a renamed node",
+                    backend.rename(target, "renamed.txt") is FileResult.Failure,
+                )
+            }
+        }
+
+    @Test
+    fun `unimplemented protocol backends advertise no write capabilities`() {
+        val store = NetworkCredentialsStore(context)
+
+        for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
+            val caps = backend.capabilities
+            assertFalse("${backend.type} must not advertise canWrite", caps.canWrite)
+            assertFalse("${backend.type} must not advertise canCreate", caps.canCreate)
+            assertFalse("${backend.type} must not advertise canDelete", caps.canDelete)
+            // VerifiedFileTransfer gates on canRename before staging a transfer, so this
+            // one is what actually stops a copy/move onto these backends up front.
+            assertFalse("${backend.type} must not advertise canRename", caps.canRename)
+        }
+    }
 }

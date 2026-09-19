@@ -454,7 +454,7 @@ private fun TextPreviewContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                IconButton(onClick = { wrapLines = !wrapLines }, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = { wrapLines = !wrapLines }, modifier = Modifier.size(48.dp)) {
                     Icon(
                         Icons.AutoMirrored.Filled.WrapText,
                         contentDescription = "Toggle line wrap",
@@ -715,9 +715,9 @@ private fun MetadataRow(
     label: String,
     value: String,
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = label,

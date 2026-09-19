@@ -2,14 +2,19 @@ package com.devbehindyou.refract.ui.interaction.bubble
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -34,7 +39,7 @@ import com.devbehindyou.refract.domain.model.TransferBubble
 import com.devbehindyou.refract.domain.model.TransferBubbleItem
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun BubbleDetailsSheet(
     bubble: TransferBubble,
@@ -54,6 +59,7 @@ fun BubbleDetailsSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
             Row(
@@ -61,7 +67,7 @@ fun BubbleDetailsSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = bubble.displayName,
                         style = MaterialTheme.typography.titleLarge,
@@ -105,7 +111,7 @@ fun BubbleDetailsSheet(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(300.dp),
+                            .heightIn(max = 240.dp),
                 ) {
                     items(bubble.items, key = { it.id }) { item ->
                         BubbleItemRow(
@@ -119,9 +125,9 @@ fun BubbleDetailsSheet(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(
                     onClick = onClearBubble,

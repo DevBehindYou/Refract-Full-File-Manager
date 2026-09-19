@@ -8,7 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -47,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -61,10 +64,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.devbehindyou.refract.data.volume.StorageVolumes
 import com.devbehindyou.refract.domain.model.FileCategory
+import com.devbehindyou.refract.domain.model.FileCollection
 import com.devbehindyou.refract.domain.model.FileNodeId
+import com.devbehindyou.refract.domain.model.HideMode
 import com.devbehindyou.refract.domain.model.StorageType
 import com.devbehindyou.refract.domain.model.StorageVolumeInfo
 import com.devbehindyou.refract.ui.screens.BrowseScreen
+import com.devbehindyou.refract.ui.screens.CategoryScreen
+import com.devbehindyou.refract.ui.screens.HiddenFilesScreen
 import com.devbehindyou.refract.ui.screens.HomeScreen
 import com.devbehindyou.refract.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.refract.ui.screens.StorageScreen
@@ -95,16 +102,36 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun RefractAppContent() {
     val context = LocalContext.current
-    var currentTab by remember { mutableStateOf(NavigationTab.HOME) }
+    val app = context.applicationContext as RefractApp
+    val phoneIndex = app.container.phoneFileIndex
+    var collectionName by rememberSaveable { mutableStateOf<String?>(null) }
+    var showMoreCategories by rememberSaveable { mutableStateOf(false) }
+    var showPrivateFiles by rememberSaveable { mutableStateOf(false) }
+    var currentTab by rememberSaveable { mutableStateOf(NavigationTab.HOME) }
     val defaultPath = Environment.getExternalStorageDirectory()?.absolutePath ?: context.filesDir.absolutePath
-    var selectedFolderId by remember {
-        mutableStateOf(FileNodeId.file(defaultPath))
+    var selectedFolderRaw by rememberSaveable { mutableStateOf(FileNodeId.file(defaultPath).raw) }
+    val selectedFolderId = FileNodeId(selectedFolderRaw)
+    var tabHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
+
+    fun navigateTab(tab: NavigationTab) {
+        if (tab != currentTab) {
+            // Keep one entry per tab so repeated tab switching cannot grow the Back stack without bound.
+            tabHistory = tabHistory.filterNot { it == tab.name || it == currentTab.name } + currentTab.name
+            currentTab = tab
+        }
     }
+
+    fun navigateBack() {
+        currentTab = tabHistory.lastOrNull()?.let(NavigationTab::valueOf) ?: NavigationTab.HOME
+        tabHistory = tabHistory.dropLast(1)
+    }
+    var pendingVolumeId by rememberSaveable { mutableStateOf<String?>(null) }
 
     var volumes by remember { mutableStateOf<List<StorageVolumeInfo>>(emptyList()) }
     var hasStorageAccess by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
-    var storageIntelligenceRootId by remember { mutableStateOf<FileNodeId?>(null) }
+    var analysisRootRaw by rememberSaveable { mutableStateOf<String?>(null) }
+    val storageIntelligenceRootId = analysisRootRaw?.let(::FileNodeId)
 
     fun checkAccess(): Boolean {
         return runCatching {
@@ -144,6 +171,15 @@ fun RefractAppContent() {
                     ),
                 )
             }
+    }
+
+    LaunchedEffect(volumes) {
+        val pending = volumes.firstOrNull { it.id == pendingVolumeId }
+        if (pending?.rootNodeId != null && pending.isMounted) {
+            selectedFolderRaw = pending.rootNodeId.raw
+            navigateTab(NavigationTab.BROWSE)
+            pendingVolumeId = null
+        }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -198,6 +234,30 @@ fun RefractAppContent() {
         }
     }
 
+    fun openVolume(volume: StorageVolumeInfo) {
+        when {
+            !volume.isMounted -> Toast.makeText(context, "Storage is not mounted", Toast.LENGTH_SHORT).show()
+            volume.rootNodeId != null -> {
+                selectedFolderRaw = volume.rootNodeId.raw
+                navigateTab(NavigationTab.BROWSE)
+            }
+            !hasStorageAccess -> {
+                pendingVolumeId = volume.id
+                requestStorageAccess()
+            }
+            else ->
+                Toast.makeText(
+                    context,
+                    "This storage is unavailable. Reconnect it and try again.",
+                    Toast.LENGTH_LONG,
+                ).show()
+        }
+    }
+
+    BackHandler(enabled = tabHistory.isNotEmpty() && storageIntelligenceRootId == null) {
+        navigateBack()
+    }
+
     LaunchedEffect(Unit) {
         refreshVolumes()
     }
@@ -205,14 +265,83 @@ fun RefractAppContent() {
     val configuration = LocalConfiguration.current
     val isExpanded = configuration.screenWidthDp >= 600
 
+    fun openCategory(category: FileCategory) {
+        if (category == FileCategory.OTHER) {
+            showMoreCategories = true
+        } else if (category == FileCategory.DOWNLOAD) {
+            selectedFolderRaw =
+                FileNodeId.file(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                ).raw
+            navigateTab(NavigationTab.BROWSE)
+        } else {
+            collectionName =
+                when (category) {
+                    FileCategory.IMAGE -> FileCollection.IMAGES
+                    FileCategory.VIDEO -> FileCollection.VIDEOS
+                    FileCategory.AUDIO -> FileCollection.AUDIO
+                    FileCategory.DOCUMENT -> FileCollection.DOCUMENTS
+                    FileCategory.ARCHIVE -> FileCollection.ARCHIVES
+                    FileCategory.APK -> FileCollection.APKS
+                    else -> FileCollection.OTHER
+                }.name
+        }
+    }
+
+    if (showPrivateFiles) {
+        BackHandler { showPrivateFiles = false }
+        HiddenFilesScreen(
+            repository = app.container.hiddenFilesRepository,
+            onNavigateBack = { showPrivateFiles = false },
+            initialMode = HideMode.PRIVATE_STORAGE,
+            privateOnly = true,
+        )
+        return
+    }
+    if (collectionName != null) {
+        CategoryScreen(
+            collection = FileCollection.valueOf(collectionName!!),
+            roots = volumes.filter { it.isMounted }.mapNotNull { it.rootNodeId },
+            index = phoneIndex,
+            onBack = { collectionName = null },
+            onGrantAccess = { requestStorageAccess() },
+        )
+        return
+    }
+    if (showMoreCategories) {
+        AlertDialog(
+            onDismissRequest = { showMoreCategories = false },
+            title = { Text("More categories") },
+            text = {
+                Column {
+                    listOf(
+                        FileCollection.PDFS,
+                        FileCollection.TEXT,
+                        FileCollection.EBOOKS,
+                        FileCollection.FONTS,
+                        FileCollection.OTHER,
+                    ).forEach { collection ->
+                        TextButton(onClick = {
+                            showMoreCategories = false
+                            collectionName = collection.name
+                        }) {
+                            Text(collection.title)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showMoreCategories = false }) { Text("Close") } },
+        )
+    }
+
     if (storageIntelligenceRootId != null) {
         StorageIntelligenceScreen(
             rootId = storageIntelligenceRootId!!,
-            onNavigateBack = { storageIntelligenceRootId = null },
+            onNavigateBack = { analysisRootRaw = null },
             onOpenFile = { file ->
-                selectedFolderId = file.id
-                storageIntelligenceRootId = null
-                currentTab = NavigationTab.BROWSE
+                selectedFolderRaw = file.id.raw
+                analysisRootRaw = null
+                navigateTab(NavigationTab.BROWSE)
             },
         )
         return
@@ -251,21 +380,23 @@ fun RefractAppContent() {
                 ) {
                     NavigationBarItem(
                         selected = currentTab == NavigationTab.HOME,
-                        onClick = { currentTab = NavigationTab.HOME },
+                        onClick = { navigateTab(NavigationTab.HOME) },
                         icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                         label = { Text("Home") },
                         modifier = Modifier.testTag("tab_home"),
                     )
                     NavigationBarItem(
                         selected = currentTab == NavigationTab.BROWSE,
-                        onClick = { currentTab = NavigationTab.BROWSE },
+                        onClick = {
+                            navigateTab(NavigationTab.BROWSE)
+                        },
                         icon = { Icon(Icons.Default.Folder, contentDescription = "Browse") },
                         label = { Text("Browse") },
                         modifier = Modifier.testTag("tab_browse"),
                     )
                     NavigationBarItem(
                         selected = currentTab == NavigationTab.STORAGE,
-                        onClick = { currentTab = NavigationTab.STORAGE },
+                        onClick = { navigateTab(NavigationTab.STORAGE) },
                         icon = { Icon(Icons.Default.Storage, contentDescription = "Storage") },
                         label = { Text("Storage") },
                         modifier = Modifier.testTag("tab_storage"),
@@ -288,21 +419,23 @@ fun RefractAppContent() {
                     Spacer(modifier = Modifier.height(12.dp))
                     NavigationRailItem(
                         selected = currentTab == NavigationTab.HOME,
-                        onClick = { currentTab = NavigationTab.HOME },
+                        onClick = { navigateTab(NavigationTab.HOME) },
                         icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                         label = { Text("Home") },
                         modifier = Modifier.testTag("tab_home"),
                     )
                     NavigationRailItem(
                         selected = currentTab == NavigationTab.BROWSE,
-                        onClick = { currentTab = NavigationTab.BROWSE },
+                        onClick = {
+                            navigateTab(NavigationTab.BROWSE)
+                        },
                         icon = { Icon(Icons.Default.Folder, contentDescription = "Browse") },
                         label = { Text("Browse") },
                         modifier = Modifier.testTag("tab_browse"),
                     )
                     NavigationRailItem(
                         selected = currentTab == NavigationTab.STORAGE,
-                        onClick = { currentTab = NavigationTab.STORAGE },
+                        onClick = { navigateTab(NavigationTab.STORAGE) },
                         icon = { Icon(Icons.Default.Storage, contentDescription = "Storage") },
                         label = { Text("Storage") },
                         modifier = Modifier.testTag("tab_storage"),
@@ -321,13 +454,15 @@ fun RefractAppContent() {
                         hasStorageAccess = hasStorageAccess,
                         selectedFolderId = selectedFolderId,
                         onFolderSelected = {
-                            selectedFolderId = it
-                            currentTab = NavigationTab.BROWSE
+                            selectedFolderRaw = it.raw
+                            navigateTab(NavigationTab.BROWSE)
                         },
-                        onNavigateBack = { currentTab = NavigationTab.HOME },
+                        onNavigateBack = ::navigateBack,
                         onRequestStorageAccess = { requestStorageAccess() },
-                        onOpenStorageIntelligence = { storageIntelligenceRootId = it },
-                        context = context,
+                        onBrowseVolume = ::openVolume,
+                        onCategorySelected = ::openCategory,
+                        onOpenPrivateFiles = { showPrivateFiles = true },
+                        onOpenStorageIntelligence = { analysisRootRaw = it.raw },
                     )
                 }
             }
@@ -346,13 +481,15 @@ fun RefractAppContent() {
                     hasStorageAccess = hasStorageAccess,
                     selectedFolderId = selectedFolderId,
                     onFolderSelected = {
-                        selectedFolderId = it
-                        currentTab = NavigationTab.BROWSE
+                        selectedFolderRaw = it.raw
+                        navigateTab(NavigationTab.BROWSE)
                     },
-                    onNavigateBack = { currentTab = NavigationTab.HOME },
+                    onNavigateBack = ::navigateBack,
                     onRequestStorageAccess = { requestStorageAccess() },
-                    onOpenStorageIntelligence = { storageIntelligenceRootId = it },
-                    context = context,
+                    onBrowseVolume = ::openVolume,
+                    onCategorySelected = ::openCategory,
+                    onOpenPrivateFiles = { showPrivateFiles = true },
+                    onOpenStorageIntelligence = { analysisRootRaw = it.raw },
                 )
             }
         }
@@ -401,60 +538,19 @@ private fun MainScreenContent(
     onFolderSelected: (FileNodeId) -> Unit,
     onNavigateBack: () -> Unit,
     onRequestStorageAccess: () -> Unit,
+    onBrowseVolume: (StorageVolumeInfo) -> Unit,
+    onCategorySelected: (FileCategory) -> Unit,
+    onOpenPrivateFiles: () -> Unit,
     onOpenStorageIntelligence: (FileNodeId) -> Unit,
-    context: android.content.Context,
 ) {
     when (currentTab) {
         NavigationTab.HOME -> {
             HomeScreen(
                 volumes = volumes,
                 hasStorageAccess = hasStorageAccess,
-                onNavigateToVolume = { volume ->
-                    val defaultPath = context.filesDir.absolutePath
-                    val targetPath =
-                        volume.rootNodeId ?: FileNodeId.file(
-                            if (hasStorageAccess) {
-                                (Environment.getExternalStorageDirectory()?.absolutePath ?: defaultPath)
-                            } else {
-                                defaultPath
-                            },
-                        )
-                    onFolderSelected(targetPath)
-                },
-                onNavigateToCategory = { category ->
-                    val defaultPath = context.filesDir.absolutePath
-                    val targetPath =
-                        when (category) {
-                            FileCategory.DOWNLOAD ->
-                                Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_DOWNLOADS,
-                                )?.absolutePath
-                            FileCategory.IMAGE ->
-                                Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_DCIM,
-                                )?.absolutePath
-                            FileCategory.AUDIO ->
-                                Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_MUSIC,
-                                )?.absolutePath
-                            FileCategory.DOCUMENT ->
-                                Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_DOCUMENTS,
-                                )?.absolutePath
-                            FileCategory.VIDEO ->
-                                Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_MOVIES,
-                                )?.absolutePath
-                            FileCategory.APK -> defaultPath
-                            else ->
-                                if (hasStorageAccess) {
-                                    Environment.getExternalStorageDirectory()?.absolutePath
-                                } else {
-                                    defaultPath
-                                }
-                        } ?: defaultPath
-                    onFolderSelected(FileNodeId.file(targetPath))
-                },
+                onNavigateToVolume = onBrowseVolume,
+                onNavigateToCategory = onCategorySelected,
+                onOpenPrivateFiles = onOpenPrivateFiles,
                 onNavigateToFolder = onFolderSelected,
                 onRequestStorageAccess = onRequestStorageAccess,
             )
@@ -468,14 +564,7 @@ private fun MainScreenContent(
         NavigationTab.STORAGE -> {
             StorageScreen(
                 volumes = volumes,
-                onBrowseVolume = { volume ->
-                    val defaultPath = context.filesDir.absolutePath
-                    val targetPath =
-                        volume.rootNodeId ?: FileNodeId.file(
-                            Environment.getExternalStorageDirectory()?.absolutePath ?: defaultPath,
-                        )
-                    onFolderSelected(targetPath)
-                },
+                onBrowseVolume = onBrowseVolume,
                 onBrowseFolder = onFolderSelected,
                 onOpenStorageIntelligence = onOpenStorageIntelligence,
             )

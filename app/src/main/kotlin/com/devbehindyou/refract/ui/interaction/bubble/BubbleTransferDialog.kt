@@ -1,12 +1,16 @@
 package com.devbehindyou.refract.ui.interaction.bubble
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material3.AlertDialog
@@ -27,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.devbehindyou.refract.domain.model.TransferBubble
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BubbleTransferDialog(
     bubble: TransferBubble,
@@ -52,7 +57,7 @@ fun BubbleTransferDialog(
             Text(text = "Transfer from ${bubble.displayName}")
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                 Text(
                     text = "Transfer ${bubble.itemCount} item(s) to \"$targetDirectoryName\"?",
                     style = MaterialTheme.typography.bodyMedium,
@@ -76,7 +81,7 @@ fun BubbleTransferDialog(
             }
         },
         confirmButton = {
-            Row {
+            FlowRow {
                 Button(
                     // Move clears the transferred items from the bubble.
                     onClick = { onMove(true) },
@@ -92,7 +97,7 @@ fun BubbleTransferDialog(
             }
         },
         dismissButton = {
-            Row {
+            FlowRow {
                 OutlinedButton(
                     onClick = onReviewFiles,
                     modifier = Modifier.padding(end = 8.dp),

@@ -1,6 +1,8 @@
 package com.devbehindyou.refract.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -77,8 +80,12 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import com.devbehindyou.refract.RefractApp
 import com.devbehindyou.refract.domain.model.CollisionPolicy
 import com.devbehindyou.refract.domain.model.FileNode
@@ -125,17 +132,21 @@ fun BrowseScreen(
     viewModel: BrowseViewModel =
         run {
             val app = LocalContext.current.applicationContext as RefractApp
-            remember(initialFolderId.raw) {
-                BrowseViewModel(
-                    initialFolderId = initialFolderId,
-                    getDirectoryListingUseCase = app.container.getDirectoryListingUseCase,
-                    getNodeUseCase = app.container.getNodeUseCase,
-                    createDirectoryUseCase = app.container.createDirectoryUseCase,
-                    renameFileUseCase = app.container.renameFileUseCase,
-                    deleteFileUseCase = app.container.deleteFileUseCase,
-                    fileOperationsEngine = app.container.fileOperationsEngine,
-                    transferBubbleRepository = app.container.transferBubbleRepository,
-                )
+            val owner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
+            remember(owner, initialFolderId.raw) {
+                ViewModelProvider(
+                    owner,
+                    BrowseViewModel.provideFactory(
+                        initialFolderId = initialFolderId,
+                        getDirectoryListingUseCase = app.container.getDirectoryListingUseCase,
+                        getNodeUseCase = app.container.getNodeUseCase,
+                        createDirectoryUseCase = app.container.createDirectoryUseCase,
+                        renameFileUseCase = app.container.renameFileUseCase,
+                        deleteFileUseCase = app.container.deleteFileUseCase,
+                        fileOperationsEngine = app.container.fileOperationsEngine,
+                        transferBubbleRepository = app.container.transferBubbleRepository,
+                    ),
+                )["browse:${initialFolderId.raw}", BrowseViewModel::class.java]
             }
         },
 ) {
@@ -185,6 +196,19 @@ fun BrowseScreen(
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+
+    BackHandler {
+        when {
+            showHiddenScreen -> {
+                showHiddenScreen = false
+                viewModel.refresh()
+            }
+            quickPeekController.isPeeking -> quickPeekController.dismiss()
+            isSelectionMode -> viewModel.clearSelection()
+            uiState.isSearching -> viewModel.toggleSearch(false)
+            !viewModel.navigateBack() -> onNavigateBack()
+        }
     }
 
     if (showHiddenScreen) {
@@ -569,7 +593,13 @@ private fun BrowseTopBar(
             )
         else ->
             TopAppBar(
-                title = { Text(uiState.currentFolderName.ifEmpty { "Browse" }) },
+                title = {
+                    Text(
+                        uiState.currentFolderName.ifEmpty { "Browse" },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = actions.onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -667,6 +697,7 @@ private fun BrowseBottomBar(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
@@ -698,6 +729,7 @@ private fun BrowseBottomBar(
                         "${clip.items.size} item(s) ready to " +
                             if (clip.operation == ClipboardOp.COPY) "copy" else "move",
                     style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
                 )
                 Row {
                     TextButton(onClick = onClearClipboard) {
@@ -1102,6 +1134,15 @@ private fun FileListContent(
                 }
             else -> {
                 val lazyListState = rememberLazyListState()
+                // Resolved once per selection change, not once per visible row (which was O(rows x items)).
+                val allSelectedNodes =
+                    remember(uiState.rawItems, uiState.selectedIds) {
+                        if (uiState.selectedIds.isEmpty()) {
+                            emptyList()
+                        } else {
+                            uiState.rawItems.filter { it.id in uiState.selectedIds }
+                        }
+                    }
                 LazyColumn(
                     state = lazyListState,
                     modifier =
@@ -1111,12 +1152,7 @@ private fun FileListContent(
                 ) {
                     items(uiState.filteredItems, key = { it.id.raw }) { node ->
                         val isSelected = node.id in uiState.selectedIds
-                        val selectedNodes =
-                            if (isSelected) {
-                                uiState.rawItems.filter { it.id in uiState.selectedIds }
-                            } else {
-                                listOf(node)
-                            }
+                        val selectedNodes = if (isSelected) allSelectedNodes else listOf(node)
 
                         val isMedia =
                             node.mimeType?.startsWith("image/") == true ||

@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +54,7 @@ val defaultCategories =
         CategoryItem(FileCategory.DOWNLOAD, "Downloads", Icons.Default.Download, Color(0xFFFFB74D)),
         CategoryItem(FileCategory.ARCHIVE, "Archives", Icons.Default.FolderZip, Color(0xFFA1887F)),
         CategoryItem(FileCategory.APK, "Apps", Icons.Default.Android, Color(0xFF81C784)),
-        CategoryItem(FileCategory.OTHER, "Other", Icons.Default.MoreHoriz, Color(0xFF90A4AE)),
+        CategoryItem(FileCategory.OTHER, "More", Icons.Default.MoreHoriz, Color(0xFF90A4AE)),
     )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -62,6 +63,13 @@ fun CategoryGrid(
     onCategoryClick: (FileCategory) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val configuration = LocalConfiguration.current
+    val columns =
+        when {
+            configuration.fontScale > 1.3f || configuration.screenWidthDp < 360 -> 2
+            configuration.screenWidthDp < 480 -> 3
+            else -> 4
+        }
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "Categories",
@@ -71,7 +79,7 @@ fun CategoryGrid(
         )
 
         FlowRow(
-            maxItemsInEachRow = 4,
+            maxItemsInEachRow = columns,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -96,7 +104,7 @@ fun CategoryTile(
     Card(
         modifier =
             modifier
-                .aspectRatio(1f)
+                .heightIn(min = 88.dp)
                 .testTag("category_tile_${item.category.name.lowercase()}"),
         shape = RoundedCornerShape(16.dp),
         colors =
@@ -132,7 +140,7 @@ fun CategoryTile(
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
-                maxLines = 1,
+                maxLines = 2,
             )
         }
     }

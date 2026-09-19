@@ -7,33 +7,19 @@ assistant against the specification in `docs/`, phase by phase, following
 **Open this in Android Studio**, not Google's "AI Studio" (a separate, web-based
 generative-AI tool that can't open or build a Gradle project at all).
 
-## Before anything else: this code has never been compiled
+## Current status — 15 September 2026
 
-Every phase of this project was built in a sandboxed environment with no network access
-to Google's Maven, Maven Central, or `services.gradle.org` — only a short allowlist
-covering GitHub, PyPI, npm, and crates.io. That means:
+Start with [the agent handoff](docs/SESSION_HANDOFF.md) for completed changes, exact test scope, environment setup and pending work. **Work is paused at the user's request after documentation updates.**
 
-- No dependency has ever been resolved.
-- `./gradlew build` has never actually been run against this code, at any point, for any
-  module.
-- Everything was written from documented API knowledge, cross-checked against official
-  sources wherever a web search was possible, but nothing has been mechanically verified.
+The app has compiled successfully. Earlier verification passed 238 app tests and 22 custom lint tests, debug/release assembly and Android Lint with zero errors. A later mobile build passed 12 physical-device tests. These passes apply to the versions identified in [the verification report](docs/testing/VERIFICATION_REPORT.md) and [mobile verification](docs/testing/MOBILE_LAYOUT_VERIFICATION.md).
 
-**This is a carefully-reasoned first draft that needs one real build to confirm — not a
-verified-green project.** The rest of this document tells you exactly where to look first
-if that build fails, ranked by how likely each item is to actually matter.
+The latest category collections, private-files routing, edge-snapping bubble and further layout changes are in the working tree but still await a completed build and device verification. Disk/RAM pressure interrupted the latest build attempt. The app is not fully verified or release-ready.
 
-## Current status
+The runtime graph is assembled by AppContainer; Hilt is declared but is not the active wiring mechanism. The benchmark module is disabled. Roadmap documents describe intended scope and must not be read as proof of implementation or acceptance.
 
-| Phase | What it covers | Status |
-|---|---|---|
-| 0 | Real-device storage research | **Not done** — needs physical hardware; still blocks full confidence in Phase 3's `SafBackend`/`MediaStoreBackend` and will block Phase 11 (glass) |
-| 1 | Project skeleton (Gradle, 7 custom Lint rules, empty Activity, CI) | Done |
-| 2 | Domain model (`FileNode`, `FileError`, `StorageBackend` interface, ...) | Done |
-| — | Hardening pass (decorator tests, locale-aware sort, `:benchmark` scaffold) | Done |
-| 3 | Real storage backends (`FileSystemBackend`, `SafBackend`, `MediaStoreBackend`) | Done, with real open gaps — see below |
-| 4–13 | Permissions, design system, browse UI, operations, search, storage analysis, glass, polish, release | **Not started** |
+## Historical first-build notes
 
+The notes below were written before the successful verification sessions. Version guesses and phase-status statements are historical; consult the current version catalog and linked verification documents first.
 ## First build: check these, in this order
 
 Ranked by how likely each one is to actually break something, not by how interesting it is.

@@ -77,6 +77,7 @@ class BrowseViewModel(
 
     private var listingJob: Job? = null
     private var operationJob: Job? = null
+    private var filterJob: Job? = null
 
     init {
         loadDirectory(initialFolderId)
@@ -159,6 +160,35 @@ class BrowseViewModel(
                 isLoading = false,
             )
         }
+        // The query or sort may have changed while the list was being sorted.
+        val current = _uiState.value
+        if (current.searchQuery != query || current.sortOption != sort) refilter()
+    }
+
+    /**
+     * Recomputes [BrowseUiState.filteredItems] off the main thread. Only the newest request may
+     * publish: an older, slower run would otherwise overwrite the result for the latest query.
+     */
+    private fun refilter() {
+        filterJob?.cancel()
+        filterJob =
+            viewModelScope.launch {
+                val requested = _uiState.value
+                val filtered =
+                    withContext(Dispatchers.Default) {
+                        filterAndSort(requested.rawItems, requested.searchQuery, requested.sortOption)
+                    }
+                _uiState.update { current ->
+                    if (current.rawItems === requested.rawItems &&
+                        current.searchQuery == requested.searchQuery &&
+                        current.sortOption == requested.sortOption
+                    ) {
+                        current.copy(filteredItems = filtered)
+                    } else {
+                        current
+                    }
+                }
+            }
     }
 
     private fun filterAndSort(
@@ -179,7 +209,7 @@ class BrowseViewModel(
     private fun comparatorFor(sortOption: SortOption): Comparator<FileNode> {
         val byField: Comparator<FileNode> =
             when (sortOption) {
-                SortOption.NAME -> compareBy { it.name.lowercase() }
+                SortOption.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
                 SortOption.DATE_MODIFIED -> compareByDescending { it.modifiedAt }
                 SortOption.SIZE -> compareByDescending { it.size }
             }
@@ -254,13 +284,7 @@ class BrowseViewModel(
 
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
-        viewModelScope.launch {
-            val filtered =
-                withContext(Dispatchers.Default) {
-                    filterAndSort(_uiState.value.rawItems, query, _uiState.value.sortOption)
-                }
-            _uiState.update { it.copy(filteredItems = filtered) }
-        }
+        refilter()
     }
 
     fun toggleSearch(active: Boolean) {
@@ -272,13 +296,7 @@ class BrowseViewModel(
 
     fun setSortOption(option: SortOption) {
         _uiState.update { it.copy(sortOption = option) }
-        viewModelScope.launch {
-            val filtered =
-                withContext(Dispatchers.Default) {
-                    filterAndSort(_uiState.value.rawItems, _uiState.value.searchQuery, option)
-                }
-            _uiState.update { it.copy(filteredItems = filtered) }
-        }
+        refilter()
     }
 
     fun toggleSelection(nodeId: FileNodeId) {

@@ -41,6 +41,19 @@ The initial connected-device runner removed its temporary app installation on co
 
 ## Remaining scope
 
+### Header and launcher icon follow-up — 2026-09-13
+
+The root Scaffold now consumes its applied window insets in both portrait and expanded layouts, preventing nested Browse top bars from adding the status-bar inset a second time. The launcher foreground now uses the supplied `Refract-Icon.png` unchanged, with adaptive-icon insets and a matching pale background.
+
+The header change passed ktlint, detekt and debug assembly (`header-gap-fix.log`). The combined header/icon changes passed debug and release assembly (`header-icon-sdk-build.log`, 4m 2s), and `git diff --check` passed. The local SDK path was restored to the standard Android SDK installation. After the phone reconnected, the follow-up APK was installed successfully with `adb install -r`, preserving app data, and launched successfully.
+
+The Browse header was visually verified on the phone (`header-fixed.png`). Back and search icon bounds moved from y=263–329 to y=159–225: the duplicated 104-pixel status-bar spacing is removed (`header-fixed-ui.xml`). Android's Refract app-info screen displayed the supplied artwork correctly inside its circular icon mask (`launcher-icon-installed.png`). The phone was returned to Refract afterward. The nine device-test results above apply to the preceding build; this follow-up received build checks and these focused visual checks.
+
 Real SAF permission grant/revocation and provider disconnect workflows are not verified; no `OpenDocumentTree`/persistable-grant acquisition flow was found in the current app UI. SD-card app-private access must not be presented as SAF verification. USB removal during an operation, forced process termination at mutation boundaries, TalkBack/Switch Access, all preview formats, drag-and-drop completion/failure, and authenticated real-server protocol tests remain outstanding. Network and credential-security implementation gaps from the main report remain.
 
 The global verification context and prioritized implementation gaps are in [App verification](VERIFICATION_REPORT.md).
+
+
+## Mobile follow-up status — 15 September 2026
+
+A subsequent mobile build passed 12 device tests, adding tab Back navigation and recreation coverage to the previous nine. Public SD-root navigation and hardware/gesture folder Back were also visually checked. The older navigation-state gap above is historical for those covered cases. Latest category/private-files/edge-docking and further layout changes remain unverified. Work is paused at the user's request. See [mobile verification](MOBILE_LAYOUT_VERIFICATION.md) and [agent handoff](../SESSION_HANDOFF.md) for artifact-specific results and next steps.

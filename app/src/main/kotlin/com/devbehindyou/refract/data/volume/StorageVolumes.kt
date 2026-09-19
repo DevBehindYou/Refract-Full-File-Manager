@@ -1,11 +1,15 @@
 package com.devbehindyou.refract.data.volume
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
 import android.os.StatFs
 import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
+import androidx.core.content.ContextCompat
+import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.StorageType
 import com.devbehindyou.refract.domain.model.StorageVolumeInfo
 import java.io.File
@@ -16,23 +20,9 @@ import java.io.File
  * `StorageManager.storageVolumes`, never by hardcoding `/storage/emulated/0` or scanning
  * `/storage/[wildcard]` (`ANDROID_STORAGE_RESEARCH.md`'s explicit rule).
  *
- * Deliberately does **not** resolve [StorageVolumeInfo.rootNodeId] or
- * [StorageVolumeInfo.requiresGrant] to real, permission-aware values — that needs live
- * permission-check logic (`Environment.isExternalStorageManager()`, SAF grant lookups)
- * that belongs to Phase 4's `StorageAccessManager`/`ResolveStorageAccessUseCase`, not this
- * raw enumeration. Every entry here has `rootNodeId = null` and `requiresGrant = true` as a
- * conservative placeholder; Phase 4 is expected to take this list and layer real access
- * resolution on top of it.
- *
- * **Confidence note:** API 30+'s `StorageVolume.directory` is a real, documented API. Below
- * API 30, there is no direct public API for a volume's file path at all — the fallback here
- * matches `storageVolumes` against `Context.getExternalFilesDirs()` by list position and
- * strips the known `/Android/data/<package>/files` suffix. That positional match is a
- * commonly-used real-world heuristic, not a documented contract, and
- * `ANDROID_STORAGE_RESEARCH.md` §10 lists OEM storage-volume behaviour as exactly the kind
- * of thing left for device verification. Treat the API-below-30 path here as the
- * least-trustworthy code in this phase — genuinely unverifiable without real hardware
- * across OEMs.
+ * Resolves each mounted volume to its own root only when shared-storage access is
+ * granted. Below API 30, app-specific directories are matched to their actual volume
+ * through StorageManager instead of assuming the two lists have the same order.
  */
 object StorageVolumes {
     fun enumerate(context: Context): List<StorageVolumeInfo> {
@@ -42,22 +32,24 @@ object StorageVolumes {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) context.getExternalFilesDirs(null) else emptyArray()
 
         return volumes.mapIndexed { index, volume ->
-            val directory = resolveDirectory(context, volume, index, legacyExternalDirs)
+            val directory = resolveDirectory(context, storageManager, volume, legacyExternalDirs)
             toStorageVolumeInfo(context, volume, index, directory)
         }
     }
 
     private fun resolveDirectory(
         context: Context,
+        storageManager: StorageManager,
         volume: StorageVolume,
-        index: Int,
         legacyExternalDirs: Array<File?>,
     ): File? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             return runCatching { volume.directory }.getOrNull()
         }
-        // Positional heuristic — see class KDoc.
-        val appSpecificDir = legacyExternalDirs.getOrNull(index) ?: return null
+        val appSpecificDir =
+            legacyExternalDirs.filterNotNull().firstOrNull {
+                storageManager.getStorageVolume(it) == volume
+            } ?: return null
         val suffix = "/Android/data/${context.packageName}/files"
         return if (appSpecificDir.path.endsWith(suffix)) {
             File(appSpecificDir.path.removeSuffix(suffix))
@@ -105,11 +97,20 @@ object StorageVolumes {
             freeBytes = space.second,
             isRemovable = volume.isRemovable,
             isMounted = volume.state == Environment.MEDIA_MOUNTED,
-            // See class KDoc — Phase 4's job.
-            rootNodeId = null,
-            requiresGrant = true,
+            rootNodeId =
+                directory?.takeIf { hasSharedStorageAccess(context) && it.canRead() }
+                    ?.let { FileNodeId.file(it.absolutePath) },
+            requiresGrant = !hasSharedStorageAccess(context) || directory?.canRead() != true,
         )
     }
+
+    private fun hasSharedStorageAccess(context: Context): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
+        }
 
     fun getAppCacheSize(context: Context): Long {
         return runCatching {

@@ -3,13 +3,18 @@ package com.devbehindyou.refract.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.devbehindyou.refract.RefractApp
 import com.devbehindyou.refract.data.backend.network.NetworkCredentialsStore
 import com.devbehindyou.refract.data.volume.StorageVolumes
@@ -127,6 +133,7 @@ fun StorageScreen(
         ) {
             Text(
                 text = "Network & Remote Storage",
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -170,8 +177,8 @@ fun StorageScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text =
-                            "Connect to FTP, FTPS, SFTP, WebDAV, or SMB servers " +
-                                "to browse and transfer files remotely.",
+                            "Connect to FTP, FTPS, or WebDAV servers to browse and transfer files remotely. " +
+                                "SFTP and SMB are not supported yet.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -410,7 +417,7 @@ private fun NetworkServerCard(
             }
             Button(
                 onClick = onConnect,
-                modifier = Modifier.height(36.dp),
+                modifier = Modifier.heightIn(min = 48.dp),
             ) {
                 Text("Connect", style = MaterialTheme.typography.labelMedium)
             }
@@ -426,6 +433,7 @@ private fun NetworkServerCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AddNetworkServerDialog(
     onDismiss: () -> Unit,
@@ -443,6 +451,8 @@ private fun AddNetworkServerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Network Location", fontWeight = FontWeight.Bold) },
+        modifier = Modifier.imePadding().systemBarsPadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         text = {
             Column(
                 modifier =
@@ -452,9 +462,10 @@ private fun AddNetworkServerDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text("Protocol", style = MaterialTheme.typography.labelMedium)
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     NetworkProtocol.entries.forEach { proto ->
                         FilterChip(
@@ -463,7 +474,7 @@ private fun AddNetworkServerDialog(
                                 selectedProtocol = proto
                                 portText = proto.defaultPort.toString()
                             },
-                            label = { Text(proto.name, style = MaterialTheme.typography.labelSmall) },
+                            label = { Text(proto.name, maxLines = 1, style = MaterialTheme.typography.labelMedium) },
                         )
                     }
                 }
@@ -477,9 +488,9 @@ private fun AddNetworkServerDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     OutlinedTextField(
                         value = host,
@@ -487,7 +498,7 @@ private fun AddNetworkServerDialog(
                         label = { Text("Host / Address") },
                         placeholder = { Text("192.168.1.100") },
                         singleLine = true,
-                        modifier = Modifier.weight(0.7f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = portText,
@@ -495,7 +506,7 @@ private fun AddNetworkServerDialog(
                         label = { Text("Port") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
-                        modifier = Modifier.weight(0.3f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
 
@@ -572,6 +583,7 @@ private fun AddNetworkServerDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun VolumeDetailCard(
     volume: StorageVolumeInfo,
@@ -592,9 +604,9 @@ private fun VolumeDetailCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            FlowRow(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -655,8 +667,9 @@ private fun VolumeDetailCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
@@ -701,11 +714,20 @@ private fun VolumeDetailCard(
 
             Button(
                 onClick = onBrowse,
+                enabled = volume.isMounted,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Default.Folder, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Browse Files")
+                Text(
+                    if (!volume.isMounted) {
+                        "Storage unavailable"
+                    } else if (volume.requiresGrant) {
+                        "Grant access"
+                    } else {
+                        "Browse Files"
+                    },
+                )
             }
         }
     }

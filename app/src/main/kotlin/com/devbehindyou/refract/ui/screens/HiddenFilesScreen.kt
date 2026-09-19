@@ -25,7 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -55,9 +55,19 @@ fun HiddenFilesScreen(
     repository: HiddenFilesRepository,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    initialMode: HideMode = HideMode.FAST_OBSCURE,
+    privateOnly: Boolean = false,
 ) {
     val hiddenItems by repository.hiddenItems.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember {
+        mutableIntStateOf(
+            when (initialMode) {
+                HideMode.FAST_OBSCURE -> 0
+                HideMode.GALLERY -> 1
+                HideMode.PRIVATE_STORAGE -> 2
+            },
+        )
+    }
     val scope = rememberCoroutineScope()
 
     val tabs =
@@ -73,7 +83,7 @@ fun HiddenFilesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Hidden Files") },
+                title = { Text(if (privateOnly) "Private files" else "Hidden Files") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -115,13 +125,15 @@ fun HiddenFilesScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            PrimaryTabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, (title, _) ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) },
-                    )
+            if (!privateOnly) {
+                PrimaryScrollableTabRow(selectedTabIndex = selectedTab) {
+                    tabs.forEachIndexed { index, (title, _) ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title, maxLines = 1) },
+                        )
+                    }
                 }
             }
 
@@ -146,7 +158,12 @@ fun HiddenFilesScreen(
                             modifier = Modifier.padding(bottom = 16.dp),
                         )
                         Text(
-                            text = "No files in ${tabs[selectedTab].first}",
+                            text =
+                                if (privateOnly) {
+                                    "No private files yet. Use Hide > Private storage on a file to move it here."
+                                } else {
+                                    "No files in ${tabs[selectedTab].first}"
+                                },
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

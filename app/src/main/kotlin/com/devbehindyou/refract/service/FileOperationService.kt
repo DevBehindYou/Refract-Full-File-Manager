@@ -14,7 +14,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.devbehindyou.refract.MainActivity
-import com.devbehindyou.refract.R
 import com.devbehindyou.refract.domain.model.OperationProgress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
