@@ -26,6 +26,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The exec bit is lost when commits are made from Windows (core.fileMode=false), which
+      # made `./gradlew` fail with "Permission denied" (exit 126). Do not rely on the git mode.
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -72,6 +77,11 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      # The exec bit is lost when commits are made from Windows (core.fileMode=false), which
+      # made `./gradlew` fail with "Permission denied" (exit 126). Do not rely on the git mode.
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -129,6 +139,11 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      # The exec bit is lost when commits are made from Windows (core.fileMode=false), which
+      # made `./gradlew` fail with "Permission denied" (exit 126). Do not rely on the git mode.
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
