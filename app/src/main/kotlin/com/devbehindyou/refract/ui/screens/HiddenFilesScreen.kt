@@ -44,9 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.HiddenItem
 import com.devbehindyou.refract.domain.model.HideMode
+import com.devbehindyou.refract.domain.model.originalParent
 import com.devbehindyou.refract.domain.repository.HiddenFilesRepository
 import com.devbehindyou.refract.ui.util.FileUtils
 import kotlinx.coroutines.CancellationException
@@ -80,10 +80,7 @@ fun HiddenFilesScreen(
             when (item.mode) {
                 HideMode.FAST_OBSCURE -> repository.restoreFastObscured(item)
                 HideMode.GALLERY -> repository.unhideFromGallery(item)
-                HideMode.PRIVATE_STORAGE -> {
-                    val parent = FileNodeId.file(item.originalLocation).raw.substringBeforeLast('/')
-                    repository.restoreFromPrivateStorage(item, FileNodeId.file(parent))
-                }
+                HideMode.PRIVATE_STORAGE -> repository.restoreFromPrivateStorage(item, item.originalParent())
             }
         } catch (e: CancellationException) {
             throw e

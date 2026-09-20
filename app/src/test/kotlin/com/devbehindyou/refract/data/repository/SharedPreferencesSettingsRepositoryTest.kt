@@ -33,6 +33,7 @@ class SharedPreferencesSettingsRepositoryTest {
                 defaultHideMode = HideMode.PRIVATE_STORAGE,
                 requireAuthForHidden = true,
                 showHiddenFiles = false,
+                hiddenFolder = "Vault/Photos",
             )
         }
 
@@ -43,6 +44,7 @@ class SharedPreferencesSettingsRepositoryTest {
         assertEquals(HideMode.PRIVATE_STORAGE, reloaded.defaultHideMode)
         assertEquals(true, reloaded.requireAuthForHidden)
         assertEquals(false, reloaded.showHiddenFiles)
+        assertEquals("Vault/Photos", reloaded.hiddenFolder)
     }
 
     @Test
@@ -60,11 +62,13 @@ class SharedPreferencesSettingsRepositoryTest {
             .edit()
             .putString("theme_mode", "SOLARIZED")
             .putString("default_hide_mode", "TELEPORT")
+            .putString("hidden_folder", "../escape")
             .commit()
 
         val settings = SharedPreferencesSettingsRepository(context).settings.value
 
         assertEquals(ThemeMode.SYSTEM, settings.themeMode)
         assertNull(settings.defaultHideMode)
+        assertEquals("Refract/Hidden", settings.hiddenFolder)
     }
 }

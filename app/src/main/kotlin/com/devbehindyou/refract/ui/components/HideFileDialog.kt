@@ -76,7 +76,9 @@ fun HideFileDialog(
 
                 HideOptionCard(
                     title = "Hide from Gallery",
-                    subtitle = "Moves media to a .nomedia folder so media scanner and photo apps ignore it.",
+                    subtitle =
+                        "Moves the file to your hidden folder (Refract/Hidden by default, see Settings) " +
+                            "so the media scanner and photo apps ignore it.",
                     icon = Icons.Default.HideImage,
                     selected = selectedMode == HideMode.GALLERY,
                     onClick = { selectedMode = HideMode.GALLERY },

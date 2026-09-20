@@ -28,6 +28,9 @@ class HiddenFilesRepositoryImpl(
     private val context: Context,
     private val dbHelper: HiddenFilesDatabaseHelper,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    /** Folder (relative to a storage root) for hidden gallery files; `null` keeps them next to the original. */
+    private val hiddenFolderProvider: () -> String? = { null },
+    private val volumeRootResolver: (File) -> File? = ::volumeRootOf,
 ) : HiddenFilesRepository {
     private val _hiddenItems = MutableStateFlow<List<HiddenItem>>(emptyList())
     override val hiddenItems: StateFlow<List<HiddenItem>> = _hiddenItems.asStateFlow()
@@ -68,9 +71,18 @@ class HiddenFilesRepositoryImpl(
             val parentDir =
                 sourceFile.parentFile
                     ?: return@io Result.failure(IllegalStateException("No parent directory"))
-            val hiddenDir = File(parentDir, ".RefractHidden")
+            // Central folder on the same storage (default Refract/Hidden); otherwise beside the file.
+            val centralDir =
+                hiddenFolderProvider()?.let { relative -> volumeRootResolver(sourceFile)?.let { File(it, relative) } }
+            val hiddenDir = centralDir ?: File(parentDir, ".RefractHidden")
+            if (parentDir.absoluteFile == hiddenDir.absoluteFile) {
+                return@io Result.failure(IllegalStateException("File is already in the hidden folder"))
+            }
             if (!hiddenDir.exists()) {
                 hiddenDir.mkdirs()
+            }
+            if (!hiddenDir.isDirectory) {
+                return@io Result.failure(IllegalStateException("Could not create ${hiddenDir.absolutePath}"))
             }
 
             // Ensure .nomedia exists in the hidden directory
@@ -79,7 +91,9 @@ class HiddenFilesRepositoryImpl(
                 noMedia.createNewFile()
             }
 
-            val targetFile = File(hiddenDir, sourceFile.name)
+            // Files from different folders share the central folder, so a name clash gets a suffix.
+            val targetFile =
+                if (centralDir != null) uniqueChild(hiddenDir, sourceFile.name) else File(hiddenDir, sourceFile.name)
             if (targetFile.exists()) {
                 return@io Result.failure(
                     IllegalStateException("Hidden filename already exists"),
@@ -123,6 +137,8 @@ class HiddenFilesRepositoryImpl(
             }
 
             if (currentFile.exists()) {
+                // The original folder may have been deleted since the file was hidden.
+                originalFile.parentFile?.mkdirs()
                 val moved = currentFile.renameTo(originalFile)
                 if (!moved) {
                     return@io Result.failure(
@@ -401,3 +417,33 @@ class HiddenFilesRepositoryImpl(
     private fun FileNodeId.localFileOrNull(): File? =
         if (prefix == FileNodeId.Prefix.FILE) File(raw.removePrefix(FileNodeId.Prefix.FILE.scheme)) else null
 }
+
+/** `/storage/emulated/0/...` gives `/storage/emulated/0`, `/storage/ABCD-1234/...` gives `/storage/ABCD-1234`. */
+internal fun volumeRootOf(file: File): File? {
+    val segments = file.absolutePath.replace('\\', '/').split('/').filter { it.isNotEmpty() }
+    return when {
+        segments.size < 2 || segments[0] != "storage" -> null
+        segments[1] == "emulated" -> if (segments.size >= 3) File("/storage/emulated/${segments[2]}") else null
+        segments[1] == "self" -> null
+        else -> File("/storage/${segments[1]}")
+    }
+}
+
+/** [name] inside [dir], or `name (1).ext`, `name (2).ext`... when that name is taken. */
+internal fun uniqueChild(
+    dir: File,
+    name: String,
+): File {
+    val plain = File(dir, name)
+    if (!plain.exists()) return plain
+    val dot = name.lastIndexOf('.')
+    val stem = if (dot > 0) name.substring(0, dot) else name
+    val extension = if (dot > 0) name.substring(dot) else ""
+    for (number in 1..MAX_NAME_SUFFIX) {
+        val candidate = File(dir, "$stem ($number)$extension")
+        if (!candidate.exists()) return candidate
+    }
+    return plain
+}
+
+private const val MAX_NAME_SUFFIX = 999

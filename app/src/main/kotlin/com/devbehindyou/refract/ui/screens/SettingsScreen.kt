@@ -12,25 +12,32 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.refract.domain.model.DEFAULT_HIDDEN_FOLDER
 import com.devbehindyou.refract.domain.model.HideMode
 import com.devbehindyou.refract.domain.model.ThemeMode
+import com.devbehindyou.refract.domain.model.normalizeHiddenFolder
 import com.devbehindyou.refract.domain.repository.SettingsRepository
 import com.devbehindyou.refract.ui.security.authenticate
 import com.devbehindyou.refract.ui.security.canAuthenticate
@@ -38,7 +45,7 @@ import com.devbehindyou.refract.ui.security.findFragmentActivity
 
 private class HideModeChoice(val mode: HideMode?, val title: String, val description: String)
 
-private val hideModeChoices =
+private fun hideModeChoices(hiddenFolder: String) =
     listOf(
         HideModeChoice(null, "Ask every time", "Choose a method each time you hide a file."),
         HideModeChoice(
@@ -50,7 +57,7 @@ private val hideModeChoices =
         HideModeChoice(
             HideMode.GALLERY,
             "Hide from Gallery",
-            "The file moves to a .RefractHidden folder inside its own folder, and photo apps ignore it.",
+            "The file moves to $hiddenFolder on its own storage, and photo apps ignore it.",
         ),
         HideModeChoice(
             HideMode.PRIVATE_STORAGE,
@@ -75,6 +82,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val settings by settingsRepository.settings.collectAsState()
+    var showFolderDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val version =
         remember(context) {
@@ -97,6 +105,17 @@ fun SettingsScreen(
                     if (ok) settingsRepository.update { it.copy(requireAuthForHidden = enabled) }
                 }
         }
+    }
+
+    if (showFolderDialog) {
+        HiddenFolderDialog(
+            current = settings.hiddenFolder,
+            onDismiss = { showFolderDialog = false },
+            onSave = { folder ->
+                settingsRepository.update { it.copy(hiddenFolder = folder) }
+                showFolderDialog = false
+            },
+        )
     }
 
     Column(
@@ -141,13 +160,26 @@ fun SettingsScreen(
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        hideModeChoices.forEach { choice ->
+        hideModeChoices(settings.hiddenFolder).forEach { choice ->
             ChoiceRow(
                 title = choice.title,
                 description = choice.description,
                 selected = settings.defaultHideMode == choice.mode,
                 onSelect = { settingsRepository.update { it.copy(defaultHideMode = choice.mode) } },
             )
+        }
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text("Hidden folder", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "${settings.hiddenFolder} on each storage. Hide from Gallery puts files here. " +
+                    "Fast Obscure keeps files where they are, and Private Storage uses Refract's own folder.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = { showFolderDialog = true },
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text("Change folder") }
         }
         SectionDivider()
 
@@ -268,4 +300,45 @@ private fun SwitchRow(
         }
         Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 16.dp))
     }
+}
+
+@Composable
+private fun HiddenFolderDialog(
+    current: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var text by remember { mutableStateOf(current) }
+    val normalized = normalizeHiddenFolder(text)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Hidden folder") },
+        text = {
+            Column {
+                Text(
+                    "A folder inside each storage, for example Refract/Hidden. It is created when you hide a file.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    isError = normalized == null,
+                    supportingText = {
+                        if (normalized == null) Text("Enter a folder name without .. or a drive letter.")
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { normalized?.let(onSave) }, enabled = normalized != null) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { text = DEFAULT_HIDDEN_FOLDER }) { Text("Reset") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
 }

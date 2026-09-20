@@ -8,10 +8,13 @@ import com.devbehindyou.refract.data.repository.HiddenFilesRepositoryImpl
 import com.devbehindyou.refract.domain.model.FileNode
 import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.FileResult
+import com.devbehindyou.refract.domain.model.originalParent
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -91,5 +94,55 @@ class HiddenFilesIntegrationTest {
             assertTrue(File(item.currentLocation).delete())
             assertTrue(repository.unhideFromGallery(item).isFailure)
             assertTrue(repository.hiddenItems.value.any { it.id == item.id })
+        }
+
+    @Test
+    fun privateRestoreUsesTheItemsOriginalFolder() =
+        runBlocking {
+            val file = temporary.newFile("private-parent.bin").apply { writeBytes(ByteArray(64) { it.toByte() }) }
+            val bytes = file.readBytes()
+            val item = repository.moveToPrivateStorage(node(file)).getOrThrow()
+            repository.restoreFromPrivateStorage(item, item.originalParent()).getOrThrow()
+            assertArrayEquals(bytes, file.readBytes())
+        }
+
+    @Test
+    fun privateRestoreRecreatesAMissingOriginalFolder() =
+        runBlocking {
+            val folder = temporary.newFolder("gone")
+            val file = File(folder, "note.txt").apply { writeText("note") }
+            val item = repository.moveToPrivateStorage(node(file)).getOrThrow()
+            assertTrue(folder.deleteRecursively())
+            repository.restoreFromPrivateStorage(item, item.originalParent()).getOrThrow()
+            assertEquals("note", file.readText())
+        }
+
+    @Test
+    fun galleryHideUsesTheCentralFolderAndKeepsClashingNamesApart() =
+        runBlocking {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val central =
+                HiddenFilesRepositoryImpl(
+                    context,
+                    database,
+                    hiddenFolderProvider = { "Refract/Hidden" },
+                    volumeRootResolver = { temporary.root },
+                )
+            val first = File(temporary.newFolder("a"), "photo.jpg").apply { writeText("one") }
+            val second = File(temporary.newFolder("b"), "photo.jpg").apply { writeText("two") }
+
+            val hiddenFirst = central.hideFromGallery(node(first)).getOrThrow()
+            val hiddenSecond = central.hideFromGallery(node(second)).getOrThrow()
+
+            val hiddenDir = File(temporary.root, "Refract/Hidden")
+            assertEquals(hiddenDir, File(hiddenFirst.currentLocation).parentFile)
+            assertEquals(hiddenDir, File(hiddenSecond.currentLocation).parentFile)
+            assertNotEquals(hiddenFirst.currentLocation, hiddenSecond.currentLocation)
+            assertTrue(File(hiddenDir, ".nomedia").exists())
+
+            central.unhideFromGallery(hiddenFirst).getOrThrow()
+            central.unhideFromGallery(hiddenSecond).getOrThrow()
+            assertEquals("one", first.readText())
+            assertEquals("two", second.readText())
         }
 }

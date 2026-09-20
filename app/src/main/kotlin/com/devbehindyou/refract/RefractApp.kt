@@ -41,7 +41,11 @@ interface AppContainer {
 class DefaultAppContainer(private val application: Application) : AppContainer {
     override val hiddenFilesRepository: com.devbehindyou.refract.domain.repository.HiddenFilesRepository by lazy {
         val helper = com.devbehindyou.refract.data.database.HiddenFilesDatabaseHelper(application)
-        com.devbehindyou.refract.data.repository.HiddenFilesRepositoryImpl(application, helper)
+        com.devbehindyou.refract.data.repository.HiddenFilesRepositoryImpl(
+            application,
+            helper,
+            hiddenFolderProvider = { settingsRepository.settings.value.hiddenFolder },
+        )
     }
 
     override val transferBubbleRepository: com.devbehindyou.refract.domain.repository.TransferBubbleRepository by lazy {

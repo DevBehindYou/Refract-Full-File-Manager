@@ -26,6 +26,9 @@ data class HiddenItem(
     val isAvailable: Boolean = true,
 )
 
+/** The folder the item was hidden from. Restoring a private file puts it back here. */
+fun HiddenItem.originalParent(): FileNodeId = FileNodeId.file(originalLocation.substringBeforeLast('/').ifEmpty { "/" })
+
 data class HideJournalEntry(
     val operationId: String,
     val originalPath: String,
