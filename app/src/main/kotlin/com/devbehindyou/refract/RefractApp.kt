@@ -32,6 +32,8 @@ interface AppContainer {
     val storageAnalyzerUseCase: com.devbehindyou.refract.domain.usecase.StorageAnalyzerUseCase
     val mediaPreviewHelper: com.devbehindyou.refract.data.preview.MediaPreviewHelper
 
+    val settingsRepository: com.devbehindyou.refract.domain.repository.SettingsRepository
+
     /** Process-wide so the phone-wide category scan survives Activity recreation (rotation). */
     val phoneFileIndex: com.devbehindyou.refract.data.volume.PhoneFileIndex
 }
@@ -138,6 +140,10 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
         com.devbehindyou.refract.data.preview.MediaPreviewHelper(
             application,
         ) { id -> storageBackendSelector.forNode(id) }
+    }
+
+    override val settingsRepository: com.devbehindyou.refract.domain.repository.SettingsRepository by lazy {
+        com.devbehindyou.refract.data.repository.SharedPreferencesSettingsRepository(application)
     }
 
     override val phoneFileIndex: com.devbehindyou.refract.data.volume.PhoneFileIndex by lazy {

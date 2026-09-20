@@ -27,6 +27,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -47,6 +49,7 @@ import com.devbehindyou.refract.domain.model.HiddenItem
 import com.devbehindyou.refract.domain.model.HideMode
 import com.devbehindyou.refract.domain.repository.HiddenFilesRepository
 import com.devbehindyou.refract.ui.util.FileUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +72,37 @@ fun HiddenFilesScreen(
         )
     }
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // One place for every restore path so a failure is reported instead of ignored or thrown.
+    suspend fun restore(item: HiddenItem): Result<Unit> =
+        try {
+            when (item.mode) {
+                HideMode.FAST_OBSCURE -> repository.restoreFastObscured(item)
+                HideMode.GALLERY -> repository.unhideFromGallery(item)
+                HideMode.PRIVATE_STORAGE -> {
+                    val parent = FileNodeId.file(item.originalLocation).raw.substringBeforeLast('/')
+                    repository.restoreFromPrivateStorage(item, FileNodeId.file(parent))
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+
+    suspend fun restoreAndReport(items: List<HiddenItem>) {
+        val failures = items.mapNotNull { item -> restore(item).exceptionOrNull()?.let { item to it } }
+        val first = failures.firstOrNull() ?: return
+        val reason = first.second.message ?: "unknown error"
+        val message =
+            if (failures.size == 1) {
+                "Could not restore ${first.first.originalName}: $reason"
+            } else {
+                "Could not restore ${failures.size} of ${items.size} files. First error: $reason"
+            }
+        snackbarHostState.showSnackbar(message)
+    }
 
     val tabs =
         listOf(
@@ -92,23 +126,7 @@ fun HiddenFilesScreen(
                 actions = {
                     if (currentItems.isNotEmpty()) {
                         OutlinedButton(
-                            onClick = {
-                                scope.launch {
-                                    for (item in currentItems) {
-                                        when (item.mode) {
-                                            HideMode.FAST_OBSCURE -> repository.restoreFastObscured(item)
-                                            HideMode.GALLERY -> repository.unhideFromGallery(item)
-                                            HideMode.PRIVATE_STORAGE -> {
-                                                val parent =
-                                                    FileNodeId.file(
-                                                        item.originalLocation,
-                                                    ).raw.substringBeforeLast('/')
-                                                repository.restoreFromPrivateStorage(item, FileNodeId.file(parent))
-                                            }
-                                        }
-                                    }
-                                }
-                            },
+                            onClick = { scope.launch { restoreAndReport(currentItems) } },
                             modifier = Modifier.padding(end = 8.dp),
                         ) {
                             Text("Unhide All")
@@ -117,6 +135,7 @@ fun HiddenFilesScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
     ) { paddingValues ->
         Column(
@@ -174,24 +193,14 @@ fun HiddenFilesScreen(
                     items(currentItems, key = { it.id }) { item ->
                         HiddenItemRow(
                             item = item,
-                            onUnhide = {
-                                scope.launch {
-                                    when (item.mode) {
-                                        HideMode.FAST_OBSCURE -> repository.restoreFastObscured(item)
-                                        HideMode.GALLERY -> repository.unhideFromGallery(item)
-                                        HideMode.PRIVATE_STORAGE -> {
-                                            val parent =
-                                                FileNodeId.file(
-                                                    item.originalLocation,
-                                                ).raw.substringBeforeLast('/')
-                                            repository.restoreFromPrivateStorage(item, FileNodeId.file(parent))
-                                        }
-                                    }
-                                }
-                            },
+                            onUnhide = { scope.launch { restoreAndReport(listOf(item)) } },
                             onDelete = {
                                 scope.launch {
-                                    repository.deleteHiddenItem(item)
+                                    val error = repository.deleteHiddenItem(item).exceptionOrNull()
+                                    if (error != null) {
+                                        val reason = error.message ?: "unknown error"
+                                        snackbarHostState.showSnackbar("Could not delete ${item.originalName}: $reason")
+                                    }
                                 }
                             },
                         )

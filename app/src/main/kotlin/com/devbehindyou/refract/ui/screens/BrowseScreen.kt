@@ -1,5 +1,6 @@
 package com.devbehindyou.refract.ui.screens
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
@@ -115,6 +116,7 @@ import com.devbehindyou.refract.ui.interaction.drag.fileDropTarget
 import com.devbehindyou.refract.ui.interaction.peek.QuickPeekController
 import com.devbehindyou.refract.ui.interaction.peek.QuickPeekOverlay
 import com.devbehindyou.refract.ui.interaction.peek.mediaGestureArbiter
+import com.devbehindyou.refract.ui.security.AuthGate
 import kotlinx.coroutines.launch
 
 enum class DualPaneMode {
@@ -152,6 +154,7 @@ fun BrowseScreen(
 ) {
     val app = LocalContext.current.applicationContext as RefractApp
     val uiState by viewModel.uiState.collectAsState()
+    val settings by app.container.settingsRepository.settings.collectAsState()
 
     var showNewFolderDialog by remember { mutableStateOf(false) }
     var nodeToRename by remember { mutableStateOf<FileNode?>(null) }
@@ -194,6 +197,43 @@ fun BrowseScreen(
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
 
+    fun hideNode(
+        node: FileNode,
+        mode: HideMode,
+    ) {
+        coroutineScope.launch {
+            val repository = app.container.hiddenFilesRepository
+            val result =
+                when (mode) {
+                    HideMode.GALLERY -> repository.hideFromGallery(node)
+                    HideMode.FAST_OBSCURE -> repository.fastObscure(node)
+                    HideMode.PRIVATE_STORAGE -> repository.moveToPrivateStorage(node)
+                }
+            val error = result.exceptionOrNull()
+            val message =
+                if (error == null) {
+                    "Hidden ${node.name}"
+                } else {
+                    "Could not hide ${node.name}: ${error.message ?: "unknown error"}"
+                }
+            Toast.makeText(app, message, Toast.LENGTH_LONG).show()
+            viewModel.refresh()
+            nodeToHide = null
+        }
+    }
+
+    // With a default hiding method set in Settings the choice dialog is skipped.
+    LaunchedEffect(nodeToHide, settings.defaultHideMode) {
+        val node = nodeToHide
+        val mode = settings.defaultHideMode
+        if (node != null && mode != null) hideNode(node, mode)
+    }
+
+    LaunchedEffect(settings.showHiddenFiles) {
+        viewModel.setShowHiddenFiles(settings.showHiddenFiles)
+        secondaryViewModel.setShowHiddenFiles(settings.showHiddenFiles)
+    }
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -212,13 +252,22 @@ fun BrowseScreen(
     }
 
     if (showHiddenScreen) {
-        HiddenFilesScreen(
-            repository = app.container.hiddenFilesRepository,
-            onNavigateBack = {
+        AuthGate(
+            required = settings.requireAuthForHidden,
+            title = "Unlock hidden files",
+            onDenied = {
                 showHiddenScreen = false
                 viewModel.refresh()
             },
-        )
+        ) {
+            HiddenFilesScreen(
+                repository = app.container.hiddenFilesRepository,
+                onNavigateBack = {
+                    showHiddenScreen = false
+                    viewModel.refresh()
+                },
+            )
+        }
         return
     }
 
@@ -392,7 +441,7 @@ fun BrowseScreen(
                     nodeToDelete = nodeToDelete,
                     confirmMultiDelete = confirmMultiDelete,
                     showNewFolderDialog = showNewFolderDialog,
-                    nodeToHide = nodeToHide,
+                    nodeToHide = if (settings.defaultHideMode == null) nodeToHide else null,
                     bubbleForTransfer = bubbleForTransfer,
                     bubbleForDetails = bubbleForDetails,
                     nodeForPreview = if (!isDualPane) nodeForPreview else null,
@@ -412,20 +461,7 @@ fun BrowseScreen(
                         bubbleForDetails = bubble
                         bubbleForTransfer = null
                     },
-                    onHideNode = { node, mode ->
-                        coroutineScope.launch {
-                            when (mode) {
-                                HideMode.GALLERY -> app.container.hiddenFilesRepository.hideFromGallery(node)
-                                HideMode.FAST_OBSCURE -> app.container.hiddenFilesRepository.fastObscure(node)
-                                HideMode.PRIVATE_STORAGE ->
-                                    app.container.hiddenFilesRepository.moveToPrivateStorage(
-                                        node,
-                                    )
-                            }
-                            viewModel.refresh()
-                            nodeToHide = null
-                        }
-                    },
+                    onHideNode = { node, mode -> hideNode(node, mode) },
                 ),
         )
     }

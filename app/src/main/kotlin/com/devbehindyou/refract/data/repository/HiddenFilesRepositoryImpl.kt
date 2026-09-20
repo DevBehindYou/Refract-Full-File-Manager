@@ -40,18 +40,34 @@ class HiddenFilesRepositoryImpl(
         _hiddenItems.value = dbHelper.getAllHiddenItems()
     }
 
-    override suspend fun hideFromGallery(node: FileNode): Result<HiddenItem> =
+    /**
+     * Runs [block] on the IO dispatcher. Any exception (for example an IOException from
+     * `createNewFile` when the original folder is gone) becomes a failed [Result] instead of
+     * escaping into the UI coroutine, where nothing catches it and the app crashes.
+     */
+    private suspend fun <T> io(block: suspend () -> Result<T>): Result<T> =
         withContext(ioDispatcher) {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    override suspend fun hideFromGallery(node: FileNode): Result<HiddenItem> =
+        io {
             val sourceFile =
                 node.id.localFileOrNull()
-                    ?: return@withContext Result.failure(IllegalArgumentException("Hiding requires a local file"))
+                    ?: return@io Result.failure(IllegalArgumentException("Hiding requires a local file"))
             if (!sourceFile.exists()) {
-                return@withContext Result.failure(IllegalArgumentException("Source file does not exist"))
+                return@io Result.failure(IllegalArgumentException("Source file does not exist"))
             }
 
             val parentDir =
                 sourceFile.parentFile
-                    ?: return@withContext Result.failure(IllegalStateException("No parent directory"))
+                    ?: return@io Result.failure(IllegalStateException("No parent directory"))
             val hiddenDir = File(parentDir, ".RefractHidden")
             if (!hiddenDir.exists()) {
                 hiddenDir.mkdirs()
@@ -65,13 +81,13 @@ class HiddenFilesRepositoryImpl(
 
             val targetFile = File(hiddenDir, sourceFile.name)
             if (targetFile.exists()) {
-                return@withContext Result.failure(
+                return@io Result.failure(
                     IllegalStateException("Hidden filename already exists"),
                 )
             }
             val moved = sourceFile.renameTo(targetFile)
             if (!moved) {
-                return@withContext Result.failure(
+                return@io Result.failure(
                     IllegalStateException("Failed to move file to hidden gallery directory"),
                 )
             }
@@ -92,16 +108,16 @@ class HiddenFilesRepositoryImpl(
         }
 
     override suspend fun unhideFromGallery(item: HiddenItem): Result<Unit> =
-        withContext(ioDispatcher) {
+        io {
             val currentFile = File(item.currentLocation)
             val originalFile = File(item.originalLocation)
             if (!currentFile.exists()) {
-                return@withContext Result.failure(
+                return@io Result.failure(
                     IllegalStateException("Hidden file is unavailable"),
                 )
             }
             if (originalFile.exists()) {
-                return@withContext Result.failure(
+                return@io Result.failure(
                     IllegalStateException("Original filename already exists"),
                 )
             }
@@ -109,7 +125,7 @@ class HiddenFilesRepositoryImpl(
             if (currentFile.exists()) {
                 val moved = currentFile.renameTo(originalFile)
                 if (!moved) {
-                    return@withContext Result.failure(
+                    return@io Result.failure(
                         IllegalStateException("Failed to restore file from hidden directory"),
                     )
                 }
@@ -121,10 +137,10 @@ class HiddenFilesRepositoryImpl(
         }
 
     override suspend fun fastObscure(node: FileNode): Result<HiddenItem> =
-        withContext(ioDispatcher) {
+        io {
             val sourceFile =
                 node.id.localFileOrNull()
-                    ?: return@withContext Result.failure(IllegalArgumentException("Obscuring requires a local file"))
+                    ?: return@io Result.failure(IllegalArgumentException("Obscuring requires a local file"))
             val opId = UUID.randomUUID().toString()
 
             dbHelper.logJournal(
@@ -151,7 +167,7 @@ class HiddenFilesRepositoryImpl(
                             mode = HideMode.FAST_OBSCURE,
                         ),
                     )
-                    return@withContext Result.failure(it)
+                    return@io Result.failure(it)
                 }
 
             dbHelper.logJournal(
@@ -181,11 +197,11 @@ class HiddenFilesRepositoryImpl(
         }
 
     override suspend fun restoreFastObscured(item: HiddenItem): Result<Unit> =
-        withContext(ioDispatcher) {
+        io {
             val currentFile = File(item.currentLocation)
             val restoreResult = FastObscureHelper.restoreFile(currentFile)
             if (restoreResult.isFailure) {
-                return@withContext Result.failure(restoreResult.exceptionOrNull()!!)
+                return@io Result.failure(restoreResult.exceptionOrNull()!!)
             }
 
             dbHelper.deleteHiddenItem(item.id)
@@ -195,15 +211,15 @@ class HiddenFilesRepositoryImpl(
         }
 
     override suspend fun moveToPrivateStorage(node: FileNode): Result<HiddenItem> =
-        withContext(ioDispatcher) {
+        io {
             val sourceFile =
                 node.id.localFileOrNull()
 
-                    ?: return@withContext Result.failure(
+                    ?: return@io Result.failure(
                         IllegalArgumentException("Private storage requires a local file"),
                     )
             if (!sourceFile.exists()) {
-                return@withContext Result.failure(IllegalArgumentException("Source file does not exist"))
+                return@io Result.failure(IllegalArgumentException("Source file does not exist"))
             }
 
             val privateDir = File(context.filesDir, "private_storage")
@@ -213,7 +229,7 @@ class HiddenFilesRepositoryImpl(
 
             val targetFile = File(privateDir, sourceFile.name)
             if (!targetFile.createNewFile()) {
-                return@withContext Result.failure(
+                return@io Result.failure(
                     IllegalStateException("Private filename already exists"),
                 )
             }
@@ -234,7 +250,7 @@ class HiddenFilesRepositoryImpl(
 
                 if (targetFile.length() != sourceFile.length()) {
                     targetFile.delete()
-                    return@withContext Result.failure(
+                    return@io Result.failure(
                         IllegalStateException("Size verification failed after copy to private storage"),
                     )
                 }
@@ -242,7 +258,7 @@ class HiddenFilesRepositoryImpl(
                 // Only delete source after verified
                 if (!sourceFile.delete()) {
                     targetFile.delete()
-                    return@withContext Result.failure(IllegalStateException("Could not remove original file"))
+                    return@io Result.failure(IllegalStateException("Could not remove original file"))
                 }
 
                 val item =
@@ -269,21 +285,23 @@ class HiddenFilesRepositoryImpl(
         item: HiddenItem,
         destinationParent: FileNodeId,
     ): Result<Unit> =
-        withContext(ioDispatcher) {
+        io {
             val privateFile = File(item.currentLocation)
             if (!privateFile.exists()) {
-                return@withContext Result.failure(IllegalStateException("Private file no longer exists"))
+                return@io Result.failure(IllegalStateException("Private file no longer exists"))
             }
 
             val destDir =
                 destinationParent.localFileOrNull()
 
-                    ?: return@withContext Result.failure(
+                    ?: return@io Result.failure(
                         IllegalArgumentException("Restoration requires a local folder"),
                     )
+            // The original folder may have been deleted or renamed since the file was hidden.
+            destDir.mkdirs()
             val targetFile = File(destDir, item.originalName)
             if (!targetFile.createNewFile()) {
-                return@withContext Result.failure(
+                return@io Result.failure(
                     IllegalStateException("Destination filename already exists"),
                 )
             }
@@ -304,7 +322,7 @@ class HiddenFilesRepositoryImpl(
 
                 if (targetFile.length() == privateFile.length()) {
                     if (!privateFile.delete()) {
-                        return@withContext Result.failure(
+                        return@io Result.failure(
                             IllegalStateException("Could not remove private original"),
                         )
                     }
@@ -323,11 +341,11 @@ class HiddenFilesRepositoryImpl(
         }
 
     override suspend fun deleteHiddenItem(item: HiddenItem): Result<Unit> =
-        withContext(ioDispatcher) {
+        io {
             val file = File(item.currentLocation)
             if (file.exists()) {
                 if (!file.delete()) {
-                    return@withContext Result.failure(
+                    return@io Result.failure(
                         IllegalStateException("Could not delete hidden file"),
                     )
                 }

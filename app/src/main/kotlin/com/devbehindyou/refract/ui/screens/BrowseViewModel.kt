@@ -56,6 +56,7 @@ data class BrowseUiState(
     val searchQuery: String = "",
     val isSearching: Boolean = false,
     val sortOption: SortOption = SortOption.NAME,
+    val showHiddenFiles: Boolean = true,
     val clipboard: ClipboardState? = null,
     val activeOperation: OperationSnapshot? = null,
 )
@@ -149,9 +150,10 @@ class BrowseViewModel(
     private suspend fun applyNewItems(items: List<FileNode>) {
         val query = _uiState.value.searchQuery
         val sort = _uiState.value.sortOption
+        val showHidden = _uiState.value.showHiddenFiles
         val filtered =
             withContext(Dispatchers.Default) {
-                filterAndSort(items, query, sort)
+                filterAndSort(items, query, sort, showHidden)
             }
         _uiState.update {
             it.copy(
@@ -162,7 +164,9 @@ class BrowseViewModel(
         }
         // The query or sort may have changed while the list was being sorted.
         val current = _uiState.value
-        if (current.searchQuery != query || current.sortOption != sort) refilter()
+        if (current.searchQuery != query || current.sortOption != sort || current.showHiddenFiles != showHidden) {
+            refilter()
+        }
     }
 
     /**
@@ -176,12 +180,18 @@ class BrowseViewModel(
                 val requested = _uiState.value
                 val filtered =
                     withContext(Dispatchers.Default) {
-                        filterAndSort(requested.rawItems, requested.searchQuery, requested.sortOption)
+                        filterAndSort(
+                            requested.rawItems,
+                            requested.searchQuery,
+                            requested.sortOption,
+                            requested.showHiddenFiles,
+                        )
                     }
                 _uiState.update { current ->
                     if (current.rawItems === requested.rawItems &&
                         current.searchQuery == requested.searchQuery &&
-                        current.sortOption == requested.sortOption
+                        current.sortOption == requested.sortOption &&
+                        current.showHiddenFiles == requested.showHiddenFiles
                     ) {
                         current.copy(filteredItems = filtered)
                     } else {
@@ -195,12 +205,14 @@ class BrowseViewModel(
         items: List<FileNode>,
         query: String,
         sort: SortOption,
+        showHidden: Boolean,
     ): List<FileNode> {
+        val visible = if (showHidden) items else items.filterNot { it.isHidden }
         val filtered =
             if (query.isBlank()) {
-                items
+                visible
             } else {
-                items.filter { it.name.contains(query, ignoreCase = true) }
+                visible.filter { it.name.contains(query, ignoreCase = true) }
             }
         val comparator = comparatorFor(sort)
         return filtered.sortedWith(comparator)
@@ -292,6 +304,12 @@ class BrowseViewModel(
         if (!active) {
             onSearchQueryChanged("")
         }
+    }
+
+    fun setShowHiddenFiles(show: Boolean) {
+        if (_uiState.value.showHiddenFiles == show) return
+        _uiState.update { it.copy(showHiddenFiles = show) }
+        refilter()
     }
 
     fun setSortOption(option: SortOption) {

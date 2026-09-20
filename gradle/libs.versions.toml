@@ -23,6 +23,8 @@ composeBom = "2026.04.01" # [CONFIRMED]
 activityCompose = "1.10.1" # [BEST-EFFORT]
 
 # --- Splash / DI / async -------------------------------------------------
+androidxBiometric = "1.1.0" # [BEST-EFFORT] BiometricPrompt needs a FragmentActivity.
+androidxFragment = "1.8.5" # [BEST-EFFORT] FragmentActivity for BiometricPrompt; needs activity 1.8+.
 coreSplashscreen = "1.0.1" # [BEST-EFFORT] verify no newer stable exists.
 hilt = "2.57.2" # [BEST-EFFORT, moderately confident]
 kotlinxCoroutines = "1.9.0" # [BEST-EFFORT]
@@ -72,6 +74,8 @@ compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "androidxBiometric" }
+androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidxFragment" }
 
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }

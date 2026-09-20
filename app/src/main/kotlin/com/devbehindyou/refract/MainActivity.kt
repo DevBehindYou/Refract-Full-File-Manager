@@ -3,18 +3,20 @@ package com.devbehindyou.refract
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -46,6 +49,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -69,21 +74,27 @@ import com.devbehindyou.refract.domain.model.FileNodeId
 import com.devbehindyou.refract.domain.model.HideMode
 import com.devbehindyou.refract.domain.model.StorageType
 import com.devbehindyou.refract.domain.model.StorageVolumeInfo
+import com.devbehindyou.refract.domain.model.ThemeMode
+import com.devbehindyou.refract.domain.repository.SettingsRepository
 import com.devbehindyou.refract.ui.screens.BrowseScreen
 import com.devbehindyou.refract.ui.screens.CategoryScreen
 import com.devbehindyou.refract.ui.screens.HiddenFilesScreen
 import com.devbehindyou.refract.ui.screens.HomeScreen
+import com.devbehindyou.refract.ui.screens.SettingsScreen
 import com.devbehindyou.refract.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.refract.ui.screens.StorageScreen
+import com.devbehindyou.refract.ui.security.AuthGate
 import com.devbehindyou.refract.ui.theme.RefractTheme
 
 enum class NavigationTab(val title: String) {
     HOME("Home"),
     BROWSE("Browse"),
     STORAGE("Storage"),
+    SETTINGS("Settings"),
 }
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity (a ComponentActivity) because BiometricPrompt needs one.
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -91,7 +102,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            RefractTheme {
+            val app = application as RefractApp
+            val settings by app.container.settingsRepository.settings.collectAsState()
+            val darkTheme =
+                when (settings.themeMode) {
+                    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                }
+            // Keep status and navigation bar icons readable when the chosen theme differs from the system's.
+            DisposableEffect(darkTheme) {
+                val lightNavScrim = Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
+                val darkNavScrim = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme },
+                    navigationBarStyle = SystemBarStyle.auto(lightNavScrim, darkNavScrim) { darkTheme },
+                )
+                onDispose {}
+            }
+            RefractTheme(darkTheme = darkTheme, dynamicColor = settings.dynamicColor) {
                 RefractAppContent()
             }
         }
@@ -104,6 +133,8 @@ fun RefractAppContent() {
     val context = LocalContext.current
     val app = context.applicationContext as RefractApp
     val phoneIndex = app.container.phoneFileIndex
+    val settingsRepository = app.container.settingsRepository
+    val settings by settingsRepository.settings.collectAsState()
     var collectionName by rememberSaveable { mutableStateOf<String?>(null) }
     var showMoreCategories by rememberSaveable { mutableStateOf(false) }
     var showPrivateFiles by rememberSaveable { mutableStateOf(false) }
@@ -290,12 +321,18 @@ fun RefractAppContent() {
 
     if (showPrivateFiles) {
         BackHandler { showPrivateFiles = false }
-        HiddenFilesScreen(
-            repository = app.container.hiddenFilesRepository,
-            onNavigateBack = { showPrivateFiles = false },
-            initialMode = HideMode.PRIVATE_STORAGE,
-            privateOnly = true,
-        )
+        AuthGate(
+            required = settings.requireAuthForHidden,
+            title = "Unlock private files",
+            onDenied = { showPrivateFiles = false },
+        ) {
+            HiddenFilesScreen(
+                repository = app.container.hiddenFilesRepository,
+                onNavigateBack = { showPrivateFiles = false },
+                initialMode = HideMode.PRIVATE_STORAGE,
+                privateOnly = true,
+            )
+        }
         return
     }
     if (collectionName != null) {
@@ -401,6 +438,13 @@ fun RefractAppContent() {
                         label = { Text("Storage") },
                         modifier = Modifier.testTag("tab_storage"),
                     )
+                    NavigationBarItem(
+                        selected = currentTab == NavigationTab.SETTINGS,
+                        onClick = { navigateTab(NavigationTab.SETTINGS) },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                        label = { Text("Settings") },
+                        modifier = Modifier.testTag("tab_settings"),
+                    )
                 }
             }
         },
@@ -440,6 +484,13 @@ fun RefractAppContent() {
                         label = { Text("Storage") },
                         modifier = Modifier.testTag("tab_storage"),
                     )
+                    NavigationRailItem(
+                        selected = currentTab == NavigationTab.SETTINGS,
+                        onClick = { navigateTab(NavigationTab.SETTINGS) },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                        label = { Text("Settings") },
+                        modifier = Modifier.testTag("tab_settings"),
+                    )
                 }
                 Surface(
                     modifier =
@@ -463,6 +514,8 @@ fun RefractAppContent() {
                         onCategorySelected = ::openCategory,
                         onOpenPrivateFiles = { showPrivateFiles = true },
                         onOpenStorageIntelligence = { analysisRootRaw = it.raw },
+                        settingsRepository = settingsRepository,
+                        onClearScanCache = phoneIndex::invalidate,
                     )
                 }
             }
@@ -490,6 +543,8 @@ fun RefractAppContent() {
                     onCategorySelected = ::openCategory,
                     onOpenPrivateFiles = { showPrivateFiles = true },
                     onOpenStorageIntelligence = { analysisRootRaw = it.raw },
+                    settingsRepository = settingsRepository,
+                    onClearScanCache = phoneIndex::invalidate,
                 )
             }
         }
@@ -542,6 +597,8 @@ private fun MainScreenContent(
     onCategorySelected: (FileCategory) -> Unit,
     onOpenPrivateFiles: () -> Unit,
     onOpenStorageIntelligence: (FileNodeId) -> Unit,
+    settingsRepository: SettingsRepository,
+    onClearScanCache: () -> Unit,
 ) {
     when (currentTab) {
         NavigationTab.HOME -> {
@@ -567,6 +624,14 @@ private fun MainScreenContent(
                 onBrowseVolume = onBrowseVolume,
                 onBrowseFolder = onFolderSelected,
                 onOpenStorageIntelligence = onOpenStorageIntelligence,
+            )
+        }
+        NavigationTab.SETTINGS -> {
+            SettingsScreen(
+                settingsRepository = settingsRepository,
+                hasStorageAccess = hasStorageAccess,
+                onRequestStorageAccess = onRequestStorageAccess,
+                onClearScanCache = onClearScanCache,
             )
         }
     }
