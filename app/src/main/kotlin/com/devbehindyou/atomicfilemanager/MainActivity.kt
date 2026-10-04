@@ -68,6 +68,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.devbehindyou.atomicfilemanager.core.designsystem.AtomicTheme
 import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
 import com.devbehindyou.atomicfilemanager.domain.model.FileCategory
 import com.devbehindyou.atomicfilemanager.domain.model.FileCollection
@@ -85,7 +86,6 @@ import com.devbehindyou.atomicfilemanager.ui.screens.SettingsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
-import com.devbehindyou.atomicfilemanager.ui.theme.AtomicTheme
 
 enum class NavigationTab(val title: String) {
     HOME("Home"),
@@ -121,7 +121,7 @@ class MainActivity : FragmentActivity() {
                 )
                 onDispose {}
             }
-            AtomicTheme(darkTheme = darkTheme, dynamicColor = settings.dynamicColor) {
+            AtomicTheme(darkTheme = darkTheme, wallpaperAccent = settings.dynamicColor) {
                 AtomicAppContent()
             }
         }

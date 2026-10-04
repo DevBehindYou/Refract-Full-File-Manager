@@ -170,3 +170,12 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - **Phone warning:** the new `applicationId` installs as a separate app next to the old Refract build, with empty settings and hidden-file records. Restore anything hidden with the old app (especially Private Storage, which is deleted with the old app) **in the old app** before uninstalling it. The disposable fixtures listed on 20 September are still on the phone.
 - **Owner design decisions** are recorded in `roadmap/ATOMIC_UI_PLAN.md` §18: Signal Blue default accent with an optional accent-only WALLPAPER COLOURS setting (guard rails §4.5); light and dark themes; no mascot; ISO dates; Browse tab becomes FILES; new icon to come from the owner.
 - Checked locally: ktlint CLI on all built Kotlin and Gradle files. Compile, detekt, Lint and tests run in CI.
+
+## Update — 4 October 2026 (Atomic foundations, design canvas)
+
+- CI run 12 (rename) passed: static analysis, unit tests and emulator tests.
+- **Design:** all screens are mocked up on the owner's Claude design canvas "Atomic File Manager — UI/UX" (20 artboards: Home, Files, selection, category, search, file info, storage, cleanup, trash, operations, private & hidden, settings, sheets, states, first run, dark Home/Files, tablet dual pane, component kit). Screen work in U5 should follow it together with `ATOMIC_UI_PLAN.md` §7.
+- **U2 part 1 (code):** `core/designsystem/` now holds the Atomic foundation: `AtomicColorRoles` (pure Kotlin, light + dark, unit-tested for contrast), `AccentResolver` (wallpaper-colour guard rails, unit-tested), `AtomicTypography` with bundled Bebas Neue / Hanken Grotesk / JetBrains Mono (`res/font`, licences in `assets/licenses`), spacing/shape/border/elevation/size/breakpoint/motion tokens, `Modifier.hardShadow`, and `AtomicTheme`, which maps everything onto Material 3. `ui/theme/` (old blue/teal theme and unused bouncy springs) is deleted. Wallpaper colours default to off; the Settings switch explains a fallback to Signal Blue.
+- Material type roles all stay Hanken Grotesk/JetBrains Mono on purpose: existing screens put file names and Markdown headings in title/headline roles, and Bebas Neue has no lowercase.
+- Expect the whole app to look different on the phone (ink/paper/Signal, new fonts, 4 dp corners) before any screen is restructured.
+- Open in U2: `AtomicIcons`, lint baseline + re-enabling `NoHardcodedDp`, the new lint rules.

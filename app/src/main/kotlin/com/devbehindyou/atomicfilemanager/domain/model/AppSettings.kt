@@ -25,7 +25,8 @@ fun normalizeHiddenFolder(raw: String): String? {
  */
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = true,
+    /** WALLPAPER COLOURS: swaps only the accent, with guard rails (ATOMIC_UI_PLAN.md §4.5). */
+    val dynamicColor: Boolean = false,
     val defaultHideMode: HideMode? = null,
     val requireAuthForHidden: Boolean = false,
     val showHiddenFiles: Boolean = true,

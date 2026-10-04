@@ -199,6 +199,8 @@ Screens use **roles only**. Raw palette values are `internal` to `foundation`.
 
 ### 4.5 Wallpaper colours (owner decision 1)
 
+Design mockups for every screen (light, dark, sheets, states, tablet, component kit) are on the Claude design canvas "Atomic File Manager — UI/UX"; use them together with section 7.
+
 - Off by default; available on API 31+. When on, only the `accent` family changes: `accent`, `accentPressed` (≈ 15 % darker), the accent shadow colour (≈ the spec's `signal-deep` role) and the accent-on-dark variant. Ink, paper, surfaces, borders, semantic colours and typography never change.
 - Source: the primary colour of `dynamicLightColorScheme` (light) and `dynamicDarkColorScheme` (dark).
 - **Guard rails from the spec's §15** (checked whenever the wallpaper changes):
@@ -518,6 +520,7 @@ Mapped to the ten-phase process requested, and to `ALL_IN_ONE_PLAN.md`. Effort: 
 | **U0 Decide** | Owner answers section 18 | **Done 4 October 2026** (section 18); product rename done in code | S | — |
 | **U1 Understand + audit** | This document; design system copied into `docs/design/` | Done (plan) | — | — |
 | **U2 Foundations** | Tokens (4.1–4.2), bundled fonts, `AtomicTheme` bridged onto `MaterialTheme`, modifiers, `AtomicIcons`, motion tokens, breakpoints; dynamic colour becomes the accent-only wallpaper option (4.5); lint baseline + new lint rules (as warnings) | Whole app switches to ink/paper/Signal and Atomic fonts in one PR; no screen restructuring yet | M | Phase 0.1/0.2 (different files) |
+| ↳ U2 status (4 Oct 2026) | **Part 1 done:** colour roles light/dark, wallpaper-accent guard rails, bundled fonts, type/spacing/shape/border/elevation/size/breakpoint/motion tokens, `hardShadow`, `AtomicTheme` bridged onto Material 3 (old theme and bouncy motion deleted). **Part 2 open:** `AtomicIcons`, lint baseline with `NoHardcodedDp` re-enabled, new lint rules (14.2) | | | |
 | **U3 Atoms** | Section 5.1 with previews + Roborazzi | Component catalogue | M | Phase 0 |
 | **U4 Molecules + organisms + shell** | Sections 5.2–5.3; `AtomicHeader`, `AtomicBottomBar`/rail, `AtomicSheet`, `AtomicSnackbar`; **merged with Navigation Compose migration (Phase 0.3)** | New shell and route stack | L | Phase 0.3 (same work) |
 | **U5 Screens** | One PR per screen, in order: Settings → Home → Files (split `BrowseScreen`) → Category → Storage → Storage analysis → Private & hidden → previews/file info → sheets replacing each dialog | Every existing screen redesigned | L | Phase 1 starts after Files is done |

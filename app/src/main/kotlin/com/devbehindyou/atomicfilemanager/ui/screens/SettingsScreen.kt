@@ -34,6 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AccentSource
 import com.devbehindyou.atomicfilemanager.domain.model.DEFAULT_HIDDEN_FOLDER
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
@@ -136,9 +138,16 @@ fun SettingsScreen(
             )
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val accent = Atomic.accent
             SwitchRow(
-                title = "Dynamic color",
-                description = "Use colors from your wallpaper.",
+                title = "Wallpaper colours",
+                description =
+                    when {
+                        !settings.dynamicColor -> "Use your wallpaper colour as the accent instead of Signal Blue."
+                        accent.source == AccentSource.WALLPAPER_REJECTED ->
+                            "Your wallpaper colour can't be read clearly here, so Signal Blue is used."
+                        else -> "Using your wallpaper colour as the accent."
+                    },
                 checked = settings.dynamicColor,
                 onCheckedChange = { on -> settingsRepository.update { it.copy(dynamicColor = on) } },
             )

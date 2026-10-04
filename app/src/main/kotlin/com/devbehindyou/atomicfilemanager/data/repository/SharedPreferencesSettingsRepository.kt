@@ -29,7 +29,7 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
     private fun read(): AppSettings =
         AppSettings(
             themeMode = prefs.getString(KEY_THEME, null).toEnumOrNull<ThemeMode>() ?: ThemeMode.SYSTEM,
-            dynamicColor = prefs.getBoolean(KEY_DYNAMIC_COLOR, true),
+            dynamicColor = prefs.getBoolean(KEY_DYNAMIC_COLOR, false),
             defaultHideMode = prefs.getString(KEY_DEFAULT_HIDE_MODE, null).toEnumOrNull<HideMode>(),
             requireAuthForHidden = prefs.getBoolean(KEY_REQUIRE_AUTH, false),
             showHiddenFiles = prefs.getBoolean(KEY_SHOW_HIDDEN, true),
