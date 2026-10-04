@@ -44,7 +44,7 @@ feature-differentiation constraint.
 
 ## 4. Competitive positioning
 
-| | Files by Google | Solid Explorer | Total Commander | MiXplorer | **Refract** |
+| | Files by Google | Solid Explorer | Total Commander | MiXplorer | **Atomic File Manager** |
 |---|---|---|---|---|---|
 | Visual craft | Medium | Medium-high | Low | Low | **Very high** |
 | Beginner friendly | High | Medium | Low | Low | **High** |

@@ -5,7 +5,7 @@
 This document does three things:
 
 1. Lists what the leading Android file managers do (Solid Explorer, MiXplorer, Files by Google, Total Commander, FX, Material Files, Cx, Amaze, Owlfiles, Samsung My Files).
-2. Audits what Refract has today, from the source, not from the older planning docs.
+2. Audits what Atomic File Manager has today, from the source, not from the older planning docs.
 3. Gives a phased plan for adding the missing features. It also sets the rules every feature has to follow so that adding features doesn't make the app cluttered or unreliable.
 
 The goal is the one stated by the owner: **one app that covers what people now need two or three file managers for, with a minimal surface, advanced tools one layer down, and operations people can trust.**
@@ -25,11 +25,11 @@ The goal is the one stated by the owner: **one app that covers what people now n
 | Material Files | Open source, private, clean, Linux-aware | Few tools beyond browsing |
 | Cx File Explorer | Free, recycle bin, network, storage analysis | Fewer power tools |
 
-**The gap Refract can own:** no app combines *Files-by-Google simplicity*, *MiXplorer depth* and *a guarantee that file operations will not lose data*. The last point is the one nobody markets, and Refract already has the start of it (`VerifiedFileTransfer`, the error model, Fast Obscure safeguards).
+**The gap Atomic File Manager can own:** no app combines *Files-by-Google simplicity*, *MiXplorer depth* and *a guarantee that file operations will not lose data*. The last point is the one nobody markets, and Atomic File Manager already has the start of it (`VerifiedFileTransfer`, the error model, Fast Obscure safeguards).
 
 **Positioning line:** *Simple on top, powerful underneath, and it never loses your files.*
 
-**Refract's existing differentiators (keep and promote them):**
+**Atomic File Manager's existing differentiators (keep and promote them):**
 
 - Transfer Bubbles: staging files across folders and volumes. No competitor has an equivalent.
 - Verified copies (checksum-verified transfer in `domain/usecase/VerifiedFileTransfer.kt`).
@@ -51,7 +51,7 @@ The goal is the one stated by the owner: **one app that covers what people now n
 
 Section 10 lists decisions that conflict with `PRODUCT_SCOPE.md` and need the owner's call before Phase 3 and Phase 4 start.
 
-Section 15 lists the signature features that put Refract ahead of the other apps. Section 16 is the reliability and optimization plan, including hotspots found in the current code.
+Section 15 lists the signature features that put Atomic File Manager ahead of the other apps. Section 16 is the reliability and optimization plan, including hotspots found in the current code.
 
 ---
 
@@ -78,7 +78,7 @@ The sources are store listings, vendor pages, reviews and community threads (lis
 
 **User-reported weaknesses:** thumbnails stop loading while scrolling; folders with many files are slow; SMB connects can take 30 s or longer; occasional crashes; higher battery and memory use; licence recognition problems for paying users.
 
-**Lesson for Refract:** the features are right, but performance and trust problems are the opening. Big-folder speed and network connection speed must be measured, not assumed.
+**Lesson for Atomic File Manager:** the features are right, but performance and trust problems are the opening. Big-folder speed and network connection speed must be measured, not assumed.
 
 ### 2.2 MiXplorer (Hootan Parsa)
 
@@ -99,7 +99,7 @@ The sources are store listings, vendor pages, reviews and community threads (lis
 
 **User-reported weaknesses:** cluttered and not intuitive for non-experts; steep learning curve; risk of accidental mistakes in a dense UI; manual APK install and updates for the free build.
 
-**Lesson for Refract:** MiXplorer proves the demand for depth. Its weakness is that all of that depth sits on the surface. Refract should match the useful depth and hide it behind progressive disclosure (section 7).
+**Lesson for Atomic File Manager:** MiXplorer proves the demand for depth. Its weakness is that all of that depth sits on the surface. Atomic File Manager should match the useful depth and hide it behind progressive disclosure (section 7).
 
 ### 2.3 Files by Google
 
@@ -115,7 +115,7 @@ The sources are store listings, vendor pages, reviews and community threads (lis
 
 **User-reported weaknesses (2025):** no exact byte sizes; search cannot be limited to the current folder and can't jump to a result's parent; doesn't remember sort order; no range-select; no full path in file info; no checksums; doesn't use Android's trash; no bookmarks; no SMB/NAS (only Google Drive); search often fails to find folders.
 
-**Lesson for Refract:** this list is free product research. Every item on it is cheap for Refract to do well and costs no surface complexity.
+**Lesson for Atomic File Manager:** this list is free product research. Every item on it is cheap for Atomic File Manager to do well and costs no surface complexity.
 
 ### 2.4 Total Commander (Android)
 
@@ -129,7 +129,7 @@ The sources are store listings, vendor pages, reviews and community threads (lis
 
 **Weaknesses:** dated UI; basic network features need separate plugin installs.
 
-**Lesson for Refract:** compare and sync are features that only the "pro" tools have. They are valuable for prosumers (persona Arjun) and fit Phase 4.
+**Lesson for Atomic File Manager:** compare and sync are features that only the "pro" tools have. They are valuable for prosumers (persona Arjun) and fit Phase 4.
 
 ### 2.5 FX File Explorer
 
@@ -139,7 +139,7 @@ Free core; FX Plus (one-time, about $4.99) unlocks root and extras. Tab navigati
 
 Material Design with attention to detail; root support; archive view, extract and create; FTP, SFTP, SMB and WebDAV; colour themes with true black; Linux-aware (symlinks, permissions, SELinux context); built on Java NIO2 with real system calls. No internet permission in some builds.
 
-**Lesson for Refract:** proof that a privacy-first, well-designed file manager can still support network protocols.
+**Lesson for Atomic File Manager:** proof that a privacy-first, well-designed file manager can still support network protocols.
 
 ### 2.7 Cx File Explorer
 
@@ -159,15 +159,15 @@ Recycle bin covering My Files, Gallery and Voice Recorder with 30-day retention;
 
 ### 2.11 Platform facts that affect every competitor
 
-- **All files access (`MANAGE_EXTERNAL_STORAGE`).** Google Play permits it for apps whose core purpose is file management. Refract qualifies, but must declare it at every Play review.
+- **All files access (`MANAGE_EXTERNAL_STORAGE`).** Google Play permits it for apps whose core purpose is file management. Atomic File Manager qualifies, but must declare it at every Play review.
 - **`/Android/data` and `/Android/obb`.** Blocked on API 30+. Competitors that reach these folders do it through Shizuku, which uses shell-level privileges without root (works on Android 11–16; the original Shizuku project is reported as unmaintained, with forks such as ShizukuPlus).
 - **Quick Share.** Reached through the standard Android share sheet; a file manager doesn't need to implement it, only to share correctly.
 
 ---
 
-## 3. Market gaps Refract can fill
+## 3. Market gaps Atomic File Manager can fill
 
-| Gap | Evidence | Refract answer |
+| Gap | Evidence | Atomic File Manager answer |
 |---|---|---|
 | Power apps are cluttered, simple apps are shallow | MiXplorer UI complaints; Files by Google feature gaps | Three-layer progressive disclosure (section 7) |
 | Nobody promises file safety | No competitor markets verified copies, operation journals or crash recovery | "Safe Operations": verified copy, trash by default, undo, resume after process death |
@@ -179,7 +179,7 @@ Recycle bin covering My Files, Gallery and Voice Recorder with 30-day retention;
 
 ---
 
-## 4. Refract today: honest audit
+## 4. Atomic File Manager today: honest audit
 
 Status from the source on 4 October 2026 (commit after `677e333`). "Partial" means code exists but is incomplete or not verified on a device; see `testing/VERIFICATION_REPORT.md`.
 
@@ -221,7 +221,7 @@ Status from the source on 4 October 2026 (commit after `677e333`). "Partial" mea
 
 Legend: ✓ has it, ~ partial, — missing. **Decision:** Adopt = build as competitors do; Adapt = build a safer or simpler version; Skip = do not build (section 11).
 
-| Feature | Solid | MiX | Files | TC | Cx | Amaze | Refract now | Decision | Phase |
+| Feature | Solid | MiX | Files | TC | Cx | Amaze | Atomic File Manager now | Decision | Phase |
 |---|---|---|---|---|---|---|---|---|---|
 | Background operations with notification | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | Adopt | 0 |
 | Trash / recycle bin | — | ~ | — | — | ✓ | — | — | Adopt (Samsung-style, 30 days) | 1 |
@@ -323,7 +323,7 @@ domain/repository/<Feature>Repository.kt (interface)
         │
 data/<area>/<Feature>RepositoryImpl.kt                   (Android, IO dispatcher)
         │
-RefractApp.kt → AppContainer (lazy val)                  (manual DI; Hilt is declared but unused)
+AtomicApp.kt → AppContainer (lazy val)                  (manual DI; Hilt is declared but unused)
 ```
 
 ### 8.2 Mutations go through one pipeline
@@ -409,7 +409,7 @@ Effort is relative: **S** about a day, **M** a few days, **L** a week or more, f
 
 - **Competitors:** Samsung My Files (30 days), Cx. Files by Google users complain that it lacks one.
 - **Design:**
-  - Each volume gets a hidden trash folder at its root (for example `/storage/emulated/0/.Refract/Trash`), so moving to trash is a **same-volume rename**: instant, no copying.
+  - Each volume gets a hidden trash folder at its root (for example `/storage/emulated/0/.Atomic File Manager/Trash`), so moving to trash is a **same-volume rename**: instant, no copying.
   - `trash_entry` table: original path, trashed path, size, date, volume.
   - On API 30+, media files can alternatively use MediaStore's trash (`MediaStore.createTrashRequest`), which also shows in Gallery apps. Decide per file type in the design review; the app-managed trash works on every API level and for every file type.
   - SAF-only volumes without rename support: warn and offer permanent delete.
@@ -422,7 +422,7 @@ Effort is relative: **S** about a day, **M** a few days, **L** a week or more, f
 #### 1.2 Favourites and recents (S)
 
 - **Favourites:** star any file or folder (action sheet). Shown as a row on Home and in a Browse drawer. Missing targets are shown greyed with a "Locate or remove" option (FR-6.5).
-- **Recents:** two sources merged: files Refract opened or created (`recent_item` table), and recently modified media from MediaStore (`DATE_MODIFIED`, last 7 or 30 days). Home row "Recent".
+- **Recents:** two sources merged: files Atomic File Manager opened or created (`recent_item` table), and recently modified media from MediaStore (`DATE_MODIFIED`, last 7 or 30 days). Home row "Recent".
 - **Accept when:** both survive restart and handle deleted targets without crashing.
 
 #### 1.3 Selection power (S)
@@ -521,9 +521,9 @@ Requires Phase 0.4 (secure credentials) and owner approval of the scope change i
 - Find SMB servers and NAS devices on the local network using mDNS/DNS-SD (`NsdManager` for `_smb._tcp`, `_sftp-ssh._tcp`, `_webdav._tcp`) so users do not type IP addresses.
 - "Add server" flow: discovered list first, manual entry second.
 
-#### 3.3 Cloud through Android, without accounts in Refract (M)
+#### 3.3 Cloud through Android, without accounts in Atomic File Manager (M)
 
-- **Principle:** keep the no-account promise. Many cloud apps (Google Drive, OneDrive, Dropbox, Nextcloud and others) publish Android `DocumentsProvider`s. Refract can list provider roots and open them through the system picker, using the existing `SafBackend`.
+- **Principle:** keep the no-account promise. Many cloud apps (Google Drive, OneDrive, Dropbox, Nextcloud and others) publish Android `DocumentsProvider`s. Atomic File Manager can list provider roots and open them through the system picker, using the existing `SafBackend`.
 - Folder (tree) access depends on each provider; some only allow picking single files. Test each major provider and show what works, honestly, in the UI.
 - WebDAV covers Nextcloud, ownCloud and many other services directly.
 - Native OAuth integrations stay in `roadmap/FUTURE.md` unless the owner decides otherwise.
@@ -554,7 +554,7 @@ Requires Phase 0.4 (secure credentials) and owner approval of the scope change i
 #### 4.2 Metadata tools (M)
 
 - View EXIF (camera, date, location) in file info.
-- **Strip location / all metadata** before sharing: a privacy feature that matches Refract's positioning (uses `androidx.exifinterface`).
+- **Strip location / all metadata** before sharing: a privacy feature that matches Atomic File Manager's positioning (uses `androidx.exifinterface`).
 - Audio tag view; editing tags is optional and later.
 
 #### 4.3 `/Android/data` through Shizuku (M, optional)
@@ -580,7 +580,7 @@ These conflict with `PRODUCT_SCOPE.md` or `PRODUCT_CONTEXT.md`. Recommendations 
 |---|---|---|
 | FTP/SFTP/SMB/WebDAV client | "Future" | Move to Phase 3. Code already exists; finishing it is cheaper than leaving broken stubs |
 | FTP/HTTP server | "Out (security liability)" | Allow the guarded Wi-Fi share in 3.4 only; no general FTP server |
-| Cloud accounts | "Future" | Use Android providers and WebDAV (no accounts in Refract); keep native OAuth in Future |
+| Cloud accounts | "Future" | Use Android providers and WebDAV (no accounts in Atomic File Manager); keep native OAuth in Future |
 | Root browsing | "Out" | Keep out; offer Shizuku as optional in 4.3 |
 | Document editing | "Out" | Keep office formats out; allow the plain-text editor in 2.3 |
 | Built-in media player | "Out" | Allow a preview player with Media3; no media library |
@@ -656,16 +656,16 @@ Research method note: vendor pages could not be opened directly from the researc
 
 ---
 
-## 15. Signature features: what makes Refract more advanced
+## 15. Signature features: what makes Atomic File Manager more advanced
 
-Matching competitors feature for feature is not enough to win; MiXplorer already has more features than anyone will ever list. These are the features where Refract does something **no app in section 2 does**, or does it in a way the others cannot because of how they are built. Each one points to the phase that builds it.
+Matching competitors feature for feature is not enough to win; MiXplorer already has more features than anyone will ever list. These are the features where Atomic File Manager does something **no app in section 2 does**, or does it in a way the others cannot because of how they are built. Each one points to the phase that builds it.
 
 | # | Feature | What the user gets | Why competitors don't have it | Phase |
 |---|---|---|---|---|
 | 1 | **Undo everything** | Every move, rename, batch rename, trash, extract and sync can be undone from a snackbar (10 s) or the Operations screen (24 h) | None of the ten apps researched offers undo for file operations; most have no recycle bin either | 0.1, 1.1 |
 | 2 | **Crash-proof operations** | A copy interrupted by a crash, reboot or the app being killed shows "Resume or discard" on next launch; nothing is half-copied silently | Competitors run copies as in-memory tasks; a kill means a partial file and no record | 0.1 |
 | 3 | **Verified copies** | Every copy is checked by SHA-256 against the source before the original is touched (already built: `VerifiedFileTransfer`) | Not offered by any competitor as a default | Done |
-| 4 | **Transfer Bubbles** | Collect files from many folders and volumes into up to 3 floating bubbles, then drop them anywhere in one go | Unique to Refract; dual pane is the closest equivalent and only works on wide screens | Done |
+| 4 | **Transfer Bubbles** | Collect files from many folders and volumes into up to 3 floating bubbles, then drop them anywhere in one go | Unique to Atomic File Manager; dual pane is the closest equivalent and only works on wide screens | Done |
 | 5 | **Preview before every bulk action** | Batch rename, cleanup, sync and extract show exactly what will change (old → new names, files to delete, space freed) before anything runs | Competitors apply bulk actions directly | 2.1, 2.6, 4.1 |
 | 6 | **One index, everything instant** | Search, categories, storage analysis, duplicates and "recent" all come from one shared, incremental index: results in under 300 ms | Competitors scan separately per feature (Files by Google search is a known weak spot) | 1.4, 16.4 |
 | 7 | **Cleanup that explains itself** | Every suggestion says *why* ("APK for an app you already installed", "not opened in 90 days"), how much space it frees, and goes to trash, so it can be undone | Files by Google suggests but doesn't explain; cleaners delete permanently | 2.6 |
@@ -746,7 +746,7 @@ Walk (once, incremental) ──► search_index (Room + FTS4)
      Search    Categories     Storage analysis   Duplicates    Recents / change report
 ```
 
-- **Incremental refresh:** skip folders whose modified time has not changed since the last walk; on API 30+ use `MediaStore.getGeneration` to detect media changes without walking; Refract's own operations update the index directly when they finish.
+- **Incremental refresh:** skip folders whose modified time has not changed since the last walk; on API 30+ use `MediaStore.getGeneration` to detect media changes without walking; Atomic File Manager's own operations update the index directly when they finish.
 - **Full rescan:** only on demand, or when charging and idle.
 - **Duplicates:** group by size first, then hash the first and last 64 KB, then full hash only for remaining candidates (FR-6.8). Most files are ruled out without being read.
 - **Cancellation:** every walk checks for cancellation per folder (already done in `PhoneFileIndex`).
@@ -765,7 +765,7 @@ Walk (once, incremental) ──► search_index (Room + FTS4)
 
 ### 16.6 Memory and battery
 
-- No polling anywhere: volume changes come from broadcasts, index updates from MediaStore generation and Refract's own operations.
+- No polling anywhere: volume changes come from broadcasts, index updates from MediaStore generation and Atomic File Manager's own operations.
 - Background indexing only while charging, or when the user opens a feature that needs it.
 - Scans stop when their screen closes (already true for category scans via flow cancellation).
 - Bitmaps: downsampled, cached with a size limit, never kept by screens that are not visible.

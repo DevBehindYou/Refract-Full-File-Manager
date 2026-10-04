@@ -1,4 +1,4 @@
-# Refract — Android File Manager
+# Atomic File Manager — Android File Manager
 
 > **Latest working-tree status (15 September 2026):** read [SESSION_HANDOFF.md](SESSION_HANDOFF.md) before continuing. Work is paused at the user's request. It separates verified changes from pending source and records the exact next steps; product specifications below are not release certification.
 
@@ -7,8 +7,8 @@
 > If this file and a linked document disagree, the linked document wins and this file
 > should be corrected.
 
-**Working name:** Refract
-**Application ID:** `com.devbehindyou.refract` (change before first release if the brand differs)
+**Working name:** Atomic File Manager
+**Application ID:** `com.devbehindyou.atomicfilemanager` (change before first release if the brand differs)
 **Platform:** Android, native
 **Language:** Kotlin only
 **UI:** Jetpack Compose + Material 3
@@ -89,7 +89,7 @@ boundaries. Modularisation is deferred to V1 and justified in
 before there is a build-time reason to.
 
 ```text
-com.devbehindyou.refract
+com.devbehindyou.atomicfilemanager
 ├── core.designsystem     // tokens, theme, glass renderer
 ├── core.ui               // shared composables, previews
 ├── core.common           // Result types, dispatchers, extensions

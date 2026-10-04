@@ -1,6 +1,6 @@
 # UI/UX Guidelines
 
-> **Being replaced.** Refract is moving to the DevBehindYou Atomic design system ([`design/ATOMIC_DESIGN_SYSTEM.md`](design/ATOMIC_DESIGN_SYSTEM.md)); see [`roadmap/ATOMIC_UI_PLAN.md`](roadmap/ATOMIC_UI_PLAN.md). Do not build new UI from this document. It is kept until the matching Atomic step ships (plan §0.5).
+> **Being replaced.** Atomic File Manager is moving to the DevBehindYou Atomic design system ([`design/ATOMIC_DESIGN_SYSTEM.md`](design/ATOMIC_DESIGN_SYSTEM.md)); see [`roadmap/ATOMIC_UI_PLAN.md`](roadmap/ATOMIC_UI_PLAN.md). Do not build new UI from this document. It is kept until the matching Atomic step ships (plan §0.5).
 
 ## 1. The seven interaction principles
 

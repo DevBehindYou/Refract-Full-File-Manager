@@ -2,7 +2,7 @@
 
 ## 1. The MVP test
 
-> A person installs Refract, grants whatever access their Android version allows, browses every
+> A person installs Atomic File Manager, grants whatever access their Android version allows, browses every
 > file they can reach, finds a file by name, previews it, copies it to another folder, deletes
 > something into the trash, restores it, and sees what is filling their storage — without ever
 > being confused about why something is not available.

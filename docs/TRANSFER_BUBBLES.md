@@ -1,13 +1,13 @@
 # Transfer Bubbles Architecture
 
-Transfer Bubbles are Refract's signature direct-manipulation staging system. They enable users to collect and organize groups of files across multiple folders and storage backends for future batch transfer—without copying bytes or cluttering the filesystem with temporary scratch copies.
+Transfer Bubbles are Atomic File Manager's signature direct-manipulation staging system. They enable users to collect and organize groups of files across multiple folders and storage backends for future batch transfer—without copying bytes or cluttering the filesystem with temporary scratch copies.
 
 ## 1. Core Principles
 
 - **Virtual Staging Only**: A bubble holds *references* and metadata snapshots (`FileNodeId`, `displayNameSnapshot`, `sizeSnapshot`, `mimeSnapshot`). Adding files to a bubble is instantaneous.
 - **Strict Limit of 3 Bubbles**: The user may create up to **3 bubbles simultaneously** (`MAX_BUBBLES = 3`). This keeps the cognitive load manageable and UI uncluttered.
 - **Full Process & Configuration Survival**: Bubbles and their staged items are persisted in SQLite via `TransferBubbleDatabaseHelper` and managed via `TransferBubbleRepository`. They survive app backgrounding, rotation, and process death.
-- **No System Overlay Permission**: Bubbles are strictly in-app UI components anchored to a floating or dockable rail. Refract never requests `SYSTEM_ALERT_WINDOW`.
+- **No System Overlay Permission**: Bubbles are strictly in-app UI components anchored to a floating or dockable rail. Atomic File Manager never requests `SYSTEM_ALERT_WINDOW`.
 
 ## 2. Domain & Database Models
 

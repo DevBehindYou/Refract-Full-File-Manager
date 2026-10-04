@@ -8,7 +8,7 @@ flowchart TD
     OTHER([External entity:<br/>Other apps])
     OS([External entity:<br/>Android platform])
 
-    P0["Process 0<br/>Refract File Manager"]
+    P0["Process 0<br/>Atomic File Manager File Manager"]
 
     D1[("D1 · Device storage<br/>internal · SD · USB")]
     D2[("D2 · MediaStore index")]
@@ -35,7 +35,7 @@ flowchart TD
 
 ## External entities
 
-| Entity | Gives Refract | Receives from Refract |
+| Entity | Gives Atomic File Manager | Receives from Atomic File Manager |
 |---|---|---|
 | **User** | Navigation, selections, queries, operation commands, permission decisions | File listings, previews, progress, storage analysis, errors |
 | **Other apps** | Incoming view/share intents with `content://` URIs | Outgoing `content://` URIs with least-privilege grants |
@@ -47,9 +47,9 @@ flowchart TD
 |---|---|---|
 | **D1 Device storage** | The user | Permanent — the thing being managed |
 | **D2 MediaStore** | Android | System-owned index; read-mostly for us |
-| **D3 Room** | Refract | App-private; survives restart, cleared on uninstall |
-| **D4 DataStore** | Refract | App-private settings |
-| **D5 Thumbnail cache** | Refract (Coil) | App cache dir; evictable by the system |
+| **D3 Room** | Atomic File Manager | App-private; survives restart, cleared on uninstall |
+| **D4 DataStore** | Atomic File Manager | App-private settings |
+| **D5 Thumbnail cache** | Atomic File Manager (Coil) | App cache dir; evictable by the system |
 
 ## Trust boundaries
 

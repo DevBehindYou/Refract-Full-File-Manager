@@ -1,6 +1,6 @@
 # Instagram-Style Quick Peek
 
-Refract provides an instant media inspection experience modeled after press-and-hold previews in modern photo and social applications, allowing users to inspect images and videos quickly without leaving the folder browser.
+Atomic File Manager provides an instant media inspection experience modeled after press-and-hold previews in modern photo and social applications, allowing users to inspect images and videos quickly without leaving the folder browser.
 
 ## 1. The Gesture Conflict Problem & `GestureArbiter`
 
@@ -10,7 +10,7 @@ In a rich file manager, a file item must support:
 - **Drag & Drop**: Pick up the file to move or copy it.
 - **Long Press on Body / Filename**: Selection or context menu.
 
-If both Quick Peek and file dragging claim the same unrestricted long-press gesture, race conditions or accidental drags occur. Refract solves this with `GestureArbiter` (`mediaGestureArbiter`):
+If both Quick Peek and file dragging claim the same unrestricted long-press gesture, race conditions or accidental drags occur. Atomic File Manager solves this with `GestureArbiter` (`mediaGestureArbiter`):
 
 ```kotlin
 @Composable

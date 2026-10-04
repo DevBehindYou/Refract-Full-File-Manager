@@ -2,7 +2,7 @@
 
 ## 1. Vision statement
 
-Refract is a native Android file manager that is immediately legible to someone who has
+Atomic File Manager is a native Android file manager that is immediately legible to someone who has
 never thought about a filesystem, and complete enough that a power user never installs a
 second one. It is built with clean Material 3, unusually strong direct-manipulation interactions,
 safe file operations, and powerful multi-location workflows on any device from Android 8.1 upward.

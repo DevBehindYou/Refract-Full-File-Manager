@@ -67,7 +67,7 @@ Every component ships previews for:
 @Preview(name = "Font 2x", fontScale = 2f)
 @Preview(name = "RTL", locale = "ar")
 @Preview(name = "Small", widthDp = 320)  @Preview(name = "Tablet", widthDp = 840)
-annotation class RefractPreviews
+annotation class AtomicPreviews
 ```
 Plus a tier parameter (`A`/`B`/`C`) via `@PreviewParameter`. Preview data comes from
 `core.ui.preview.SampleData` — never real file access.

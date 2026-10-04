@@ -1,15 +1,15 @@
 plugins {
-    id("refract.android.application")
+    id("atomic.android.application")
     alias(libs.plugins.androidJunit5)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
 }
 
 android {
-    namespace = "com.devbehindyou.refract"
+    namespace = "com.devbehindyou.atomicfilemanager"
 
     defaultConfig {
-        applicationId = "com.devbehindyou.refract"
+        applicationId = "com.devbehindyou.atomicfilemanager"
         versionCode = 1
         versionName = "0.1.0-phase1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

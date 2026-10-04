@@ -1,4 +1,4 @@
-// A macrobenchmark module, deliberately NOT using the refract.android.application
+// A macrobenchmark module, deliberately NOT using the atomic.android.application
 // convention plugin — see settings.gradle.kts and PHASE_1_NOTES.md's addendum for why.
 // This is the one module in the project not built on that shared baseline.
 plugins {
@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.devbehindyou.refract.benchmark"
+    namespace = "com.devbehindyou.atomicfilemanager.benchmark"
     compileSdk = 36
 
     defaultConfig {

@@ -6,7 +6,7 @@ flowchart TB
         U([User])
     end
 
-    subgraph APP["Refract — single process"]
+    subgraph APP["Atomic File Manager — single process"]
         direction TB
         subgraph UIL["UI layer"]
             ACT[MainActivity<br/>edge-to-edge, single Activity]

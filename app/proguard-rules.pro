@@ -1,4 +1,4 @@
-# Refract File Manager ProGuard / R8 Rules
+# Atomic File Manager ProGuard / R8 Rules
 # NOTE: Release build uses isMinifyEnabled = false (Phase 1 constraint).
 # These rules are pre-populated for when minification is enabled.
 # Current persistence layer: SQLiteOpenHelper (NOT Room). No @Entity/@Dao annotations exist.
@@ -11,13 +11,13 @@
 -keep class * extends dagger.hilt.internal.GeneratedComponent {}
 
 # --- Domain models (SafeParcelable-style, serialized to SQLite via reflection-free helpers) ---
--keep class com.devbehindyou.refract.domain.model.** { *; }
+-keep class com.devbehindyou.atomicfilemanager.domain.model.** { *; }
 
 # --- Hide / Obscure data models serialized to SQLite ---
--keep class com.devbehindyou.refract.data.database.** { *; }
+-keep class com.devbehindyou.atomicfilemanager.data.database.** { *; }
 
 # --- Network backend enums and sealed classes (BackendType, FileResult, FileError) ---
--keep class com.devbehindyou.refract.domain.repository.** { *; }
+-keep class com.devbehindyou.atomicfilemanager.domain.repository.** { *; }
 
 # NOTE: When Coil or Media3 dependencies are added to build.gradle.kts, uncomment:
 # -keepclassmembers class coil3.** { *; }

@@ -3,7 +3,7 @@
 ## 1. Purpose
 
 Answer "what is filling my phone and what can I safely delete". This is the screen that
-differentiates Refract from the stock file app, so it is a destination, not a Home section.
+differentiates Atomic File Manager from the stock file app, so it is a destination, not a Home section.
 
 ## 2. Layout
 

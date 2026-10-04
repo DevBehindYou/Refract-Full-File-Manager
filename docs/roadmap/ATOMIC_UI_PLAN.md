@@ -2,7 +2,7 @@
 
 *Written 4 October 2026. Companion to [`ALL_IN_ONE_PLAN.md`](ALL_IN_ONE_PLAN.md). Source of truth for visuals: [`../design/ATOMIC_DESIGN_SYSTEM.md`](../design/ATOMIC_DESIGN_SYSTEM.md).*
 
-This plan rebuilds Refract's interface so it belongs to the DevBehindYou **Atomic** family ("Technical Editorial": ink on paper, one Signal accent, poster headlines, instrument labels, hard offset shadows). It is a reconstruction of the product experience, not a re-theme: information architecture, navigation, components, states, motion and copy all change.
+This plan rebuilds Atomic File Manager's interface so it belongs to the DevBehindYou **Atomic** family ("Technical Editorial": ink on paper, one Signal accent, poster headlines, instrument labels, hard offset shadows). It is a reconstruction of the product experience, not a re-theme: information architecture, navigation, components, states, motion and copy all change.
 
 **Status: plan only. Nothing in this document is implemented yet.**
 
@@ -10,8 +10,8 @@ This plan rebuilds Refract's interface so it belongs to the DevBehindYou **Atomi
 
 ## 0. Ground rules
 
-1. **Precedence.** `ATOMIC_DESIGN_SYSTEM.md` wins over existing Refract design docs when they conflict, unless this plan records a technical reason not to follow it (section 3). Conflicts that need a product call are listed for the owner in section 18.
-2. **Platform translation.** The design system's code samples are Flutter and CSS. Refract is **Kotlin + Jetpack Compose**. Every token and component in this plan is the Compose translation of the spec, not a copy of the Flutter code.
+1. **Precedence.** `ATOMIC_DESIGN_SYSTEM.md` wins over existing Atomic File Manager design docs when they conflict, unless this plan records a technical reason not to follow it (section 3). Conflicts that need a product call are listed for the owner in section 18.
+2. **Platform translation.** The design system's code samples are Flutter and CSS. Atomic File Manager is **Kotlin + Jetpack Compose**. Every token and component in this plan is the Compose translation of the spec, not a copy of the Flutter code.
 3. **Functionality is preserved.** View models, use cases, repositories, backends and the operations engine are not changed by this work except where a screen needs new state (for example, a "partial results" flag). UI work is split from business-logic work in separate pull requests.
 4. **Coordination with the feature plan.** Atomic foundations land *before* the new Phase 1 screens in `ALL_IN_ONE_PLAN.md` (Trash, Search, Operations) so those screens are built once, in Atomic, not built in Material and then rebuilt (section 15).
 5. **Superseded docs.** When the matching step ships, these documents are replaced, not kept in parallel: `docs/DESIGN_SYSTEM.md`, `docs/COMPONENT_LIBRARY.md` (glass primitives), `docs/UI_UX_GUIDELINES.md` §4 (glass rules), `docs/ANIMATION_SYSTEM.md` §1 (spring catalogue), `docs/LIQUID_GLASS_RESEARCH.md` (archive), and FR-10.3 (glass tier) in `FUNCTIONAL_REQUIREMENTS.md`.
@@ -50,7 +50,7 @@ This plan rebuilds Refract's interface so it belongs to the DevBehindYou **Atomi
 
 The design system was extracted from a notes app. A file manager has different data and different risks. These are the translations:
 
-| Atomic concept | Refract meaning |
+| Atomic concept | Atomic File Manager meaning |
 |---|---|
 | Atomic Energy bar (fill colour by value) | **Storage meter.** Used < 80 % = Signal; ≥ 80 % = `energy-high` orange with the mono label "NEARLY FULL" (never colour alone). Same component, same 350 ms width animation |
 | "Show the real state" | Every list and screen shows numbers: `128 ITEMS · 4.2 GB`, `INTERNAL · 41.2 / 128 GB`, `SCANNED 2026-10-04 08:11` |
@@ -64,7 +64,7 @@ The design system was extracted from a notes app. A file manager has different d
 | Live dot `#3DDC84` | Wi-Fi share running (Phase 3.4) and nothing else |
 | Unread dot | New items in Downloads since last visit (optional) |
 | Selected note card | Selected file row/card: 2 dp Signal border + Signal checkbox |
-| Physics vocabulary | Use sparingly. "Refract" is already an optics term, so it fits the family. Feature names stay plain (Trash, Vault, Transfer Bubbles, Quick Peek) unless the owner decides otherwise (section 18) |
+| Physics vocabulary | Use sparingly. The product is named "Atomic File Manager" (family naming, spec §2.2). Feature names stay plain (Trash, Vault, Transfer Bubbles, Quick Peek) |
 
 **Hard domain rule — user data is never transformed.** File and folder names, paths, extensions and file contents are shown exactly as stored. Bebas Neue has no lowercase glyphs, so **file and folder names are never set in the Display face** and never uppercased: `README.md` must not read `README.MD`. Names use Body (Hanken Grotesk); paths and sizes use Mono in their original case. Display is for app-authored text only: screen titles, section headings, button labels, hero numbers.
 
@@ -75,7 +75,7 @@ The design system was extracted from a notes app. A file manager has different d
 ### 3.1 Map
 
 ```
-Application (single :app module, Kotlin + Compose, manual DI in RefractApp/AppContainer)
+Application (single :app module, Kotlin + Compose, manual DI in AtomicApp/AppContainer)
 ├── Navigation      MainActivity: 4 tabs (HOME, BROWSE, STORAGE, SETTINGS) + boolean overlays
 │                   (private files, category, storage intelligence, more-categories popup); no route stack
 ├── Screens         Home, Browse (+dual pane ≥720 dp), Category, HiddenFiles, Storage,
@@ -87,7 +87,7 @@ Application (single :app module, Kotlin + Compose, manual DI in RefractApp/AppCo
 │                   EdgeAutoScroll), Quick Peek (GestureArbiter)
 ├── Components      BreadcrumbBar, CategoryGrid, FileListItem, StorageOverviewCard, FileActionDialogs,
 │                   FilePreviewDialog, preview/* (audio, video, markdown, pdf, text, archive)
-├── Theme           ui/theme/Theme.kt (M3 blue/teal schemes + dynamic colour), RefractMotion.kt (springs)
+├── Theme           ui/theme/Theme.kt (M3 blue/teal schemes + dynamic colour), AtomicMotion.kt (springs)
 ├── State           Per-screen view models (BrowseViewModel), StateFlow; settings via SettingsRepository
 ├── Services        FileOperationService (declared, unused)
 ├── Data layer      Backends (FileSystem, SAF, MediaStore, FTP, WebDAV, SFTP/SMB stubs), SQLite helpers,
@@ -103,7 +103,7 @@ Application (single :app module, Kotlin + Compose, manual DI in RefractApp/AppCo
 | Hard-coded colours outside the theme | 17, in `FileListItem`, `CategoryGrid`, `HomeScreen` (category accents) | One Signal; tokenised colours |
 | Theme | Blue `#0F6CBD` + teal secondary; dynamic colour on by default | One accent, ink/paper base |
 | Elevation | Tonal elevation (3, 6) and `Modifier.shadow` (blurred) | No blur; hard offset shadows |
-| Motion | `RefractMotion.Quick` uses `DampingRatioMediumBouncy` | No bounce/overshoot |
+| Motion | `AtomicMotion.Quick` uses `DampingRatioMediumBouncy` | No bounce/overshoot |
 | Icons | 73 `Icons.Default`, 29 `Icons.Filled`, 16 auto-mirrored filled; 0 outlined | Outlined only |
 | Loading | 10 `CircularProgressIndicator` | No spinners on content |
 | Overlays | 15 `AlertDialog`, 5 `Toast` | Bottom sheets; in-app feedback |
@@ -120,7 +120,7 @@ Application (single :app module, Kotlin + Compose, manual DI in RefractApp/AppCo
 | **Preserve** (behaviour) | All view models, use cases and backends; Transfer Bubbles behaviour and persistence; drag-and-drop controller and auto-scroll; Quick Peek gesture arbitration; Browse back handling and per-folder view-model keying; biometric gate; chunked listing and stable list keys |
 | **Refactor** (keep logic, rebuild UI on Atomic components) | `FileListItem`, `BreadcrumbBar`, `CategoryGrid`, `StorageOverviewCard`, `TransferBubbleRail`, `BubbleDetailsSheet`, `QuickPeekOverlay` frame, preview contents, `HideOptionCard`, `NetworkServerCard`, `VolumeDetailCard` |
 | **Redesign** (new layout and hierarchy) | Home, Browse header/selection/actions, Storage, Storage Intelligence, Settings, Hidden/Private files, Category screen |
-| **Replace** | `Theme.kt` colour schemes and dynamic colour; `RefractMotion` springs; all `AlertDialog`s → Atomic sheets; `Toast` → Atomic snackbar; spinners → Atomic loading; filled icons → outlined |
+| **Replace** | `Theme.kt` colour schemes and dynamic colour; `AtomicMotion` springs; all `AlertDialog`s → Atomic sheets; `Toast` → Atomic snackbar; spinners → Atomic loading; filled icons → outlined |
 | **Duplicated** | Two view-model construction paths in `BrowseScreen` (primary + `secondaryViewModel`); repeated "card with title + subtitle + ›" patterns in Home/Storage/Settings; several near-identical confirmation dialogs |
 | **Inconsistent** | Radii, colours, icons, arrows, dialog vs sheet usage, breakpoints (section 3.2) |
 | **Technically fragile** | `MainActivity` boolean routing (640 lines); `BrowseScreen.kt` 1,324 lines; Hidden Files reachable only from the Sort menu; Robolectric tests that find nodes by visible text will break when copy changes (switch to `testTag`) |
@@ -129,7 +129,7 @@ Application (single :app module, Kotlin + Compose, manual DI in RefractApp/AppCo
 
 ## 4. Token architecture (Compose)
 
-All tokens live in **`com.devbehindyou.refract.core.designsystem`**: the package the existing `NoHardcodedDp` lint rule already allows. One decision, one place.
+All tokens live in **`com.devbehindyou.atomicfilemanager.core.designsystem`**: the package the existing `NoHardcodedDp` lint rule already allows. One decision, one place.
 
 ```
 core/designsystem/
@@ -175,7 +175,7 @@ Screens use **roles only**. Raw palette values are `internal` to `foundation`.
 
 ### 4.2 Typography roles
 
-| Role | Face | Size / line-height | Case | Use in Refract |
+| Role | Face | Size / line-height | Case | Use in Atomic File Manager |
 |---|---|---|---|---|
 | `displayHero` | Bebas Neue | 44–48 sp / 0.95 | upper | Free-space hero number on Storage |
 | `displayTitle` | Bebas Neue | 40 sp / 0.95 | upper | Top-level screen titles: HOME, STORAGE, SETTINGS |
@@ -195,7 +195,18 @@ Screens use **roles only**. Raw palette values are `internal` to `foundation`.
 
 ### 4.3 Bridging to Material 3
 
-`AtomicTheme {}` provides the Atomic locals **and** a `MaterialTheme` whose `colorScheme`, `typography` and `shapes` are mapped from the roles (primary = accent, surface = background, outline = borderStrong, outlineVariant = borderHair, shapes all 4 dp, etc.). Result: on day one, every remaining Material widget already uses ink/paper/Signal and the new fonts. That gives one immediate, app-wide change while screens are migrated one by one. Dynamic colour is removed (section 18).
+`AtomicTheme {}` provides the Atomic locals **and** a `MaterialTheme` whose `colorScheme`, `typography` and `shapes` are mapped from the roles (primary = accent, surface = background, outline = borderStrong, outlineVariant = borderHair, shapes all 4 dp, etc.). Result: on day one, every remaining Material widget already uses ink/paper/Signal and the new fonts. That gives one immediate, app-wide change while screens are migrated one by one. The current `ui/theme/Theme.kt` (`AtomicTheme`, renamed from `RefractTheme` on 4 October 2026, still the old blue/teal schemes) is replaced by this one, so only one theme exists.
+
+### 4.5 Wallpaper colours (owner decision 1)
+
+- Off by default; available on API 31+. When on, only the `accent` family changes: `accent`, `accentPressed` (≈ 15 % darker), the accent shadow colour (≈ the spec's `signal-deep` role) and the accent-on-dark variant. Ink, paper, surfaces, borders, semantic colours and typography never change.
+- Source: the primary colour of `dynamicLightColorScheme` (light) and `dynamicDarkColorScheme` (dark).
+- **Guard rails from the spec's §15** (checked whenever the wallpaper changes):
+  1. accent on paper ≥ 4.5:1 and white text on the accent ≥ 4.5:1 (light); accent-on-dark variant on ink ≥ 4.5:1 (dark);
+  2. the hue must not read as red, orange or plum, which already mean error, nearly full and low;
+  3. if a check fails, the app tries darker/lighter tones of the same hue, and otherwise falls back to Signal Blue and says so under the setting ("Your wallpaper colour is too light to read, so Signal Blue is used.").
+- A unit test feeds sample wallpaper colours (pale yellow, red, mid blue, dark green) through the guard rails.
+- `AppSettings.dynamicColor` currently defaults to `true`; it becomes the wallpaper-colours flag and defaults to `false`.
 
 ### 4.4 Modifiers
 
@@ -291,10 +302,10 @@ SETTINGS        appearance · files · hiding & privacy · storage access · abo
 Sheets          every create/rename/confirm/choose flow (no AlertDialogs)
 ```
 
-- "Browse" is renamed **FILES** in the bottom bar (clearer for the non-technical persona; still "Browse" in docs and code until the rename PR).
+- "Browse" is renamed **FILES** in the bottom bar (decided; clearer for the non-technical persona; code names stay `Browse*` until the screen is rebuilt in U5).
 - **Private & hidden** moves out of the Sort menu to Home and to Storage > Tools; the "show hidden files" toggle stays in Settings and in the Files overflow.
 - Navigation uses Navigation Compose routes (`ALL_IN_ONE_PLAN.md` Phase 0.3) with predictive back on Android 14+. The Atomic shell (U4 below) and the route migration are **one piece of work**, not two.
-- Deep links: open a folder (`refract://files?path=…`) and the operations screen from the notification.
+- Deep links: open a folder (`atomic://files?path=…`) and the operations screen from the notification.
 
 ---
 
@@ -310,7 +321,7 @@ Every screen implements the full state set. Abbreviations: **L** loading, **E** 
 | Primary user | Priya (non-technical) |
 | Primary action | Search all files (Phase 1.4); before search ships, open a category |
 | Secondary | Open a volume, open Downloads, recent, favourites, private & hidden |
-| Layout | Header: wordmark "REFRACT" + mono "2 VOLUMES · 41 % USED", ghost search icon → search field → `AtomicStatTile` row (ON PHONE / ON SD / IN TRASH) → section CATEGORIES (3×n icon-tile grid; 2 columns narrow/large-font, 4 wide) → section RECENT → section FAVOURITES → PRIVATE & HIDDEN card (status pill LOCKED) |
+| Layout | Header (spec §9.6 home header): mono "ATOMIC" label over Display "FILE MANAGER" + mono "2 VOLUMES · 41 % USED", ghost search icon → search field → `AtomicStatTile` row (ON PHONE / ON SD / IN TRASH) → section CATEGORIES (3×n icon-tile grid; 2 columns narrow/large-font, 4 wide) → section RECENT → section FAVOURITES → PRIVATE & HIDDEN card (status pill LOCKED) |
 | States | L: tiles show mono "SCANNING…" with ink bar. E: no favourites → `AtomicEmptyState` "Star a folder to keep it here." P: categories partial "2 FOLDERS UNREADABLE →". Er: no storage access → `AtomicWarningBox` + Primary "GRANT ACCESS". F: one-time numbered steps "STEP 1 OF 2 / ALLOW ACCESS" |
 | Motion | Tiles' numbers fade in (350 ms); meters animate width once |
 | Accessibility | Each tile announces "On phone, 41.2 of 128 gigabytes used"; category tiles are buttons with names |
@@ -325,7 +336,7 @@ Every screen implements the full state set. Abbreviations: **L** loading, **E** 
 | Secondary | Select, sort, view mode, search in folder, new folder/file, add to bubble, actions via long press |
 | Layout | Pushed header (back square + mono eyebrow `INTERNAL`) → title row: folder name (`nameLarge`, as stored) + counter `128 ITEMS` → breadcrumb (mono) → chips row: sort (`NAME ↑`), segmented `LIST / GRID`, `HIDDEN` toggle chip when shown → content → `AtomicFabStack` → `AtomicBubbleRail` |
 | Selection | Header becomes "3 SELECTED · ALL · CANCEL"; bottom action strip: COPY · MOVE · SHARE · TRASH + overflow (rename, compress, info, hide, add to bubble) |
-| States | L: first chunk pending → ink bar under header + "LOADING…"; rows stream in. E: "This folder is empty." + "NEW FOLDER". Er: access denied → "Refract can't read this folder." + "GRANT ACCESS" or "GO UP". Volume removed → return to volume list with explanation (FR-1.7) |
+| States | L: first chunk pending → ink bar under header + "LOADING…"; rows stream in. E: "This folder is empty." + "NEW FOLDER". Er: access denied → "Atomic File Manager can't read this folder." + "GRANT ACCESS" or "GO UP". Volume removed → return to volume list with explanation (FR-1.7) |
 | Dual pane | Expanded widths (≥ 840 dp; aligns the current 720 dp threshold with `RESPONSIVE_DESIGN.md`): two panes, each with its own title row; active pane has a 2 dp Signal top rule |
 | Motion | Folder change: 350 ms fade + 16 dp slide in the direction of travel; reduced motion = fade only |
 | Accessibility | Rows expose custom actions (open, select, info, add to bubble); selected state announced; drag has a non-drag alternative (Move to…) |
@@ -358,7 +369,7 @@ Pushed title "STORAGE ANALYSIS"; eyebrow "SCANNED 2026-10-04 08:11 · 41,203 FIL
 
 ### 7.9 Settings
 
-Title "SETTINGS"; groups under mono labels with ink rules: APPEARANCE (theme: segmented SYSTEM / LIGHT / DARK; dynamic colour removed), FILES (show hidden files, default view, confirmations), HIDING & PRIVACY (default hiding method, hidden folder location, lock), STORAGE ACCESS (status pill GRANTED / NEEDED + fix button: the permission doctor), ABOUT (version in mono, licences), DANGER ZONE (clear scan cache, reset settings; each with EXECUTE). "On" settings use `AtomicToggleCard` with Signal border.
+Title "SETTINGS"; groups under mono labels with ink rules: APPEARANCE (theme: segmented SYSTEM / LIGHT / DARK; WALLPAPER COLOURS toggle card with the fallback note from section 4.5), FILES (show hidden files, default view, confirmations), HIDING & PRIVACY (default hiding method, hidden folder location, lock), STORAGE ACCESS (status pill GRANTED / NEEDED + fix button: the permission doctor), ABOUT (version in mono, licences), DANGER ZONE (clear scan cache, reset settings; each with EXECUTE). "On" settings use `AtomicToggleCard` with Signal border.
 
 ### 7.10 Sheets that replace dialogs
 
@@ -397,7 +408,7 @@ Breakpoints come from `AtomicBreakpoints` only. `BrowseScreen`'s hard-coded 720 
 
 ## 9. Motion
 
-| Token | Use in Refract |
+| Token | Use in Atomic File Manager |
 |---|---|
 | press 120 ms | Button and card press translate + shadow collapse |
 | hover 150 ms | Pointer hover (tablets, Chromebooks), colour changes |
@@ -406,7 +417,7 @@ Breakpoints come from `AtomicBreakpoints` only. `BrowseScreen`'s hard-coded 720 
 | reveal 500 ms | First-run and empty-state content only; **never on file lists** (noise and cost) |
 | ambient (34 s linear) | Optional atom-mark orbit on first-run/empty states only; paused with reduced motion |
 
-- **Gesture exception (technical reason):** drag-and-drop, bubble fling-to-edge and Quick Peek follow the finger and must keep fling velocity, which a fixed-duration tween cannot. These use **critically damped springs only** (`DampingRatioNoBouncy`): no overshoot, so they still obey the spec's "no bounce" intent. `RefractMotion.Quick` (`MediumBouncy`) is deleted.
+- **Gesture exception (technical reason):** drag-and-drop, bubble fling-to-edge and Quick Peek follow the finger and must keep fling velocity, which a fixed-duration tween cannot. These use **critically damped springs only** (`DampingRatioNoBouncy`): no overshoot, so they still obey the spec's "no bounce" intent. `AtomicMotion.Quick` (`MediumBouncy`) is deleted.
 - **Reduced motion:** when the system animator scale is 0 or "Remove animations" is on, all translates are dropped and only short opacity fades remain. This extends the existing `ACCESSIBILITY.md` §3 behaviour.
 - Haptics stay as in `ANIMATION_SYSTEM.md` §8.
 
@@ -419,7 +430,7 @@ Breakpoints come from `AtomicBreakpoints` only. `BrowseScreen`'s hard-coded 720 
 - Icons sit in 40 dp `AtomicIconTile`s in lists; 20–24 dp; ink, or white on ink/Signal.
 - Category identity comes from **icon + label**, not colour: the 17 hard-coded category accent colours are removed.
 - Text arrows "→" (mono) replace "›".
-- Custom Atomic assets as `ImageVector` in `core/designsystem/icons`: atom mark (for empty/first-run states). Launcher icon: keep `Refract-Icon.png` unless the owner decides to redraw it in the Atomic style (section 18).
+- Custom Atomic assets as `ImageVector` in `core/designsystem/icons`: atom mark (for empty/first-run states). Launcher icon: the owner is supplying a new icon; until then the existing artwork stays (section 18).
 - No emoji in UI (none today; keep it that way).
 
 ---
@@ -504,15 +515,15 @@ Mapped to the ten-phase process requested, and to `ALL_IN_ONE_PLAN.md`. Effort: 
 
 | Phase | Work | Output | Effort | Runs alongside |
 |---|---|---|---|---|
-| **U0 Decide** | Owner answers section 18 | Recorded decisions | S | — |
+| **U0 Decide** | Owner answers section 18 | **Done 4 October 2026** (section 18); product rename done in code | S | — |
 | **U1 Understand + audit** | This document; design system copied into `docs/design/` | Done (plan) | — | — |
-| **U2 Foundations** | Tokens (4.1–4.2), bundled fonts, `AtomicTheme` bridged onto `MaterialTheme`, modifiers, `AtomicIcons`, motion tokens, breakpoints; remove dynamic colour; lint baseline + new lint rules (as warnings) | Whole app switches to ink/paper/Signal and Atomic fonts in one PR; no screen restructuring yet | M | Phase 0.1/0.2 (different files) |
+| **U2 Foundations** | Tokens (4.1–4.2), bundled fonts, `AtomicTheme` bridged onto `MaterialTheme`, modifiers, `AtomicIcons`, motion tokens, breakpoints; dynamic colour becomes the accent-only wallpaper option (4.5); lint baseline + new lint rules (as warnings) | Whole app switches to ink/paper/Signal and Atomic fonts in one PR; no screen restructuring yet | M | Phase 0.1/0.2 (different files) |
 | **U3 Atoms** | Section 5.1 with previews + Roborazzi | Component catalogue | M | Phase 0 |
 | **U4 Molecules + organisms + shell** | Sections 5.2–5.3; `AtomicHeader`, `AtomicBottomBar`/rail, `AtomicSheet`, `AtomicSnackbar`; **merged with Navigation Compose migration (Phase 0.3)** | New shell and route stack | L | Phase 0.3 (same work) |
 | **U5 Screens** | One PR per screen, in order: Settings → Home → Files (split `BrowseScreen`) → Category → Storage → Storage analysis → Private & hidden → previews/file info → sheets replacing each dialog | Every existing screen redesigned | L | Phase 1 starts after Files is done |
 | **U6 States pass** | Every screen against the state list (L/E/Er/P/O/S/F) | No happy-path-only screens | M | — |
 | **U7 Responsive + accessibility pass** | Section 8 and 12 on phone, tablet emulator, 200 % font, TalkBack, keyboard | Verification report entries | M | — |
-| **U8 Cleanup** | Delete old `Theme.kt` schemes, `RefractMotion` springs, unused components; lint rules from warning → error; delete lint baseline; supersede docs (section 0.5) | One design system in the codebase | S | — |
+| **U8 Cleanup** | Delete old `Theme.kt` schemes, `AtomicMotion` springs, unused components; lint rules from warning → error; delete lint baseline; supersede docs (section 0.5) | One design system in the codebase | S | — |
 | **U9 Final review** | Check against the spec's §15 checklist and the definition of done below; write the final report (section 17) | Report | S | — |
 
 **Order relative to the feature plan:** Phase 0 (reliability) and U2–U3 run in parallel (no shared files). U4 *is* Phase 0.3. Phase 1 feature screens (Trash, Search, Operations, favourites/recents on Home) start only after U4, and are built with Atomic components directly.
@@ -541,18 +552,26 @@ Design system extracted · Architecture · Components created/refactored · Scre
 
 ---
 
-## 18. Decisions for the owner
+## 18. Owner decisions (recorded 4 October 2026)
 
-| # | Decision | Options | Recommendation |
+| # | Decision | Owner's answer | How it is implemented |
 |---|---|---|---|
-| 1 | Dynamic colour (Material You) | Keep as option / remove | **Remove.** It replaces Signal with wallpaper colours and breaks "one signal" and family recognition |
-| 2 | Dark theme | Light only (spec) / Atomic Dark (spec §13.9 suggestion) | **Ship Atomic Dark.** File managers are used at night and the app already offers dark mode; values in 4.1 to be contrast-tested |
-| 3 | Product name | Keep "Refract" / "Refract · Atomic" / "Atomic Files" | Keep **Refract** (an optics term, it already fits the physics vocabulary); show "AN ATOMIC PRODUCT" in About |
-| 4 | Launcher icon | Keep `Refract-Icon.png` / redraw in Atomic style | Keep for now (it was explicitly chosen); revisit with a designed Atomic mark |
-| 5 | Accent | Signal `#3A2FF0` / sibling accent (spec §15 rules) | **Signal**, unless Refract needs its own identity within the family |
-| 6 | "Browse" tab label | BROWSE / FILES | **FILES** |
-| 7 | Atomi mascot in empty/first-run states | Yes (needs asset) / No | Optional; static only, never in lists |
-| 8 | ISO dates for all users | ISO always / locale format | **ISO** in UI per spec; unambiguous across locales |
+| 1 | Dynamic colour (Material You) | Keep, as a wallpaper-colour option | Signal Blue is the default accent. A **WALLPAPER COLOURS** setting (API 31+, off by default) swaps **only the accent** for the Material You colour; ink, paper and every other token stay Atomic. Guard rails in section 4.5 |
+| 2 | Dark theme | Ship both light and dark | Atomic Light and Atomic Dark (section 4.1); theme setting SYSTEM / LIGHT / DARK |
+| 3 | Product name | **Atomic File Manager**, including the package name | Done in code on 4 October 2026: app label "Atomic File Manager", `applicationId`/namespace/Kotlin package `com.devbehindyou.atomicfilemanager`. See section 18.1 |
+| 4 | Launcher icon | Owner will supply a new icon | Keep `Refract-Icon.png` artwork until the new icon arrives, then replace `refract_launcher_art` and the adaptive icon layers |
+| 5 | Accent | Signal Blue `#3A2FF0` | Default accent; see decision 1 for the wallpaper option |
+| 6 | "Browse" tab label | Left to the plan | **FILES** |
+| 7 | Mascot | No mascot | No Atomi anywhere; empty and first-run states use the atom mark or icons only |
+| 8 | Dates | ISO | `2026-10-04 08:11` in the UI for everyone |
+
+### 18.1 Rename notes
+
+- Kept on purpose (on-disk formats, must never change): the Fast Obscure footer `REFRACT_OBSCURE_V1`, the extension `.refract_obscured`, and the credential key-derivation string in `NetworkCredentialsStore` (replaced anyway by Phase 0.4).
+- Default hidden folder for new installs is `Atomic File Manager/Hidden`. Items hidden earlier keep their stored paths, so restore still works.
+- Database, settings and notification-channel names are now `atomic_*`.
+- Because the `applicationId` changed, Android treats this as a **new app**. It installs next to the old Refract app and starts with empty settings, hidden-file records and bubbles. Anything hidden with the old app (especially Private Storage, which lives inside the old app's private folder) must be restored **in the old app** before it is uninstalled.
+- The GitHub repository is still named `Refract-Full-File-Manager`; renaming it is the owner's call.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## 1. Position
 
-Refract is **local-first**. Browsing, indexing, thumbnailing, hashing, and analysis all
+Atomic File Manager is **local-first**. Browsing, indexing, thumbnailing, hashing, and analysis all
 happen on the device. Nothing about the user's files leaves the device.
 
 ## 2. Data map

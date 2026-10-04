@@ -1,4 +1,4 @@
-# Refract — version catalog
+# Atomic File Manager — version catalog
 #
 # Provenance key used in the comments below (see PHASE_1_NOTES.md for the full
 # explanation of why this matters this phase):
@@ -105,7 +105,7 @@ androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchm
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 # No `kotlin-compose` plugin alias here: org.jetbrains.kotlin.plugin.compose is applied
-# via a bare id() inside build-logic/convention's refract.android.application.gradle.kts,
+# via a bare id() inside build-logic/convention's atomic.android.application.gradle.kts,
 # since its implementation is already on that module's own classpath
 # (kotlin-composeCompilerGradlePlugin below). A version-catalog alias would be unused.
 # kotlin-android is used only by :benchmark (a com.android.test module) — deliberately

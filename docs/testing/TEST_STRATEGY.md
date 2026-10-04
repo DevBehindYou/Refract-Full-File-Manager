@@ -90,7 +90,7 @@ Referenced from `../architecture/UI_LAYER.md`. Every screen holding user intent 
 
 ```text
 1. Navigate to the screen, establish state (selection, query, scroll, zoom, playback position)
-2. Force process death:  adb shell am kill com.devbehindyou.refract
+2. Force process death:  adb shell am kill com.devbehindyou.atomicfilemanager
 3. Relaunch from Recents
 4. Assert the state is restored
 ```

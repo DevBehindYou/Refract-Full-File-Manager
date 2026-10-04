@@ -1,0 +1,90 @@
+package com.devbehindyou.atomicfilemanager.lint
+
+import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
+import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
+import com.android.tools.lint.checks.infrastructure.TestMode
+import org.junit.jupiter.api.Test
+
+class NoAndroidInDomainDetectorTest {
+    @Test
+    fun `flags an android_content_Context import in the domain package`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.domain.model
+
+                    import android.content.Context
+
+                    class FileNode(private val context: Context)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoAndroidInDomainDetector.ISSUE)
+            .run()
+            .expectErrorCount(1)
+    }
+
+    @Test
+    fun `flags a java_io_File import in the domain package`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.domain.model
+
+                    import java.io.File
+
+                    class FileNode(private val backing: File)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoAndroidInDomainDetector.ISSUE)
+            .run()
+            .expectErrorCount(1)
+    }
+
+    @Test
+    fun `allows pure Kotlin domain code`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.domain.model
+
+                    data class FileNode(val id: String, val name: String, val sizeBytes: Long)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoAndroidInDomainDetector.ISSUE)
+            .run()
+            .expectClean()
+    }
+
+    @Test
+    fun `allows an android import outside the domain package`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.data.local
+
+                    import android.content.Context
+
+                    class LocalFileSource(private val context: Context)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoAndroidInDomainDetector.ISSUE)
+            .run()
+            .expectClean()
+    }
+}

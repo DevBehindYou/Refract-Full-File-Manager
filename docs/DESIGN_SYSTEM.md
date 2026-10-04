@@ -1,11 +1,11 @@
 # Design System
 
-> **Being replaced.** Refract is moving to the DevBehindYou Atomic design system ([`design/ATOMIC_DESIGN_SYSTEM.md`](design/ATOMIC_DESIGN_SYSTEM.md)); see [`roadmap/ATOMIC_UI_PLAN.md`](roadmap/ATOMIC_UI_PLAN.md). Do not build new UI from this document. It is kept until the matching Atomic step ships (plan §0.5).
+> **Being replaced.** Atomic File Manager is moving to the DevBehindYou Atomic design system ([`design/ATOMIC_DESIGN_SYSTEM.md`](design/ATOMIC_DESIGN_SYSTEM.md)); see [`roadmap/ATOMIC_UI_PLAN.md`](roadmap/ATOMIC_UI_PLAN.md). Do not build new UI from this document. It is kept until the matching Atomic step ships (plan §0.5).
 
 Everything visual comes from a token. **No feature code contains a raw colour, dp value,
 blur radius, or duration.** If a value is needed that has no token, add the token.
 
-Tokens live in `core.designsystem` and are exposed through `RefractTheme`.
+Tokens live in `core.designsystem` and are exposed through `AtomicTheme`.
 
 ---
 
@@ -137,7 +137,7 @@ shadows only where a floating element must separate from arbitrary content.
 
 ## 6. Material 3 Elevation & Surface Tokens
 
-Refract uses Material 3 tonal elevation and surface container roles (`surfaceContainerLow`, `surfaceContainer`, `surfaceContainerHigh`, `surfaceContainerHighest`) instead of excessive borders or blur shaders.
+Atomic File Manager uses Material 3 tonal elevation and surface container roles (`surfaceContainerLow`, `surfaceContainer`, `surfaceContainerHigh`, `surfaceContainerHighest`) instead of excessive borders or blur shaders.
 
 ```kotlin
 data class SurfaceElevationTokens(
@@ -178,15 +178,15 @@ Interactive states (hover, drag pickup, drop target activation) animate tonal el
 
 ```kotlin
 @Composable
-fun RefractTheme(
+fun AtomicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
         colorScheme = colorSchemeFor(darkTheme, dynamicColor),
-        typography = RefractTypography,
-        shapes = RefractShapes,
+        typography = AtomicTypography,
+        shapes = AtomicShapes,
         content = content,
     )
 }

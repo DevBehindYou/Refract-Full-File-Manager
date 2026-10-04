@@ -82,7 +82,7 @@ a `:benchmark` module (§1.2), this hasn't been captured. Once the app builds, t
 smallest useful stand-in is:
 
 ```
-adb shell am start -W com.devbehindyou.refract.base.debug/com.devbehindyou.refract.MainActivity
+adb shell am start -W com.devbehindyou.atomicfilemanager.base.debug/com.devbehindyou.atomicfilemanager.MainActivity
 ```
 
 ...and record the reported `TotalTime`. A real `androidx.benchmark` macrobenchmark
@@ -118,7 +118,7 @@ plugin in favour of Kotlin support built into `com.android.application`/
 `com.android.library` directly. That change happened after this assistant's reliable
 knowledge cutoff (Jan 2026); the direction was confirmed via a live search during this
 session, but exact DSL surface details (e.g., whether `kotlin { jvmToolchain(17) }`
-resolves exactly as written inside `refract.android.application.gradle.kts`) were not
+resolves exactly as written inside `atomic.android.application.gradle.kts`) were not
 independently verified against real tooling. If that block fails to resolve, the
 `compileOptions { sourceCompatibility / targetCompatibility }` lines in the same file
 set Java 17 regardless, as a fallback.

@@ -65,7 +65,7 @@ until someone runs it.
 
 Specific decisions and risks, in descending order of how much I'd want a second look:
 
-- **Deliberately not using the `refract.android.application` convention plugin.**
+- **Deliberately not using the `atomic.android.application` convention plugin.**
   `:benchmark` applies `com.android.test` directly with an explicitly-applied
   `org.jetbrains.kotlin.android` plugin, rather than relying on AGP 9's built-in Kotlin
   support the way `:app` does. AGP 9's built-in-Kotlin announcement (confirmed via web

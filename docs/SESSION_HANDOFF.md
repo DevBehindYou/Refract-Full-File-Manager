@@ -43,7 +43,7 @@ Pinned toolchain: AGP 9.1.1, Gradle 9.3.1, Kotlin 2.2.10, Compose BOM 2026.04.01
 | Keyboard | Network dialog adds IME/system-bar padding and disables platform decor fitting after a physical check found keyboard overlap. Needs recheck. |
 | Other | Browse title ellipsis; scrolling Quick Peek content; removed accidental nested scrolling in details rows. |
 
-Paths above are under `app/src/main/kotlin/com/devbehindyou/refract/`. New tests: `FileCollectionTest`, `PhoneFileIndexTest`, `BubbleDockTest`. These have not passed a completed run yet. Review scan behavior on actual Android volume paths, cached-result freshness and main-thread filtering/sorting performance before claiming all-phone coverage. Protected/unreadable folders cannot be promised.
+Paths above are under `app/src/main/kotlin/com/devbehindyou/atomicfilemanager/`. New tests: `FileCollectionTest`, `PhoneFileIndexTest`, `BubbleDockTest`. These have not passed a completed run yet. Review scan behavior on actual Android volume paths, cached-result freshness and main-thread filtering/sorting performance before claiming all-phone coverage. Protected/unreadable folders cannot be promised.
 
 ## Evidence and limits
 
@@ -93,7 +93,7 @@ $gradleRunner = '.\build\verification\gradle-runtime\gradle-9.3.1\bin\gradle.bat
 Device helper: `build/verification/phone_ui.py` captures screenshots/XML and supports semantic taps, Back and swipes. Foreground `.MainActivity` before testing and verify successful taps before dependent actions. Direct instrumentation command after installing matching app/test APKs:
 
 ```powershell
-& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" -s 5ff095c7f80a shell am instrument -w -r com.devbehindyou.refract.test/androidx.test.runner.AndroidJUnitRunner
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" -s 5ff095c7f80a shell am instrument -w -r com.devbehindyou.atomicfilemanager.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 ## Next actions in order
@@ -162,3 +162,11 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - Old design docs (`DESIGN_SYSTEM.md`, `COMPONENT_LIBRARY.md`, `UI_UX_GUIDELINES.md`, `ANIMATION_SYSTEM.md`, `LIQUID_GLASS_RESEARCH.md`) carry a "being replaced" banner. Do not build new UI from them.
 - Key rule for anyone touching UI: file and folder names are never uppercased or set in Bebas Neue (it has no lowercase); names use Hanken Grotesk, as stored.
 - Owner decisions waiting: `ATOMIC_UI_PLAN.md` §18 (dynamic colour, dark theme, name, icon, accent, tab label, mascot, date format).
+
+## Update — 4 October 2026 (renamed to Atomic File Manager; owner design decisions)
+
+- **Renamed** from Refract to **Atomic File Manager**: app label, `applicationId`, namespace and Kotlin package are now `com.devbehindyou.atomicfilemanager` (source folders moved), app class `AtomicApp`, theme `Theme.Atomic`, build plugin `atomic.android.application`, lint registry `AtomicIssueRegistry`, CI artifact `atomic-file-manager-apks`, databases/settings/notification channel `atomic_*`, default hidden folder `Atomic File Manager/Hidden`. Earlier entries in this file use the old names and paths.
+- **Not renamed on purpose:** Fast Obscure footer `REFRACT_OBSCURE_V1` and extension `.refract_obscured` (files on users' storage carry them), the credential key-derivation string, the launcher art (`refract_launcher_art`, until the owner's new icon arrives) and the GitHub repository name.
+- **Phone warning:** the new `applicationId` installs as a separate app next to the old Refract build, with empty settings and hidden-file records. Restore anything hidden with the old app (especially Private Storage, which is deleted with the old app) **in the old app** before uninstalling it. The disposable fixtures listed on 20 September are still on the phone.
+- **Owner design decisions** are recorded in `roadmap/ATOMIC_UI_PLAN.md` §18: Signal Blue default accent with an optional accent-only WALLPAPER COLOURS setting (guard rails §4.5); light and dark themes; no mascot; ISO dates; Browse tab becomes FILES; new icon to come from the owner.
+- Checked locally: ktlint CLI on all built Kotlin and Gradle files. Compile, detekt, Lint and tests run in CI.
