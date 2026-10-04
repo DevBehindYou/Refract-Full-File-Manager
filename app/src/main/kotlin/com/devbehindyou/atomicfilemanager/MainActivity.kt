@@ -9,43 +9,26 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -54,21 +37,31 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
 import com.devbehindyou.atomicfilemanager.core.designsystem.AtomicTheme
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicHomeHeader
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicBottomBar
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicDestination
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicInfoSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicNavRail
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSnackbarHost
 import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
 import com.devbehindyou.atomicfilemanager.domain.model.FileCategory
 import com.devbehindyou.atomicfilemanager.domain.model.FileCollection
@@ -86,10 +79,11 @@ import com.devbehindyou.atomicfilemanager.ui.screens.SettingsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
+import kotlinx.coroutines.launch
 
 enum class NavigationTab(val title: String) {
     HOME("Home"),
-    BROWSE("Browse"),
+    BROWSE("Files"),
     STORAGE("Storage"),
     SETTINGS("Settings"),
 }
@@ -173,6 +167,12 @@ fun AtomicAppContent() {
     var volumes by remember { mutableStateOf<List<StorageVolumeInfo>>(emptyList()) }
     var hasStorageAccess by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    fun notify(message: String) {
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
     var analysisRootRaw by rememberSaveable { mutableStateOf<String?>(null) }
     val storageIntelligenceRootId = analysisRootRaw?.let(::FileNodeId)
 
@@ -278,7 +278,7 @@ fun AtomicAppContent() {
 
     fun openVolume(volume: StorageVolumeInfo) {
         when {
-            !volume.isMounted -> Toast.makeText(context, "Storage is not mounted", Toast.LENGTH_SHORT).show()
+            !volume.isMounted -> notify("This storage isn't mounted.")
             volume.rootNodeId != null -> {
                 openInBrowse(volume.rootNodeId)
             }
@@ -286,12 +286,7 @@ fun AtomicAppContent() {
                 pendingVolumeId = volume.id
                 requestStorageAccess()
             }
-            else ->
-                Toast.makeText(
-                    context,
-                    "This storage is unavailable. Reconnect it and try again.",
-                    Toast.LENGTH_LONG,
-                ).show()
+            else -> notify("This storage is unavailable. Reconnect it and try again.")
         }
     }
 
@@ -356,29 +351,23 @@ fun AtomicAppContent() {
         return
     }
     if (showMoreCategories) {
-        AlertDialog(
-            onDismissRequest = { showMoreCategories = false },
-            title = { Text("More categories") },
-            text = {
-                Column {
-                    listOf(
-                        FileCollection.PDFS,
-                        FileCollection.TEXT,
-                        FileCollection.EBOOKS,
-                        FileCollection.FONTS,
-                        FileCollection.OTHER,
-                    ).forEach { collection ->
-                        TextButton(onClick = {
-                            showMoreCategories = false
-                            collectionName = collection.name
-                        }) {
-                            Text(collection.title)
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showMoreCategories = false }) { Text("Close") } },
-        )
+        AtomicSheet(label = "More categories", onDismiss = { showMoreCategories = false }) {
+            listOf(
+                FileCollection.PDFS,
+                FileCollection.TEXT,
+                FileCollection.EBOOKS,
+                FileCollection.FONTS,
+                FileCollection.OTHER,
+            ).forEach { collection ->
+                AtomicSettingsRow(
+                    title = collection.title,
+                    onClick = {
+                        showMoreCategories = false
+                        collectionName = collection.name
+                    },
+                )
+            }
+        }
     }
 
     if (storageIntelligenceRootId != null) {
@@ -393,68 +382,79 @@ fun AtomicAppContent() {
         return
     }
 
+    val destinations =
+        remember {
+            listOf(
+                AtomicDestination(NavigationTab.HOME.name, NavigationTab.HOME.title, AtomicIcons.Home, "tab_home"),
+                AtomicDestination(
+                    NavigationTab.BROWSE.name,
+                    NavigationTab.BROWSE.title,
+                    AtomicIcons.Files,
+                    "tab_browse",
+                ),
+                AtomicDestination(
+                    NavigationTab.STORAGE.name,
+                    NavigationTab.STORAGE.title,
+                    AtomicIcons.Storage,
+                    "tab_storage",
+                ),
+                AtomicDestination(
+                    NavigationTab.SETTINGS.name,
+                    NavigationTab.SETTINGS.title,
+                    AtomicIcons.Settings,
+                    "tab_settings",
+                ),
+            )
+        }
+    val selectTab: (AtomicDestination) -> Unit = { navigateTab(NavigationTab.valueOf(it.key)) }
+    val screen: @Composable () -> Unit = {
+        MainScreenContent(
+            currentTab = currentTab,
+            volumes = volumes,
+            hasStorageAccess = hasStorageAccess,
+            selectedFolderId = selectedFolderId,
+            browseOpenRequest = browseOpenRequest,
+            onFolderSelected = ::openInBrowse,
+            onNavigateBack = ::navigateBack,
+            onRequestStorageAccess = { requestStorageAccess() },
+            onBrowseVolume = ::openVolume,
+            onCategorySelected = ::openCategory,
+            onOpenPrivateFiles = { showPrivateFiles = true },
+            onOpenStorageIntelligence = { analysisRootRaw = it.raw },
+            settingsRepository = settingsRepository,
+            onClearScanCache = phoneIndex::invalidate,
+        )
+    }
+
     Scaffold(
+        containerColor = Atomic.colors.background,
+        snackbarHost = { AtomicSnackbarHost(snackbarHostState) },
         topBar = {
             if (currentTab != NavigationTab.BROWSE) {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            text = "Atomic File Manager",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                    },
+                val home = currentTab == NavigationTab.HOME
+                AtomicHomeHeader(
+                    eyebrow = if (home) "Atomic" else "Atomic File Manager",
+                    title = if (home) "File manager" else currentTab.title,
+                    modifier = Modifier.background(Atomic.colors.background).statusBarsPadding(),
                     actions = {
-                        IconButton(
+                        AtomicIconButton(
+                            icon = AtomicIcons.Info,
+                            contentDescription = "About Atomic File Manager",
                             onClick = { showAboutDialog = true },
                             modifier = Modifier.testTag("about_button"),
-                        ) {
-                            Icon(Icons.Default.Info, contentDescription = "About Atomic File Manager")
-                        }
+                        )
                     },
-                    colors =
-                        TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                        ),
                 )
             }
         },
         bottomBar = {
             if (!isExpanded) {
-                NavigationBar(
-                    modifier = Modifier.testTag("bottom_nav_bar"),
-                ) {
-                    NavigationBarItem(
-                        selected = currentTab == NavigationTab.HOME,
-                        onClick = { navigateTab(NavigationTab.HOME) },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home") },
-                        modifier = Modifier.testTag("tab_home"),
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == NavigationTab.BROWSE,
-                        onClick = {
-                            navigateTab(NavigationTab.BROWSE)
-                        },
-                        icon = { Icon(Icons.Default.Folder, contentDescription = "Browse") },
-                        label = { Text("Browse") },
-                        modifier = Modifier.testTag("tab_browse"),
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == NavigationTab.STORAGE,
-                        onClick = { navigateTab(NavigationTab.STORAGE) },
-                        icon = { Icon(Icons.Default.Storage, contentDescription = "Storage") },
-                        label = { Text("Storage") },
-                        modifier = Modifier.testTag("tab_storage"),
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == NavigationTab.SETTINGS,
-                        onClick = { navigateTab(NavigationTab.SETTINGS) },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") },
-                        modifier = Modifier.testTag("tab_settings"),
-                    )
-                }
+                AtomicBottomBar(
+                    destinations = destinations,
+                    selectedKey = currentTab.name,
+                    onSelect = selectTab,
+                    modifier = Modifier.testTag("bottom_nav_bar").navigationBarsPadding(),
+                )
             }
         },
     ) { innerPadding ->
@@ -466,65 +466,16 @@ fun AtomicAppContent() {
                         .padding(innerPadding)
                         .consumeWindowInsets(innerPadding),
             ) {
-                NavigationRail(
+                AtomicNavRail(
+                    destinations = destinations,
+                    selectedKey = currentTab.name,
+                    onSelect = selectTab,
                     modifier = Modifier.testTag("nav_rail"),
-                ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    NavigationRailItem(
-                        selected = currentTab == NavigationTab.HOME,
-                        onClick = { navigateTab(NavigationTab.HOME) },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home") },
-                        modifier = Modifier.testTag("tab_home"),
-                    )
-                    NavigationRailItem(
-                        selected = currentTab == NavigationTab.BROWSE,
-                        onClick = {
-                            navigateTab(NavigationTab.BROWSE)
-                        },
-                        icon = { Icon(Icons.Default.Folder, contentDescription = "Browse") },
-                        label = { Text("Browse") },
-                        modifier = Modifier.testTag("tab_browse"),
-                    )
-                    NavigationRailItem(
-                        selected = currentTab == NavigationTab.STORAGE,
-                        onClick = { navigateTab(NavigationTab.STORAGE) },
-                        icon = { Icon(Icons.Default.Storage, contentDescription = "Storage") },
-                        label = { Text("Storage") },
-                        modifier = Modifier.testTag("tab_storage"),
-                    )
-                    NavigationRailItem(
-                        selected = currentTab == NavigationTab.SETTINGS,
-                        onClick = { navigateTab(NavigationTab.SETTINGS) },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") },
-                        modifier = Modifier.testTag("tab_settings"),
-                    )
-                }
+                )
                 Surface(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     color = MaterialTheme.colorScheme.background,
-                ) {
-                    MainScreenContent(
-                        currentTab = currentTab,
-                        volumes = volumes,
-                        hasStorageAccess = hasStorageAccess,
-                        selectedFolderId = selectedFolderId,
-                        browseOpenRequest = browseOpenRequest,
-                        onFolderSelected = ::openInBrowse,
-                        onNavigateBack = ::navigateBack,
-                        onRequestStorageAccess = { requestStorageAccess() },
-                        onBrowseVolume = ::openVolume,
-                        onCategorySelected = ::openCategory,
-                        onOpenPrivateFiles = { showPrivateFiles = true },
-                        onOpenStorageIntelligence = { analysisRootRaw = it.raw },
-                        settingsRepository = settingsRepository,
-                        onClearScanCache = phoneIndex::invalidate,
-                    )
-                }
+                ) { screen() }
             }
         } else {
             Surface(
@@ -534,57 +485,18 @@ fun AtomicAppContent() {
                         .padding(innerPadding)
                         .consumeWindowInsets(innerPadding),
                 color = MaterialTheme.colorScheme.background,
-            ) {
-                MainScreenContent(
-                    currentTab = currentTab,
-                    volumes = volumes,
-                    hasStorageAccess = hasStorageAccess,
-                    selectedFolderId = selectedFolderId,
-                    browseOpenRequest = browseOpenRequest,
-                    onFolderSelected = ::openInBrowse,
-                    onNavigateBack = ::navigateBack,
-                    onRequestStorageAccess = { requestStorageAccess() },
-                    onBrowseVolume = ::openVolume,
-                    onCategorySelected = ::openCategory,
-                    onOpenPrivateFiles = { showPrivateFiles = true },
-                    onOpenStorageIntelligence = { analysisRootRaw = it.raw },
-                    settingsRepository = settingsRepository,
-                    onClearScanCache = phoneIndex::invalidate,
-                )
-            }
+            ) { screen() }
         }
     }
 
     if (showAboutDialog) {
-        AlertDialog(
-            onDismissRequest = { showAboutDialog = false },
-            title = { Text("About Atomic File Manager", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text(
-                        text = "Atomic File Manager",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "Version 0.1.0 • Modern Android File Explorer",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text =
-                            "An offline-first, private file manager built with Jetpack Compose and modern " +
-                                "Android Storage APIs. Full access to internal, shared, and sandboxed storage.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) {
-                    Text("Done")
-                }
-            },
+        AtomicInfoSheet(
+            label = "About",
+            headline = "Atomic File Manager",
+            body =
+                "An offline-first, private file manager in the DevBehindYou Atomic family. No account, no ads, " +
+                    "no tracking. Nothing leaves your phone unless you connect a server yourself.",
+            onDismiss = { showAboutDialog = false },
         )
     }
 }

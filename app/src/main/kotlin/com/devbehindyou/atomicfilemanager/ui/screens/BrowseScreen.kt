@@ -637,7 +637,7 @@ private fun BrowseTopBar(
             TopAppBar(
                 title = {
                     Text(
-                        uiState.currentFolderName.ifEmpty { "Browse" },
+                        uiState.currentFolderName.ifEmpty { "Files" },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
