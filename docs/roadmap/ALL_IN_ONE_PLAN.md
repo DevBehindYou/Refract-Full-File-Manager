@@ -50,6 +50,8 @@ The goal is the one stated by the owner: **one app that covers what people now n
 
 Section 10 lists decisions that conflict with `PRODUCT_SCOPE.md` and need the owner's call before Phase 3 and Phase 4 start.
 
+Section 15 lists the signature features that put Refract ahead of the other apps. Section 16 is the reliability and optimization plan, including hotspots found in the current code.
+
 ---
 
 ## 2. Competitor research
@@ -615,7 +617,7 @@ These conflict with `PRODUCT_SCOPE.md` or `PRODUCT_CONTEXT.md`. Recommendations 
 
 If work starts tomorrow, do these in order. Each is one pull request with CI green and a phone check.
 
-1. **0.2 (part):** add Room with KSP and an empty database; move the two repository `init` reads to IO. Small, unblocks everything.
+1. **0.2 (part) and 16.2 H1:** add Room with KSP and an empty database; move the two repository `init` reads and `refreshVolumes()` off the main thread; turn on StrictMode in debug builds. Small, unblocks everything.
 2. **0.1:** operation queue + journal + starting the service; fix "second operation cancels the first".
 3. **1.1:** trash with undo snackbar and Trash screen (uses the journal).
 4. **1.2:** favourites and recents on Home.
@@ -645,3 +647,154 @@ Platform:
 - Shizuku and `/Android/data`: [XDA guide for Android 14](https://xdaforums.com/t/access-android-data-and-android-obb-on-android-14-with-shizuku.4644152/), [XDA thread on Shizuku file managers](https://xdaforums.com/t/psa-what-free-android-file-managers-are-integrated-with-shizuku-given-that-unrootable-phones-still-need-read-write-access-to-protected-storage.4787917/)
 
 Research method note: vendor pages could not be opened directly from the research environment, so feature lists come from search-engine summaries of the pages above. Re-check any specific claim (especially prices and policy text) against the live page before quoting it publicly.
+
+---
+
+## 15. Signature features: what makes Refract more advanced
+
+Matching competitors feature for feature is not enough to win; MiXplorer already has more features than anyone will ever list. These are the features where Refract does something **no app in section 2 does**, or does it in a way the others cannot because of how they are built. Each one points to the phase that builds it.
+
+| # | Feature | What the user gets | Why competitors don't have it | Phase |
+|---|---|---|---|---|
+| 1 | **Undo everything** | Every move, rename, batch rename, trash, extract and sync can be undone from a snackbar (10 s) or the Operations screen (24 h) | None of the ten apps researched offers undo for file operations; most have no recycle bin either | 0.1, 1.1 |
+| 2 | **Crash-proof operations** | A copy interrupted by a crash, reboot or the app being killed shows "Resume or discard" on next launch; nothing is half-copied silently | Competitors run copies as in-memory tasks; a kill means a partial file and no record | 0.1 |
+| 3 | **Verified copies** | Every copy is checked by SHA-256 against the source before the original is touched (already built: `VerifiedFileTransfer`) | Not offered by any competitor as a default | Done |
+| 4 | **Transfer Bubbles** | Collect files from many folders and volumes into up to 3 floating bubbles, then drop them anywhere in one go | Unique to Refract; dual pane is the closest equivalent and only works on wide screens | Done |
+| 5 | **Preview before every bulk action** | Batch rename, cleanup, sync and extract show exactly what will change (old → new names, files to delete, space freed) before anything runs | Competitors apply bulk actions directly | 2.1, 2.6, 4.1 |
+| 6 | **One index, everything instant** | Search, categories, storage analysis, duplicates and "recent" all come from one shared, incremental index: results in under 300 ms | Competitors scan separately per feature (Files by Google search is a known weak spot) | 1.4, 16.4 |
+| 7 | **Cleanup that explains itself** | Every suggestion says *why* ("APK for an app you already installed", "not opened in 90 days"), how much space it frees, and goes to trash, so it can be undone | Files by Google suggests but doesn't explain; cleaners delete permanently | 2.6 |
+| 8 | **Share without location** | Share sheet option that strips GPS and camera metadata from photos before sending | No file manager in the research offers it as a share option | 4.2 |
+| 9 | **Three hiding levels + vault** | Fast Obscure (instant), Hide from Gallery, Private Storage, and an AES-256 vault behind biometrics | Competitors offer one mode (Safe folder or encryption) | Done + 2.5 |
+| 10 | **Quick Peek** | Press and hold any image or video to preview it without opening a viewer | Unique interaction (already built) | Done |
+| 11 | **Storage change report** *(new)* | "What changed since last week": which folders grew, what new large files appeared | Needs a persistent index with history, which competitors don't keep | 1.4 + 16.4 |
+| 12 | **Smart destinations** *(new)* | Copy and move pickers show recent and frequent destinations first | Cheap with the journal; competitors make you navigate from the root every time | 0.1 + 1.2 |
+| 13 | **Permission doctor** | One screen that says in plain words what access is missing and fixes it with one tap (FR-2.10) | Competitors show raw Android permission screens and errors | 1 (with 0.3) |
+| 14 | **Guarded Wi-Fi share** | Share a folder to a PC browser with a PIN, read-only by default, auto-stops | Competitors expose open FTP servers | 3.4 (owner decision) |
+| 15 | **Command palette** | Type "compress", "trash" or "theme" to run any action or open any setting | Not available in any Android file manager researched | 4.4 |
+
+**The one-sentence pitch these add up to:** *the only file manager where every action can be previewed, verified and undone.*
+
+---
+
+## 16. Reliability and optimization plan
+
+"Reliable and optimized" has to be measured, not claimed. This section lists the hotspots found in the current code (October 2026), the fix for each, and the checks that keep them fixed.
+
+### 16.1 Measure first
+
+Nothing in this section counts as done without a number.
+
+| Tool | Purpose | Where |
+|---|---|---|
+| Macrobenchmark (`benchmark` module, currently disabled) | Cold start, folder scroll jank, search latency | Re-enable in Phase 0.5; run in CI on the emulator job |
+| Baseline Profile (`androidx.profileinstaller` + generated profile) | Precompiles startup and Browse scroll code; typically a large cold-start improvement for Compose apps | Phase 0.5 |
+| `StrictMode` (debug builds only) | Crashes the debug build on disk or network access on the main thread, so regressions are caught immediately | Phase 0.5 |
+| JankStats | Logs slow frames on device during phone checks | Debug builds |
+| APK size report | Fail CI if the release APK grows more than an agreed amount without a note | CI |
+
+**Budgets** (repeated from 7.5 so they live with the plan):
+
+| Metric | Budget |
+|---|---|
+| Cold start to interactive Home | < 1 s on a mid-range phone |
+| First rows of a 10,000-entry folder | < 300 ms |
+| Frames over 32 ms while scrolling Browse | 0 in the benchmark |
+| Indexed search, first results | < 300 ms |
+| LAN folder open | < 2 s first time, < 500 ms after (connection reuse) |
+| Release APK size | Agreed after R8 is on; each phase states its increase |
+
+### 16.2 Hotspots found in the current code
+
+| # | Hotspot | Evidence | Fix | Phase |
+|---|---|---|---|---|
+| H1 | Disk access on the main thread at start-up | `MainActivity.refreshVolumes()` runs from `LaunchedEffect` on the main thread; `StorageVolumes.enumerate` calls `StatFs` and `listFiles` | Run on `Dispatchers.IO`, show cached volumes instantly, update when ready | First sprint |
+| H2 | SQLite reads on the main thread | `TransferBubbleDatabaseHelper` and `HiddenFilesDatabaseHelper` read in repository `init` | Move to IO (0.2), later to Room with `Flow` queries | 0.2 |
+| H3 | No code shrinking | `isMinifyEnabled = false` in release | Enable R8 and resource shrinking with keep rules; re-run all tests on the shrunk build | 0.5 |
+| H4 | No baseline profile | No `profileinstaller` or profile file | Generate with Macrobenchmark; ship in release | 0.5 |
+| H5 | Two separate full storage walks | `PhoneFileIndex` (categories) and `StorageAnalyzerUseCase` (analysis) each walk every folder | One shared index (16.4) | 1.4 |
+| H6 | Storage analysis has no saved result | `StorageAnalyzerUseCase` rescans every time | Save results with a "last scanned" time (FR-7.5); rescan incrementally | 1.4 |
+| H7 | File lists show icons, not thumbnails | `FileListItem` draws `Icon` only | Add Coil 3 thumbnails sized to the row, memory + disk cache, cancelled when scrolled off-screen | 0.5 / 1.5 |
+| H8 | Copy buffer is 64 KB | `FileOperationsEngine.BUFFER_SIZE` | Benchmark 256 KB–1 MB for large files on internal, SD and USB; use `FileChannel.transferTo` for local-to-local copies where the backend allows | 0.1 |
+| H9 | Very large screen files | `BrowseScreen.kt` 1,324 lines, `MainActivity.kt` 640 | Split into smaller composables with stable parameters so a selection change does not recompose the whole screen; navigation routes (0.3) | 0.3 |
+| H10 | Old media APIs | `VideoView`, `MediaPlayer` in previews | Media3 with proper release on lifecycle stop | 1.5 |
+
+Already good, keep it that way: listings stream in chunks of 200 (`ListingChunkSize.kt`); list items have stable keys (`key = { it.id.raw }`); category filtering and sorting run off the main thread; `PhoneIndexSnapshot` avoids structural `equals` on huge lists; images are downsampled with `inSampleSize`; verified copy hashes the source while copying (two passes, not three).
+
+### 16.3 Browsing and UI smoothness
+
+- Format sizes and dates in the view model once per listing, not in every row on every recomposition.
+- Use `derivedStateOf` for "is this row selected" and selection counts so selecting one file does not recompose every row.
+- Keep `FileNode` and UI state classes stable (immutable, no mutable collections) so Compose can skip unchanged rows.
+- Thumbnails: decode at the row's pixel size, never full size; memory cache sized to about 1/8 of the app heap; disk cache for video frames and APK icons.
+- Grid view uses `LazyVerticalGrid` with the same keys and thumbnail pipeline.
+- Large result sets (search, categories with 100,000 files) are paged from the database instead of held in one list.
+
+### 16.4 One shared index (the biggest single optimization)
+
+Today, categories and storage analysis each walk the whole phone. Phase 1.4 replaces both with one index that every feature reads:
+
+```
+Walk (once, incremental) ──► search_index (Room + FTS4)
+                                   │
+        ┌──────────┬───────────────┼───────────────┬──────────────┐
+     Search    Categories     Storage analysis   Duplicates    Recents / change report
+```
+
+- **Incremental refresh:** skip folders whose modified time has not changed since the last walk; on API 30+ use `MediaStore.getGeneration` to detect media changes without walking; Refract's own operations update the index directly when they finish.
+- **Full rescan:** only on demand, or when charging and idle.
+- **Duplicates:** group by size first, then hash the first and last 64 KB, then full hash only for remaining candidates (FR-6.8). Most files are ruled out without being read.
+- **Cancellation:** every walk checks for cancellation per folder (already done in `PhoneFileIndex`).
+
+### 16.5 File operations: speed and safety
+
+| Area | Plan |
+|---|---|
+| Same-volume move | Always rename (instant), never copy + delete (already the rule in FR-4.2; verify for SAF and SD) |
+| Cross-volume copy | Larger buffer (H8); one copy at a time per physical volume pair, so two copies to the same SD card don't fight over it |
+| Verification | Keep SHA-256 verification on by default for SD, USB and network. Note: re-reading a just-written file can be served from the page cache, so it proves the data stream, not the physical card; say this honestly in docs. Offer "Verify: always / large files / off" in Settings for speed |
+| Atomic writes | Write to a temporary name, `sync()`, then rename (already done in `VerifiedFileTransfer` staging); use the same pattern for the text editor, archive creation and vault |
+| Crash recovery | Journal (0.1) records each finished item before the next starts; start-up offers resume, and cleans up orphaned temporary files |
+| Free space | Check destination free space before starting; fail early with a plain message |
+| Background limits | Foreground service with notification; evaluate user-initiated data transfer jobs on API 34+ for very long transfers (Android 15 limits `dataSync` services to about 6 hours a day) |
+
+### 16.6 Memory and battery
+
+- No polling anywhere: volume changes come from broadcasts, index updates from MediaStore generation and Refract's own operations.
+- Background indexing only while charging, or when the user opens a feature that needs it.
+- Scans stop when their screen closes (already true for category scans via flow cancellation).
+- Bitmaps: downsampled, cached with a size limit, never kept by screens that are not visible.
+- Large lists live in the database, not in memory (16.3).
+
+### 16.7 Network performance and reliability (Phase 3)
+
+- One connection pool per server, reused across folders (fixes the "30 s to connect to SMB" complaint about competitors).
+- Timeouts on connect and read; automatic retry with backoff for temporary errors; clear message for permanent ones (wrong password, host key changed).
+- Resume interrupted downloads and uploads where the protocol allows (FTP `REST`, HTTP `Range` for WebDAV, SFTP offsets).
+- List folders in chunks, like local storage, so a large NAS folder shows first rows quickly.
+
+### 16.8 Reliability testing
+
+| Test | What it proves | Status |
+|---|---|---|
+| Fault-injection backends (`FaultInjectingBackendsTest`) | Full disk, corruption, failures mid-copy are handled | Exists; extend to each new operation type |
+| Process-kill tests | Killing the app at each step of a copy, trash or rename loses nothing and offers resume | Missing; required by 0.1 |
+| Disposable-fixture device tests | Real file round trips on internal and SD | 12 exist; add one per new mutating feature |
+| Monkey / random UI test | No crashes under random taps for 10,000 events | Add to the emulator CI job |
+| Device matrix | API 27, 29, 30, 33, 34, 36; phone, tablet, foldable (`testing/DEVICE_MATRIX.md`) | Only API 34 phone so far |
+| Large-data test | 100,000 files, a 4 GB file, a 10,000-entry folder | Missing; needed for the budgets in 16.1 |
+
+### 16.9 Release reliability
+
+- Production signing key (currently debug-signed), R8 on, baseline profile shipped.
+- Opt-in crash reporting (FR-11.4) so real-world crashes are seen; Play vitals for ANRs.
+- Staged rollout on Play (for example 10 % → 50 % → 100 %), watching crash-free rate before widening.
+- Risky features behind Labs flags (8.5) until verified on devices.
+
+### 16.10 Optimization order
+
+1. **Now (first sprint):** H1 (volumes off the main thread), H2 (database off the main thread), StrictMode in debug.
+2. **Phase 0.5:** R8, baseline profile, Macrobenchmark in CI, Coil thumbnails.
+3. **Phase 0.1:** buffer tuning (H8) together with the operation queue.
+4. **Phase 0.3:** split `BrowseScreen` and `MainActivity` (H9) during the navigation work.
+5. **Phase 1.4:** shared index (H5, H6) and paging.
+6. **Phase 3:** network pooling, retries and resume.
