@@ -144,9 +144,12 @@ fun AtomicButton(
     variant: AtomicButtonVariant = AtomicButtonVariant.Primary,
     enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
+    contentColor: Color = Color.Unspecified,
 ) {
     val colors = Atomic.colors
-    val style = colors.styleFor(variant)
+    val base = colors.styleFor(variant)
+    // Callers on an inverted surface (snackbar) pass the label colour that reads there.
+    val style = if (contentColor == Color.Unspecified) base else base.copy(content = contentColor)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val focused by interaction.collectIsFocusedAsState()

@@ -99,12 +99,12 @@ fun AtomicAtomsCatalog(darkTheme: Boolean) {
 
 @Preview(name = "Atoms · light", widthDp = 400, heightDp = 1100)
 @Composable
-private fun AtomsLightPreview() = AtomicAtomsCatalog(darkTheme = false)
+internal fun AtomsLightPreview() = AtomicAtomsCatalog(darkTheme = false)
 
 @Preview(name = "Atoms · dark", widthDp = 400, heightDp = 1100)
 @Composable
-private fun AtomsDarkPreview() = AtomicAtomsCatalog(darkTheme = true)
+internal fun AtomsDarkPreview() = AtomicAtomsCatalog(darkTheme = true)
 
 @Preview(name = "Atoms · 200 % font", widthDp = 400, heightDp = 1600, fontScale = 2f)
 @Composable
-private fun AtomsLargeFontPreview() = AtomicAtomsCatalog(darkTheme = false)
+internal fun AtomsLargeFontPreview() = AtomicAtomsCatalog(darkTheme = false)

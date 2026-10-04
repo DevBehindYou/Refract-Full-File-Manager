@@ -93,7 +93,9 @@ class AtomicDesignDetector :
                 val selector = node.selector.asSourceString()
                 val receiver = node.receiver.asSourceString()
                 val filled = selector == "Filled" || selector == "Default"
-                val iconsRoot = receiver == "Icons" || receiver.endsWith("Icons.AutoMirrored")
+                // Matches both `Icons` and its fully qualified form.
+                val iconsRoot =
+                    receiver == "Icons" || receiver.endsWith(".Icons") || receiver.endsWith("Icons.AutoMirrored")
                 if (filled && iconsRoot && !isExempt(context, node)) {
                     report(context, node, NO_FILLED_ICONS, "Filled icon. Use `AtomicIcons` (outlined only).")
                 }
