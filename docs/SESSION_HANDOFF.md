@@ -150,3 +150,8 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - Deleted `data/di/BackendModule.kt` and `BackendKey.kt` (unreferenced). The Hilt dependency stays because the backends still import `@ApplicationContext`.
 - Checked locally: ktlint 1.0.1 CLI on the changed files. Gradle cannot run in the cloud session (dl.google.com is blocked by its network policy), so compile, detekt, Lint and tests are left to CI.
 - Still open from earlier: Hidden files reachable only from the Sort menu; credential storage key/IV; `FileOperationService` unused; a second file operation cancels the first; SQLite reads on the main thread in repository `init`; disposable fixtures on the phone.
+
+## Update — 4 October 2026 (all-in-one plan)
+
+- Competitor research (Solid Explorer, MiXplorer, Files by Google, Total Commander, FX, Material Files, Cx, Amaze, Owlfiles, Samsung My Files) and a phased integration plan are in [`roadmap/ALL_IN_ONE_PLAN.md`](roadmap/ALL_IN_ONE_PLAN.md). Read its section 8 (integration contract) before adding any feature, and section 10 (scope decisions waiting on the owner) before Phase 3 or 4 work.
+- The plan's first sprint (section 13) starts with Room plus moving repository `init` reads off the main thread, then the durable operation queue.
