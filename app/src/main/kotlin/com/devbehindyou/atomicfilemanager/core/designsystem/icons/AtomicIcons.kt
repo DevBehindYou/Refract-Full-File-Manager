@@ -1,0 +1,114 @@
+package com.devbehindyou.atomicfilemanager.core.designsystem.icons
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.WrapText
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AllInbox
+import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.AudioFile
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CleaningServices
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ContentCut
+import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.FolderZip
+import androidx.compose.material.icons.outlined.HideImage
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Preview
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Replay
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.VerticalSplit
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.ui.graphics.vector.ImageVector
+
+/**
+ * The app's one icon set (spec §7.1: outlined only, one style per surface). Screens reference
+ * these semantic names, never an icon library directly, so the set can later move to Material
+ * Symbols vector drawables in this one file.
+ */
+object AtomicIcons {
+    val Back: ImageVector = Icons.AutoMirrored.Outlined.ArrowBack
+    val Home: ImageVector = Icons.Outlined.Home
+    val Files: ImageVector = Icons.Outlined.Folder
+    val FolderOpen: ImageVector = Icons.Outlined.FolderOpen
+    val NewFolder: ImageVector = Icons.Outlined.CreateNewFolder
+    val Storage: ImageVector = Icons.Outlined.Storage
+    val Settings: ImageVector = Icons.Outlined.Settings
+    val Search: ImageVector = Icons.Outlined.Search
+    val More: ImageVector = Icons.Outlined.MoreVert
+    val MoreHorizontal: ImageVector = Icons.Outlined.MoreHoriz
+    val Add: ImageVector = Icons.Outlined.Add
+    val Close: ImageVector = Icons.Outlined.Close
+    val Check: ImageVector = Icons.Outlined.Check
+    val CheckCircle: ImageVector = Icons.Outlined.CheckCircle
+    val Unchecked: ImageVector = Icons.Outlined.RadioButtonUnchecked
+    val SelectAll: ImageVector = Icons.Outlined.SelectAll
+    val Info: ImageVector = Icons.Outlined.Info
+    val Refresh: ImageVector = Icons.Outlined.Refresh
+    val Replay: ImageVector = Icons.Outlined.Replay
+    val Restore: ImageVector = Icons.Outlined.Restore
+    val OpenExternally: ImageVector = Icons.AutoMirrored.Outlined.OpenInNew
+    val Preview: ImageVector = Icons.Outlined.Preview
+    val WrapText: ImageVector = Icons.AutoMirrored.Outlined.WrapText
+    val DualPane: ImageVector = Icons.Outlined.VerticalSplit
+
+    // File operations
+    val Copy: ImageVector = Icons.Outlined.ContentCopy
+    val Cut: ImageVector = Icons.Outlined.ContentCut
+    val Paste: ImageVector = Icons.Outlined.ContentPaste
+    val Move: ImageVector = Icons.AutoMirrored.Outlined.DriveFileMove
+    val Share: ImageVector = Icons.Outlined.Share
+    val Trash: ImageVector = Icons.Outlined.Delete
+    val Cleanup: ImageVector = Icons.Outlined.CleaningServices
+    val Bubble: ImageVector = Icons.Outlined.AllInbox
+
+    // File types
+    val Image: ImageVector = Icons.Outlined.Image
+    val Video: ImageVector = Icons.Outlined.Movie
+    val Camera: ImageVector = Icons.Outlined.Videocam
+    val Audio: ImageVector = Icons.Outlined.MusicNote
+    val AudioFile: ImageVector = Icons.Outlined.AudioFile
+    val Document: ImageVector = Icons.Outlined.Description
+    val Archive: ImageVector = Icons.Outlined.FolderZip
+    val Apk: ImageVector = Icons.Outlined.Android
+
+    // Privacy
+    val Lock: ImageVector = Icons.Outlined.Lock
+    val Security: ImageVector = Icons.Outlined.Security
+    val Hide: ImageVector = Icons.Outlined.HideImage
+    val Visible: ImageVector = Icons.Outlined.Visibility
+    val Hidden: ImageVector = Icons.Outlined.VisibilityOff
+
+    // Media
+    val Play: ImageVector = Icons.Outlined.PlayArrow
+    val Pause: ImageVector = Icons.Outlined.Pause
+}

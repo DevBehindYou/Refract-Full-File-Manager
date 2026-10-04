@@ -6,7 +6,7 @@ import com.android.tools.lint.detector.api.CURRENT_API
 import com.android.tools.lint.detector.api.Issue
 
 /**
- * Registers the app's seven custom Lint checks with the Lint runtime. Discovered via
+ * Registers the app's custom Lint checks with the Lint runtime. Discovered via
  * `META-INF/services/com.android.tools.lint.client.api.IssueRegistry` (see
  * `src/main/resources`), which is how AGP's `lintChecks` configuration loads a
  * detector jar (architecture/MODULES.md §3).
@@ -23,7 +23,7 @@ class AtomicIssueRegistry : IssueRegistry() {
             NoHardcodedDpDetector.ISSUE,
             NoRunBlockingDetector.ISSUE,
             NoGlobalScopeDetector.ISSUE,
-        )
+        ) + AtomicDesignDetector.ISSUES
 
     override val vendor: Vendor =
         Vendor(

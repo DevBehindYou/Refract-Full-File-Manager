@@ -179,3 +179,4 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - Material type roles all stay Hanken Grotesk/JetBrains Mono on purpose: existing screens put file names and Markdown headings in title/headline roles, and Bebas Neue has no lowercase.
 - Expect the whole app to look different on the phone (ink/paper/Signal, new fonts, 4 dp corners) before any screen is restructured.
 - Open in U2: `AtomicIcons`, lint baseline + re-enabling `NoHardcodedDp`, the new lint rules.
+- **U2 part 2:** `core/designsystem/icons/AtomicIcons.kt` is the one icon set (outlined). New lint detector `AtomicDesignDetector` (NoHardcodedColor, NoFilledIcons, NoToast, NoAlertDialog, NoBouncySpring) plus `NoHardcodedDp` now report as **warnings** in the Lint report while screens migrate; they become errors at U8. Next: U3 atoms.

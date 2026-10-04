@@ -47,7 +47,8 @@ android {
     }
 
     lint {
-        disable += "NoHardcodedDp"
+        // Atomic design rules warn while screens migrate; they become errors at U8 (ATOMIC_UI_PLAN.md §14.2).
+        warning += "NoHardcodedDp"
         abortOnError = true
         checkTestSources = false
         checkDependencies = false
