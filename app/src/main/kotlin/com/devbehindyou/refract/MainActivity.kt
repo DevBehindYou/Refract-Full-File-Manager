@@ -51,6 +51,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -142,6 +143,11 @@ fun RefractAppContent() {
     val defaultPath = Environment.getExternalStorageDirectory()?.absolutePath ?: context.filesDir.absolutePath
     var selectedFolderRaw by rememberSaveable { mutableStateOf(FileNodeId.file(defaultPath).raw) }
     val selectedFolderId = FileNodeId(selectedFolderRaw)
+
+    // Bumped on every explicit open from Home, Storage or analysis. Browse view models are cached
+    // per start folder, so without this a second open of Downloads showed wherever the user had
+    // navigated to last time. Tab switches and rotation leave it unchanged and keep the position.
+    var browseOpenRequest by rememberSaveable { mutableIntStateOf(0) }
     var tabHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
     fun navigateTab(tab: NavigationTab) {
@@ -150,6 +156,12 @@ fun RefractAppContent() {
             tabHistory = tabHistory.filterNot { it == tab.name || it == currentTab.name } + currentTab.name
             currentTab = tab
         }
+    }
+
+    fun openInBrowse(folderId: FileNodeId) {
+        selectedFolderRaw = folderId.raw
+        browseOpenRequest++
+        navigateTab(NavigationTab.BROWSE)
     }
 
     fun navigateBack() {
@@ -207,8 +219,7 @@ fun RefractAppContent() {
     LaunchedEffect(volumes) {
         val pending = volumes.firstOrNull { it.id == pendingVolumeId }
         if (pending?.rootNodeId != null && pending.isMounted) {
-            selectedFolderRaw = pending.rootNodeId.raw
-            navigateTab(NavigationTab.BROWSE)
+            openInBrowse(pending.rootNodeId)
             pendingVolumeId = null
         }
     }
@@ -269,8 +280,7 @@ fun RefractAppContent() {
         when {
             !volume.isMounted -> Toast.makeText(context, "Storage is not mounted", Toast.LENGTH_SHORT).show()
             volume.rootNodeId != null -> {
-                selectedFolderRaw = volume.rootNodeId.raw
-                navigateTab(NavigationTab.BROWSE)
+                openInBrowse(volume.rootNodeId)
             }
             !hasStorageAccess -> {
                 pendingVolumeId = volume.id
@@ -300,11 +310,11 @@ fun RefractAppContent() {
         if (category == FileCategory.OTHER) {
             showMoreCategories = true
         } else if (category == FileCategory.DOWNLOAD) {
-            selectedFolderRaw =
+            openInBrowse(
                 FileNodeId.file(
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
-                ).raw
-            navigateTab(NavigationTab.BROWSE)
+                ),
+            )
         } else {
             collectionName =
                 when (category) {
@@ -376,9 +386,8 @@ fun RefractAppContent() {
             rootId = storageIntelligenceRootId!!,
             onNavigateBack = { analysisRootRaw = null },
             onOpenFile = { file ->
-                selectedFolderRaw = file.id.raw
                 analysisRootRaw = null
-                navigateTab(NavigationTab.BROWSE)
+                openInBrowse(file.id)
             },
         )
         return
@@ -504,10 +513,8 @@ fun RefractAppContent() {
                         volumes = volumes,
                         hasStorageAccess = hasStorageAccess,
                         selectedFolderId = selectedFolderId,
-                        onFolderSelected = {
-                            selectedFolderRaw = it.raw
-                            navigateTab(NavigationTab.BROWSE)
-                        },
+                        browseOpenRequest = browseOpenRequest,
+                        onFolderSelected = ::openInBrowse,
                         onNavigateBack = ::navigateBack,
                         onRequestStorageAccess = { requestStorageAccess() },
                         onBrowseVolume = ::openVolume,
@@ -533,10 +540,8 @@ fun RefractAppContent() {
                     volumes = volumes,
                     hasStorageAccess = hasStorageAccess,
                     selectedFolderId = selectedFolderId,
-                    onFolderSelected = {
-                        selectedFolderRaw = it.raw
-                        navigateTab(NavigationTab.BROWSE)
-                    },
+                    browseOpenRequest = browseOpenRequest,
+                    onFolderSelected = ::openInBrowse,
                     onNavigateBack = ::navigateBack,
                     onRequestStorageAccess = { requestStorageAccess() },
                     onBrowseVolume = ::openVolume,
@@ -590,6 +595,7 @@ private fun MainScreenContent(
     volumes: List<StorageVolumeInfo>,
     hasStorageAccess: Boolean,
     selectedFolderId: FileNodeId,
+    browseOpenRequest: Int,
     onFolderSelected: (FileNodeId) -> Unit,
     onNavigateBack: () -> Unit,
     onRequestStorageAccess: () -> Unit,
@@ -616,6 +622,7 @@ private fun MainScreenContent(
             BrowseScreen(
                 initialFolderId = selectedFolderId,
                 onNavigateBack = onNavigateBack,
+                openRequest = browseOpenRequest,
             )
         }
         NavigationTab.STORAGE -> {

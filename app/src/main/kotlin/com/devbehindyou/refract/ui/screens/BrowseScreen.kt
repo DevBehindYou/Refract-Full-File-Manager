@@ -130,6 +130,8 @@ fun BrowseScreen(
     initialFolderId: FileNodeId,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Changes each time the caller explicitly opens [initialFolderId]; see [BrowseViewModel.onOpenRequest]. */
+    openRequest: Int = 0,
     onOpenFile: ((FileNode) -> Unit)? = null,
     viewModel: BrowseViewModel =
         run {
@@ -232,6 +234,10 @@ fun BrowseScreen(
     LaunchedEffect(settings.showHiddenFiles) {
         viewModel.setShowHiddenFiles(settings.showHiddenFiles)
         secondaryViewModel.setShowHiddenFiles(settings.showHiddenFiles)
+    }
+
+    LaunchedEffect(viewModel, openRequest) {
+        viewModel.onOpenRequest(openRequest)
     }
 
     LaunchedEffect(Unit) {

@@ -142,3 +142,11 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - Browse UI oddities seen on the phone: the Hidden files screen is only reachable from the Sort menu; tapping Home > Downloads a second time can show an old Browse state (the view model is keyed by the start folder and keeps its last folder, once showing `/storage` with "Access denied"). Not fixed.
 - Disposable device fixtures left behind: `/sdcard/Download/refract-fixture-fast.txt`, `refract-fixture-gallery.txt`, and one file still hidden in Private Storage (`refract-fixture-private.txt`). Delete after re-testing the fix.
 
+
+## Update — 4 October 2026 (category scan, stale Downloads, dead Hilt code)
+
+- Category scan: `PhoneFileIndex` skips hidden (dot-prefixed) files and folders, so `Movies/.thumbnails`, `.nomedia` and Fast Obscure output no longer show up in Images, Videos and the other collections. Covered by `PhoneFileIndexTest.skipsHiddenFilesAndEverythingInsideHiddenFolders`.
+- Stale Browse state: every explicit open from Home, Storage or Storage Intelligence now goes through `openInBrowse` in `MainActivity`, which bumps a saved `browseOpenRequest` counter. `BrowseScreen` passes it to `BrowseViewModel.onOpenRequest`; a changed value clears folder history and reloads the start folder. Opening Home > Downloads a second time therefore lands in Download again instead of wherever the cached view model was left (once `/storage` with "Access denied"). Switching tabs with the bottom bar and rotation do not change the counter, so they keep the user's position. No view model test (none exist; the constructor needs the SQLite bubble repository). Check on the phone.
+- Deleted `data/di/BackendModule.kt` and `BackendKey.kt` (unreferenced). The Hilt dependency stays because the backends still import `@ApplicationContext`.
+- Checked locally: ktlint 1.0.1 CLI on the changed files. Gradle cannot run in the cloud session (dl.google.com is blocked by its network policy), so compile, detekt, Lint and tests are left to CI.
+- Still open from earlier: Hidden files reachable only from the Sort menu; credential storage key/IV; `FileOperationService` unused; a second file operation cancels the first; SQLite reads on the main thread in repository `init`; disposable fixtures on the phone.

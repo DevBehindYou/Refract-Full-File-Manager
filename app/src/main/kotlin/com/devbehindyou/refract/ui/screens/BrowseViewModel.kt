@@ -62,7 +62,7 @@ data class BrowseUiState(
 )
 
 class BrowseViewModel(
-    initialFolderId: FileNodeId,
+    private val initialFolderId: FileNodeId,
     private val getDirectoryListingUseCase: GetDirectoryListingUseCase,
     private val getNodeUseCase: GetNodeUseCase,
     private val createDirectoryUseCase: CreateDirectoryUseCase,
@@ -79,6 +79,7 @@ class BrowseViewModel(
     private var listingJob: Job? = null
     private var operationJob: Job? = null
     private var filterJob: Job? = null
+    private var appliedOpenRequest: Int? = null
 
     init {
         loadDirectory(initialFolderId)
@@ -255,6 +256,20 @@ class BrowseViewModel(
         }
 
         _uiState.update { it.copy(currentFolderName = folderName, breadcrumbs = crumbs) }
+    }
+
+    /**
+     * Returns to the start folder when [request] differs from the last one seen, meaning the user
+     * opened this folder again from outside Browse. The first call only records the value, so a new
+     * or recreated view model keeps its state.
+     */
+    fun onOpenRequest(request: Int) {
+        val previous = appliedOpenRequest
+        appliedOpenRequest = request
+        if (previous != null && previous != request) {
+            folderHistory.clear()
+            loadDirectory(initialFolderId)
+        }
     }
 
     fun navigateTo(folder: FileNode) {

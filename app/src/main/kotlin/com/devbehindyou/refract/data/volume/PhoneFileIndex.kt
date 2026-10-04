@@ -22,7 +22,10 @@ class PhoneIndexSnapshot(
     val unreadable: Int = 0,
 )
 
-/** Enumerates readable shared volumes, including files outside Android's media index. */
+/**
+ * Enumerates readable shared volumes, including files outside Android's media index.
+ * Hidden (dot-prefixed) files and folders are skipped.
+ */
 class PhoneFileIndex(private val listDirectory: GetDirectoryListingUseCase) {
     private class CacheEntry(
         val roots: List<FileNodeId>,
@@ -73,7 +76,11 @@ class PhoneFileIndex(private val listDirectory: GetDirectoryListingUseCase) {
                             }
                             is FileResult.Success -> {
                                 for (node in result.value) {
-                                    if (node.isDirectory) {
+                                    // Dot folders hold app caches such as Movies/.thumbnails and
+                                    // Fast Obscure output; their contents are not user collections.
+                                    if (node.isHidden) {
+                                        continue
+                                    } else if (node.isDirectory) {
                                         pending.add(node.id)
                                     } else if (node.access.readable) {
                                         found[node.id] = node

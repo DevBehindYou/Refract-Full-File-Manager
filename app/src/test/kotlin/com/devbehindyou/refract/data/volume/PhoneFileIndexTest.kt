@@ -51,4 +51,21 @@ class PhoneFileIndexTest {
             index.invalidate()
             assertEquals(4, index.scan(roots).last().files.size)
         }
+
+    @Test
+    fun skipsHiddenFilesAndEverythingInsideHiddenFolders() =
+        runTest {
+            val backend = InMemoryBackend()
+            val root = (backend.createDirectory(backend.rootId, "internal") as FileResult.Success).value.id
+            val movies = (backend.createDirectory(root, "Movies") as FileResult.Success).value.id
+            val thumbnails = (backend.createDirectory(movies, ".thumbnails") as FileResult.Success).value.id
+            for ((parent, name) in listOf(movies to "clip.mp4", movies to ".nomedia", thumbnails to "1234.jpg")) {
+                val target = (backend.openOutput(parent, name, "application/octet-stream") as FileResult.Success).value
+                target.stream().use { it.write(1) }
+                target.sync()
+            }
+            val snapshot = PhoneFileIndex(GetDirectoryListingUseCase { backend }).scan(listOf(root)).last()
+            assertTrue(snapshot.complete)
+            assertEquals(listOf("clip.mp4"), snapshot.files.map { it.name })
+        }
 }
