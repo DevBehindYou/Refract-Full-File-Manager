@@ -7,6 +7,7 @@ import com.devbehindyou.refract.domain.usecase.GetDirectoryListingUseCase
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -64,8 +65,21 @@ class PhoneFileIndexTest {
                 target.stream().use { it.write(1) }
                 target.sync()
             }
-            val snapshot = PhoneFileIndex(GetDirectoryListingUseCase { backend }).scan(listOf(root)).last()
+            val listed = mutableListOf<FileNodeId>()
+            val index =
+                PhoneFileIndex(
+                    GetDirectoryListingUseCase { id ->
+                        listed += id
+                        backend
+                    },
+                )
+            // In-memory ids are flat (/mem/1, /mem/2, ...), so a child is never under its parent's path.
+            // Adding their common parent as a root puts every node inside the scan boundary; listing
+            // /mem itself fails and only counts as unreadable.
+            val snapshot = index.scan(listOf(FileNodeId.file("/mem"), root)).last()
             assertTrue(snapshot.complete)
             assertEquals(listOf("clip.mp4"), snapshot.files.map { it.name })
+            assertTrue(movies in listed)
+            assertFalse(thumbnails in listed)
         }
 }
