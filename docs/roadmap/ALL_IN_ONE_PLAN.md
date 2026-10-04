@@ -47,6 +47,7 @@ The goal is the one stated by the owner: **one app that covers what people now n
 | 2 | Power layer | Batch rename, more archive formats, text editor, tabs, encrypted vault, app manager, cleaner |
 | 3 | Connectivity | Working SFTP/SMB, secure credentials, Wi-Fi share, cloud through Android providers, USB OTG |
 | 4 | Pro tools | Folder compare and sync, metadata tools, Android/data via Shizuku, command palette |
+| U | Atomic UI/UX reconstruction (parallel track) | The whole interface rebuilt on the DevBehindYou Atomic design system; foundations land before Phase 1 screens so nothing is built twice. Full plan: [`ATOMIC_UI_PLAN.md`](ATOMIC_UI_PLAN.md) |
 
 Section 10 lists decisions that conflict with `PRODUCT_SCOPE.md` and need the owner's call before Phase 3 and Phase 4 start.
 
@@ -261,6 +262,7 @@ Each phase depends on the one before:
 - Search, recents, favourites and cleanup need a **database that is not read on the main thread** and that can grow (Phase 0).
 - New screens (trash, search, vault, servers, tools) need a **real navigation stack** (Phase 0). Adding them as more booleans in `MainActivity` would make it unmaintainable.
 - Network features (Phase 3) must not ship until **credentials are protected by the Android Keystore** (Phase 0).
+- New screens must be **built from Atomic components** (`ATOMIC_UI_PLAN.md`). Atomic foundations and atoms (U2–U3) run in parallel with Phase 0; the Atomic shell (U4) is the same piece of work as the navigation migration (0.3); Phase 1 screens start after U4.
 
 Do not start a phase until the previous phase is green in CI and checked on the phone.
 
@@ -347,6 +349,7 @@ Each new feature gets an `AppSettings` field only if the user needs to choose so
 - [ ] Domain logic has JUnit 5 tests; Android code has Robolectric tests; file mutations are tested with disposable fixtures.
 - [ ] Works when the app is backgrounded and when the process is killed mid-operation (Phase 0 onward).
 - [ ] TalkBack labels on every control; layout intact at 200 % font and in landscape.
+- [ ] UI built only from `core.designsystem` Atomic components and tokens, meeting `ATOMIC_UI_PLAN.md` §16.
 - [ ] Reachable in ≤ 3 taps; no new permanent surface element unless one was removed.
 - [ ] ktlint, detekt, Lint and unit tests green in CI.
 - [ ] Phone check recorded in `testing/VERIFICATION_REPORT.md` with what was and was not verified.
@@ -581,7 +584,8 @@ These conflict with `PRODUCT_SCOPE.md` or `PRODUCT_CONTEXT.md`. Recommendations 
 | Root browsing | "Out" | Keep out; offer Shizuku as optional in 4.3 |
 | Document editing | "Out" | Keep office formats out; allow the plain-text editor in 2.3 |
 | Built-in media player | "Out" | Allow a preview player with Media3; no media library |
-| Liquid Glass tier in FR-10.3 | Requirement | `PRODUCT_SCOPE.md` §4 now says plain Material 3, no glass. Update FR-10.3 to match |
+| Liquid Glass tier in FR-10.3 | Requirement | Drop it. `PRODUCT_SCOPE.md` §4 already rules out glass, and the Atomic design system forbids blur. Update FR-10.3 |
+| Visual design language | "Clean plain Material 3, dynamic colour" (`PRODUCT_SCOPE.md` §1) | Replace with the Atomic design system (`../design/ATOMIC_DESIGN_SYSTEM.md`). UI-specific decisions (dynamic colour, dark theme, name, icon, accent, tab label, mascot, date format) are in `ATOMIC_UI_PLAN.md` §18 |
 
 ---
 
@@ -590,7 +594,7 @@ These conflict with `PRODUCT_SCOPE.md` or `PRODUCT_CONTEXT.md`. Recommendations 
 | Feature | Who has it | Why we skip |
 |---|---|---|
 | Root explorer | Solid, MiX, TC, Amaze | Play policy and safety risk; small audience; Shizuku covers the main use |
-| Skin editor, icon packs | MiX, Solid | Dilutes the design identity; dynamic colour and an accent choice are enough |
+| Skin editor, icon packs, dynamic colour | MiX, Solid, Files | Dilutes the Atomic identity; users choose light or dark only |
 | Dozens of disk-image formats (ISO, DMG, VMDK…) | MiX | Rarely needed on phones; can be revisited after 2.2 |
 | EncFS / AES Crypt compatibility | MiX | Niche; the vault uses one well-reviewed scheme |
 | Ads or paid unlocks | Many | Contradicts the business context |
@@ -618,11 +622,13 @@ These conflict with `PRODUCT_SCOPE.md` or `PRODUCT_CONTEXT.md`. Recommendations 
 If work starts tomorrow, do these in order. Each is one pull request with CI green and a phone check.
 
 1. **0.2 (part) and 16.2 H1:** add Room with KSP and an empty database; move the two repository `init` reads and `refreshVolumes()` off the main thread; turn on StrictMode in debug builds. Small, unblocks everything.
-2. **0.1:** operation queue + journal + starting the service; fix "second operation cancels the first".
-3. **1.1:** trash with undo snackbar and Trash screen (uses the journal).
-4. **1.2:** favourites and recents on Home.
-5. **0.3:** Navigation Compose, migrating one overlay per PR.
-6. **0.4:** Keystore credentials (before any Phase 3 work).
+2. **U2 (Atomic foundations):** tokens, bundled fonts, `AtomicTheme` bridged onto `MaterialTheme`, lint baseline. The whole app switches to the Atomic palette and type in one PR. Can run in parallel with step 3.
+3. **0.1:** operation queue + journal + starting the service; fix "second operation cancels the first".
+4. **U3 (Atomic atoms):** buttons, text, chips, fields, meters, progress, with screenshot tests.
+5. **0.3 + U4:** Navigation Compose routes and the Atomic shell (header, bottom bar, sheets, snackbar) as one piece of work.
+6. **1.1:** trash with undo snackbar and Trash screen, built Atomic from the start.
+7. **1.2:** favourites and recents on Home.
+8. **0.4:** Keystore credentials (before any Phase 3 work).
 
 ---
 

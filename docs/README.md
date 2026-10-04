@@ -135,6 +135,7 @@ Full breakdown with acceptance criteria: [`roadmap/MVP.md`](roadmap/MVP.md),
 [`roadmap/V1.md`](roadmap/V1.md), [`roadmap/FUTURE.md`](roadmap/FUTURE.md).
 Competitor research and the phased plan for all-in-one features:
 [`roadmap/ALL_IN_ONE_PLAN.md`](roadmap/ALL_IN_ONE_PLAN.md).
+Visual design: the Atomic design system [`design/ATOMIC_DESIGN_SYSTEM.md`](design/ATOMIC_DESIGN_SYSTEM.md) and the UI reconstruction plan [`roadmap/ATOMIC_UI_PLAN.md`](roadmap/ATOMIC_UI_PLAN.md).
 
 ## 8. Development rules (summary — full list in CODING_RULES.md)
 

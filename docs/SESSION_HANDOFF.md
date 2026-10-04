@@ -155,3 +155,10 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 
 - Competitor research (Solid Explorer, MiXplorer, Files by Google, Total Commander, FX, Material Files, Cx, Amaze, Owlfiles, Samsung My Files) and a phased integration plan are in [`roadmap/ALL_IN_ONE_PLAN.md`](roadmap/ALL_IN_ONE_PLAN.md). Read its section 8 (integration contract) before adding any feature, and section 10 (scope decisions waiting on the owner) before Phase 3 or 4 work.
 - The plan's first sprint (section 13) starts with Room plus moving repository `init` reads off the main thread, then the durable operation queue.
+
+## Update — 4 October 2026 (Atomic design system)
+
+- The owner's Atomic design system is now in the repo at [`design/ATOMIC_DESIGN_SYSTEM.md`](design/ATOMIC_DESIGN_SYSTEM.md) and is the visual source of truth. The UI reconstruction plan is [`roadmap/ATOMIC_UI_PLAN.md`](roadmap/ATOMIC_UI_PLAN.md) (track U in `ALL_IN_ONE_PLAN.md`). Plan only; no UI code has changed.
+- Old design docs (`DESIGN_SYSTEM.md`, `COMPONENT_LIBRARY.md`, `UI_UX_GUIDELINES.md`, `ANIMATION_SYSTEM.md`, `LIQUID_GLASS_RESEARCH.md`) carry a "being replaced" banner. Do not build new UI from them.
+- Key rule for anyone touching UI: file and folder names are never uppercased or set in Bebas Neue (it has no lowercase); names use Hanken Grotesk, as stored.
+- Owner decisions waiting: `ATOMIC_UI_PLAN.md` §18 (dynamic colour, dark theme, name, icon, accent, tab label, mascot, date format).

@@ -1,5 +1,7 @@
 # Component Library
 
+> **Being replaced.** Refract is moving to the DevBehindYou Atomic design system ([`design/ATOMIC_DESIGN_SYSTEM.md`](design/ATOMIC_DESIGN_SYSTEM.md)); see [`roadmap/ATOMIC_UI_PLAN.md`](roadmap/ATOMIC_UI_PLAN.md). Do not build new UI from this document. It is kept until the matching Atomic step ships (plan §0.5).
+
 All components live in `core.designsystem.component` (glass primitives) or `core.ui.component`
 (file-domain components). Every one is stateless, previewable, and takes state + lambdas.
 
