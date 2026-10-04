@@ -180,3 +180,4 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - Expect the whole app to look different on the phone (ink/paper/Signal, new fonts, 4 dp corners) before any screen is restructured.
 - Open in U2: `AtomicIcons`, lint baseline + re-enabling `NoHardcodedDp`, the new lint rules.
 - **U2 part 2:** `core/designsystem/icons/AtomicIcons.kt` is the one icon set (outlined). New lint detector `AtomicDesignDetector` (NoHardcodedColor, NoFilledIcons, NoToast, NoAlertDialog, NoBouncySpring) plus `NoHardcodedDp` now report as **warnings** in the Lint report while screens migrate; they become errors at U8. Next: U3 atoms.
+- **U3 atoms** are in `core/designsystem/atoms/` with a preview catalogue (`core/designsystem/preview/AtomicCatalog.kt`) and Robolectric tests (`AtomicAtomsComposeTest`). No screen uses them yet; U4 (shell + navigation) and U5 (screens) do. The lint-rules test module now prints full failure output in CI.

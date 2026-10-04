@@ -68,7 +68,7 @@ class AtomicDesignDetectorTest {
             .run()
 
     @Test
-    fun `flags each design rule in a screen`() {
+    fun `flags a hand-picked colour in a screen`() {
         check(
             """
             package com.devbehindyou.atomicfilemanager.ui.screens
@@ -82,13 +82,89 @@ class AtomicDesignDetectorTest {
 
             fun screen() {
                 val c = Color(0xFF0F6CBD)
+            }
+            """.trimIndent(),
+        ).expectWarningCount(1)
+    }
+
+    @Test
+    fun `flags a filled icon in a screen`() {
+        check(
+            """
+            package com.devbehindyou.atomicfilemanager.ui.screens
+
+            import android.widget.Toast
+            import androidx.compose.animation.core.Spring
+            import androidx.compose.animation.core.spring
+            import androidx.compose.material.icons.Icons
+            import androidx.compose.material3.AlertDialog
+            import androidx.compose.ui.graphics.Color
+
+            fun screen() {
                 val i = Icons.Filled
+            }
+            """.trimIndent(),
+        ).expectWarningCount(1)
+    }
+
+    @Test
+    fun `flags a toast in a screen`() {
+        check(
+            """
+            package com.devbehindyou.atomicfilemanager.ui.screens
+
+            import android.widget.Toast
+            import androidx.compose.animation.core.Spring
+            import androidx.compose.animation.core.spring
+            import androidx.compose.material.icons.Icons
+            import androidx.compose.material3.AlertDialog
+            import androidx.compose.ui.graphics.Color
+
+            fun screen() {
                 Toast.makeText(null, "Done", 0)
+            }
+            """.trimIndent(),
+        ).expectWarningCount(1)
+    }
+
+    @Test
+    fun `flags a Material alert dialog in a screen`() {
+        check(
+            """
+            package com.devbehindyou.atomicfilemanager.ui.screens
+
+            import android.widget.Toast
+            import androidx.compose.animation.core.Spring
+            import androidx.compose.animation.core.spring
+            import androidx.compose.material.icons.Icons
+            import androidx.compose.material3.AlertDialog
+            import androidx.compose.ui.graphics.Color
+
+            fun screen() {
                 AlertDialog(onDismissRequest = {})
+            }
+            """.trimIndent(),
+        ).expectWarningCount(1)
+    }
+
+    @Test
+    fun `flags a bouncy spring in a screen`() {
+        check(
+            """
+            package com.devbehindyou.atomicfilemanager.ui.screens
+
+            import android.widget.Toast
+            import androidx.compose.animation.core.Spring
+            import androidx.compose.animation.core.spring
+            import androidx.compose.material.icons.Icons
+            import androidx.compose.material3.AlertDialog
+            import androidx.compose.ui.graphics.Color
+
+            fun screen() {
                 spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy)
             }
             """.trimIndent(),
-        ).expectWarningCount(5)
+        ).expectWarningCount(1)
     }
 
     @Test
