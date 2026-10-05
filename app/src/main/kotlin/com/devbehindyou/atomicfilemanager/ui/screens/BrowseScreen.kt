@@ -993,6 +993,7 @@ private fun BrowseDialogs(
 
     if (state.showNewFolderDialog) {
         NewFolderDialog(
+            parentName = uiState.currentFolderName.ifEmpty { null },
             onDismiss = callbacks.onDismissNewFolder,
             onConfirm = { name ->
                 viewModel.createFolder(name)
