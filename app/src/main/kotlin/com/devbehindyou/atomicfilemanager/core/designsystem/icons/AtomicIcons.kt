@@ -2,6 +2,7 @@ package com.devbehindyou.atomicfilemanager.core.designsystem.icons
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Sort
@@ -59,6 +60,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
  */
 object AtomicIcons {
     val Back: ImageVector = Icons.AutoMirrored.Outlined.ArrowBack
+    val Forward: ImageVector = Icons.AutoMirrored.Outlined.ArrowForward
     val Home: ImageVector = Icons.Outlined.Home
     val Files: ImageVector = Icons.Outlined.Folder
     val FolderOpen: ImageVector = Icons.Outlined.FolderOpen

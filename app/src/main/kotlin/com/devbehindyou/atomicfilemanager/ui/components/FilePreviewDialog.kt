@@ -12,37 +12,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.automirrored.filled.WrapText
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FolderZip
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,14 +36,28 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.devbehindyou.atomicfilemanager.AppContainer
 import com.devbehindyou.atomicfilemanager.AtomicApp
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicDivider
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicTypography
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicErrorState
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFact
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFactSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFileRow
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveEntryInfo
@@ -116,7 +106,10 @@ private fun resolvePreviewType(node: FileNode): PreviewType {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * File preview (ATOMIC_UI_PLAN.md §7.5): a header with the name as stored and a mono size line,
+ * then the viewer for the file type. Viewers keep their loading, error and paging states.
+ */
 @Composable
 fun FilePreviewPane(
     node: FileNode,
@@ -128,60 +121,49 @@ fun FilePreviewPane(
     val context = LocalContext.current
     val app = context.applicationContext as? AtomicApp
     val container = app?.container ?: return
-
+    val colors = Atomic.colors
     val previewType = remember(node) { resolvePreviewType(node) }
 
-    Scaffold(
-        modifier = modifier.testTag("file_preview_pane"),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = node.name,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            text = FileUtils.formatBytes(node.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onClose, modifier = Modifier.testTag("preview_close")) {
-                        Icon(Icons.Default.Close, contentDescription = "Close preview")
-                    }
-                },
-                actions = {
-                    if (onShare != null) {
-                        IconButton(onClick = onShare, modifier = Modifier.testTag("preview_share")) {
-                            Icon(Icons.Default.Share, contentDescription = "Share file")
-                        }
-                    }
-                    if (onOpenExternal != null) {
-                        IconButton(onClick = onOpenExternal, modifier = Modifier.testTag("preview_open_external")) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open with external app")
-                        }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-            )
-        },
-    ) { padding ->
-        Surface(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-            color = MaterialTheme.colorScheme.background,
+    Column(modifier.background(colors.background).testTag("file_preview_pane")) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = AtomicSpacing.s10, end = AtomicSpacing.s16, top = AtomicSpacing.s4),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s6),
         ) {
+            AtomicIconButton(
+                AtomicIcons.Close,
+                "Close preview",
+                onClick = onClose,
+                variant = AtomicIconButtonVariant.Back,
+                modifier = Modifier.testTag("preview_close"),
+            )
+            Column(Modifier.weight(1f)) {
+                AtomicText(node.name, AtomicTextRole.Name, maxLines = 1)
+                AtomicText(
+                    "${FileUtils.formatBytes(node.size)} · ${FileUtils.formatDate(node.modifiedAt)}",
+                    AtomicTextRole.MonoMeta,
+                    maxLines = 1,
+                )
+            }
+            if (onShare != null) {
+                AtomicIconButton(
+                    AtomicIcons.Share,
+                    "Share file",
+                    onClick = onShare,
+                    modifier = Modifier.testTag("preview_share"),
+                )
+            }
+            if (onOpenExternal != null) {
+                AtomicIconButton(
+                    AtomicIcons.OpenExternally,
+                    "Open with another app",
+                    onClick = onOpenExternal,
+                    modifier = Modifier.testTag("preview_open_external"),
+                )
+            }
+        }
+        AtomicDivider(strong = true, modifier = Modifier.padding(top = AtomicSpacing.s4))
+        Box(Modifier.weight(1f).fillMaxWidth()) {
             when (previewType) {
                 PreviewType.IMAGE -> ImagePreviewContent(node, container)
                 PreviewType.PDF -> PdfPreviewContent(node, container)
@@ -218,10 +200,24 @@ fun FilePreviewDialog(
     }
 }
 
+/** Centred loading or error state shared by the viewers. */
+@Composable
+private fun ViewerState(
+    loading: Boolean,
+    error: String?,
+) {
+    Box(Modifier.fillMaxSize().padding(AtomicSpacing.s16), contentAlignment = Alignment.Center) {
+        when {
+            loading -> AtomicLoading("Loading preview…")
+            error != null -> AtomicErrorState(title = "Can't preview this file", message = error)
+        }
+    }
+}
+
 @Composable
 private fun ImagePreviewContent(
     node: FileNode,
-    container: com.devbehindyou.atomicfilemanager.AppContainer,
+    container: AppContainer,
 ) {
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -238,50 +234,49 @@ private fun ImagePreviewContent(
                 isLoading = false
             }
             is FileResult.Failure -> {
-                errorMessage = "Failed to load image"
+                errorMessage = "The image may be damaged or in a format this phone can't decode."
                 isLoading = false
             }
         }
     }
 
+    val shown = bitmap
+    if (isLoading || errorMessage != null || shown == null) {
+        ViewerState(isLoading, errorMessage)
+        return
+    }
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(0.5f, 6f)
+                        scale = (scale * zoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
                         offset = if (scale > 1f) offset + pan else Offset.Zero
                     }
                 },
         contentAlignment = Alignment.Center,
     ) {
-        when {
-            isLoading -> CircularProgressIndicator()
-            errorMessage != null -> Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
-            bitmap != null -> {
-                Image(
-                    bitmap = bitmap!!.asImageBitmap(),
-                    contentDescription = node.name,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .graphicsLayer(
-                                scaleX = scale,
-                                scaleY = scale,
-                                translationX = offset.x,
-                                translationY = offset.y,
-                            ),
-                )
-            }
-        }
+        Image(
+            bitmap = shown.asImageBitmap(),
+            contentDescription = node.name,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y,
+                    ),
+        )
     }
 }
 
 @Composable
 private fun PdfPreviewContent(
     node: FileNode,
-    container: com.devbehindyou.atomicfilemanager.AppContainer,
+    container: AppContainer,
 ) {
     var pageCount by remember { mutableIntStateOf(0) }
     var currentPage by remember { mutableIntStateOf(0) }
@@ -301,17 +296,17 @@ private fun PdfPreviewContent(
                             isLoading = false
                         }
                         is FileResult.Failure -> {
-                            errorMessage = "Failed to render PDF page"
+                            errorMessage = "The first page couldn't be drawn. Try opening it with another app."
                             isLoading = false
                         }
                     }
                 } else {
-                    errorMessage = "PDF has no pages"
+                    errorMessage = "This PDF has no pages."
                     isLoading = false
                 }
             }
             is FileResult.Failure -> {
-                errorMessage = "Failed to open PDF"
+                errorMessage = "The PDF couldn't be opened. It may be damaged or password-protected."
                 isLoading = false
             }
         }
@@ -330,7 +325,7 @@ private fun PdfPreviewContent(
                     isLoading = false
                 }
                 is FileResult.Failure -> {
-                    errorMessage = "Failed to render page ${pageIndex + 1}"
+                    errorMessage = "Page ${pageIndex + 1} couldn't be drawn."
                     isLoading = false
                 }
             }
@@ -338,59 +333,39 @@ private fun PdfPreviewContent(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            when {
-                isLoading -> CircularProgressIndicator()
-                errorMessage != null -> Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
-                currentBitmap != null -> {
-                    Image(
-                        bitmap = currentBitmap!!.asImageBitmap(),
-                        contentDescription = "PDF Page ${currentPage + 1}",
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val page = currentBitmap
+            if (isLoading || errorMessage != null || page == null) {
+                ViewerState(isLoading, errorMessage)
+            } else {
+                Image(
+                    bitmap = page.asImageBitmap(),
+                    contentDescription = "PDF page ${currentPage + 1}",
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
 
         if (pageCount > 1) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
+            AtomicDivider(strong = true)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s6),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(
-                        onClick = { loadPage(currentPage - 1) },
-                        enabled = currentPage > 0,
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous page")
-                    }
-
-                    Text(
-                        text = "Page ${currentPage + 1} of $pageCount",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                    )
-
-                    IconButton(
-                        onClick = { loadPage(currentPage + 1) },
-                        enabled = currentPage < pageCount - 1,
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next page")
-                    }
-                }
+                AtomicIconButton(
+                    AtomicIcons.Back,
+                    "Previous page",
+                    onClick = { loadPage(currentPage - 1) },
+                    enabled = currentPage > 0,
+                )
+                AtomicText("Page ${currentPage + 1} / $pageCount", AtomicTextRole.MonoLabel)
+                AtomicIconButton(
+                    AtomicIcons.Forward,
+                    "Next page",
+                    onClick = { loadPage(currentPage + 1) },
+                    enabled = currentPage < pageCount - 1,
+                )
             }
         }
     }
@@ -399,7 +374,7 @@ private fun PdfPreviewContent(
 @Composable
 private fun TextPreviewContent(
     node: FileNode,
-    container: com.devbehindyou.atomicfilemanager.AppContainer,
+    container: AppContainer,
 ) {
     var textContent by remember { mutableStateOf<TextContent?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -414,110 +389,56 @@ private fun TextPreviewContent(
                 isLoading = false
             }
             is FileResult.Failure -> {
-                errorMessage = "Failed to load text content"
+                errorMessage = "The text couldn't be read. The file may be binary or unreadable."
                 isLoading = false
             }
         }
     }
 
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+    val content = textContent
+    if (isLoading || errorMessage != null || content == null) {
+        ViewerState(isLoading, errorMessage)
         return
     }
-
-    if (errorMessage != null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
-        }
-        return
-    }
-
-    val content = textContent ?: return
+    val colors = Atomic.colors
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "${content.totalLinesCount} lines" + if (content.isTruncated) " (Truncated)" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                IconButton(onClick = { wrapLines = !wrapLines }, modifier = Modifier.size(48.dp)) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.WrapText,
-                        contentDescription = "Toggle line wrap",
-                        tint =
-                            if (wrapLines) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                    )
-                }
-            }
-        }
-
-        val scrollState = rememberScrollState()
-        val horizontalScrollState = rememberScrollState()
-
-        val modifier =
-            if (wrapLines) {
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-            } else {
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .horizontalScroll(horizontalScrollState)
-            }
-
         Row(
-            modifier = modifier.padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = AtomicSpacing.s16, end = AtomicSpacing.s8),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Line numbers column
+            AtomicText(
+                "${content.totalLinesCount} lines" + if (content.isTruncated) " · first part shown" else "",
+                AtomicTextRole.MonoMeta,
+            )
+            AtomicChip(label = "Wrap", selected = wrapLines, onSelectedChange = { wrapLines = it })
+        }
+        AtomicDivider()
+
+        val scrollModifier =
+            if (wrapLines) {
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            } else {
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
+            }
+        val mono = AtomicTypography.monoMeta
+
+        Row(modifier = scrollModifier.padding(AtomicSpacing.s8)) {
             Column(
                 modifier =
                     Modifier
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            RoundedCornerShape(4.dp),
-                        )
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                        .background(colors.surfaceInset, AtomicShape.sm)
+                        .padding(horizontal = AtomicSpacing.s8, vertical = AtomicSpacing.s2),
             ) {
                 content.lines.indices.forEach { index ->
-                    Text(
-                        text = "${index + 1}",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    )
+                    Text(text = "${index + 1}", style = mono, color = colors.contentMuted)
                 }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Code content column
-            Column(modifier = Modifier.padding(vertical = 2.dp)) {
+            Spacer(modifier = Modifier.width(AtomicSpacing.s8))
+            Column(modifier = Modifier.padding(vertical = AtomicSpacing.s2)) {
                 content.lines.forEach { line ->
-                    Text(
-                        text = line.ifEmpty { " " },
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                    Text(text = line.ifEmpty { " " }, style = mono, color = colors.content)
                 }
             }
         }
@@ -527,7 +448,7 @@ private fun TextPreviewContent(
 @Composable
 private fun ArchivePreviewContent(
     node: FileNode,
-    container: com.devbehindyou.atomicfilemanager.AppContainer,
+    container: AppContainer,
 ) {
     var entries by remember { mutableStateOf<List<ArchiveEntryInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -541,79 +462,39 @@ private fun ArchivePreviewContent(
                 isLoading = false
             }
             is FileResult.Failure -> {
-                errorMessage = "Failed to inspect ZIP archive"
+                errorMessage = "The ZIP couldn't be read. It may be damaged or encrypted."
                 isLoading = false
             }
         }
     }
 
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    if (errorMessage != null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
-        }
+    if (isLoading || errorMessage != null) {
+        ViewerState(isLoading, errorMessage)
         return
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = "${entries.size} items in archive",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
-
+        AtomicText(
+            "${entries.size} items in archive",
+            AtomicTextRole.MonoMeta,
+            modifier = Modifier.padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s8),
+        )
+        AtomicDivider()
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(entries, key = { it.path }) { entry ->
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = if (entry.isDirectory) Icons.Default.FolderZip else Icons.Default.Description,
-                        contentDescription = null,
-                        tint =
-                            if (entry.isDirectory) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.secondary
-                            },
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = entry.path,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (!entry.isDirectory) {
-                            Text(
-                                text = "${FileUtils.formatBytes(
-                                    entry.uncompressedSize,
-                                )} (Compressed: ${FileUtils.formatBytes(entry.compressedSize)})",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+                AtomicFileRow(
+                    name = entry.path,
+                    meta =
+                        if (entry.isDirectory) {
+                            "Folder"
+                        } else {
+                            "${FileUtils.formatBytes(entry.uncompressedSize)} · " +
+                                "${FileUtils.formatBytes(entry.compressedSize)} packed"
+                        },
+                    icon = if (entry.isDirectory) AtomicIcons.Files else AtomicIcons.Document,
+                    onClick = {},
+                    modifier = Modifier.padding(horizontal = AtomicSpacing.s16),
+                )
             }
         }
     }
@@ -622,10 +503,11 @@ private fun ArchivePreviewContent(
 @Composable
 private fun GenericFileContent(
     node: FileNode,
-    container: com.devbehindyou.atomicfilemanager.AppContainer,
+    container: AppContainer,
     onOpenExternal: (() -> Unit)?,
 ) {
     var checksums by remember { mutableStateOf<FileChecksums?>(null) }
+    var checksumError by remember { mutableStateOf<String?>(null) }
     var isCalculatingChecksums by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -633,109 +515,56 @@ private fun GenericFileContent(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(AtomicSpacing.s16),
+        verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s16),
     ) {
-        Icon(
-            imageVector = Icons.Default.Description,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(72.dp),
-        )
-
-        Text(
-            text = node.name,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetadataRow(label = "Size", value = FileUtils.formatBytes(node.size))
-                MetadataRow(label = "Type", value = node.mimeType ?: "Unknown binary")
-                MetadataRow(label = "Modified", value = FileUtils.formatDate(node.modifiedAt))
-
-                if (checksums != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    MetadataRow(label = "MD5", value = checksums!!.md5)
-                    MetadataRow(label = "SHA-256", value = checksums!!.sha256)
+        AtomicText("No preview for this type. Details are below.", AtomicTextRole.BodySecondary)
+        val hashes = checksums
+        AtomicFactSheet(
+            buildList {
+                add(AtomicFact("Size", FileUtils.formatBytes(node.size), monoValue = true))
+                add(AtomicFact("Type", node.mimeType ?: "Unknown", monoValue = true))
+                add(AtomicFact("Modified", FileUtils.formatDate(node.modifiedAt), monoValue = true))
+                if (hashes != null) {
+                    add(AtomicFact("MD5", hashes.md5, monoValue = true))
+                    add(AtomicFact("SHA-256", hashes.sha256, monoValue = true))
                 }
-            }
-        }
-
-        if (checksums == null) {
-            OutlinedButton(
-                onClick = {
-                    isCalculatingChecksums = true
-                    coroutineScope.launch {
-                        when (val res = container.readFileContentUseCase.calculateChecksums(node.id)) {
-                            is FileResult.Success -> {
-                                checksums = res.value
-                                isCalculatingChecksums = false
+            },
+        )
+        checksumError?.let { AtomicText(it, AtomicTextRole.BodySecondary, color = Atomic.colors.error) }
+        if (hashes == null) {
+            if (isCalculatingChecksums) {
+                AtomicLoading("Calculating checksums…")
+            } else {
+                AtomicButton(
+                    "Calculate checksums",
+                    onClick = {
+                        isCalculatingChecksums = true
+                        checksumError = null
+                        coroutineScope.launch {
+                            when (val res = container.readFileContentUseCase.calculateChecksums(node.id)) {
+                                is FileResult.Success -> checksums = res.value
+                                is FileResult.Failure -> checksumError = "Checksums couldn't be calculated. Try again."
                             }
-                            is FileResult.Failure -> {
-                                isCalculatingChecksums = false
-                            }
+                            isCalculatingChecksums = false
                         }
-                    }
-                },
-                enabled = !isCalculatingChecksums,
-            ) {
-                if (isCalculatingChecksums) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Computing hashes...")
-                } else {
-                    Text("Calculate MD5 & SHA-256")
-                }
+                    },
+                    variant = AtomicButtonVariant.Ghost,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
-
         if (onOpenExternal != null) {
-            Button(
+            AtomicButton(
+                "Open with another app",
                 onClick = onOpenExternal,
+                leadingIcon = AtomicIcons.OpenExternally,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Open with external app")
-            }
+            )
         }
     }
 }
 
-@Composable
-private fun MetadataRow(
-    label: String,
-    value: String,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily =
-                if (label.contains("MD5") || label.contains("SHA")) {
-                    FontFamily.Monospace
-                } else {
-                    FontFamily.Default
-                },
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
+private const val MIN_ZOOM = 0.5f
+private const val MAX_ZOOM = 6f
