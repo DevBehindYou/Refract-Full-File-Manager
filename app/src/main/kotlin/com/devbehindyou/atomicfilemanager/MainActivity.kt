@@ -90,6 +90,7 @@ import com.devbehindyou.atomicfilemanager.ui.screens.CategoryScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HiddenFilesScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HomeScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.OperationsScreen
+import com.devbehindyou.atomicfilemanager.ui.screens.SearchScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.SettingsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
@@ -475,6 +476,19 @@ fun AtomicAppContent(
             }
             return
         }
+        AtomicRoute.Search -> {
+            SearchScreen(
+                index = app.container.searchIndex,
+                roots = volumes.filter { it.isMounted }.mapNotNull { it.rootNodeId },
+                getNode = app.container.getNodeUseCase,
+                onBack = ::pop,
+                onOpenFolder = { folder ->
+                    pop()
+                    openInBrowse(folder)
+                },
+            )
+            return
+        }
         AtomicRoute.Trash -> {
             TrashScreen(
                 store = app.container.trashStore,
@@ -606,6 +620,14 @@ fun AtomicAppContent(
                     title = if (home) "File manager" else currentTab.title,
                     modifier = Modifier.background(Atomic.colors.background).statusBarsPadding(),
                     actions = {
+                        if (home) {
+                            AtomicIconButton(
+                                icon = AtomicIcons.Search,
+                                contentDescription = "Search all storage",
+                                onClick = { push(AtomicRoute.Search) },
+                                modifier = Modifier.testTag("home_search_button"),
+                            )
+                        }
                         AtomicIconButton(
                             icon = AtomicIcons.Info,
                             contentDescription = "About Atomic File Manager",

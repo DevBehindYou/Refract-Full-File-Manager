@@ -20,8 +20,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TrashEntryEntity::class,
         FavouriteEntity::class,
         RecentItemEntity::class,
+        SearchIndexEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(AtomicConverters::class)
@@ -34,13 +35,15 @@ abstract class AtomicDatabase : RoomDatabase() {
 
     abstract fun recentItems(): RecentItemDao
 
+    abstract fun searchIndex(): SearchIndexDao
+
     companion object {
         const val NAME = "atomic.db"
 
         fun create(context: Context): AtomicDatabase =
             Room
                 .databaseBuilder(context.applicationContext, AtomicDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
         /** Version 2 adds the Trash (ALL_IN_ONE_PLAN.md 1.1). Matches the exported 2.json schema. */
@@ -81,6 +84,22 @@ abstract class AtomicDatabase : RoomDatabase() {
                             "`mimeType` TEXT, `size` INTEGER NOT NULL, `openedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
                     )
                     db.execSQL("CREATE INDEX IF NOT EXISTS `index_recent_item_openedAt` ON `recent_item` (`openedAt`)")
+                }
+            }
+
+        /** Version 4 adds the search index (ALL_IN_ONE_PLAN.md 1.4). It is rebuilt from storage, so no data moves. */
+        val MIGRATION_3_4 =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `search_index` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                            "`nameLower` TEXT NOT NULL, `parentId` TEXT, `isDirectory` INTEGER NOT NULL, " +
+                            "`size` INTEGER NOT NULL, `modifiedAt` INTEGER NOT NULL, `mimeType` TEXT, " +
+                            "`generation` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_search_index_generation` ON `search_index` (`generation`)",
+                    )
                 }
             }
     }

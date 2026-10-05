@@ -71,7 +71,11 @@ class AtomicDatabaseMigrationTest {
             val database =
                 Room
                     .databaseBuilder(context, AtomicDatabase::class.java, name)
-                    .addMigrations(AtomicDatabase.MIGRATION_1_2, AtomicDatabase.MIGRATION_2_3)
+                    .addMigrations(
+                        AtomicDatabase.MIGRATION_1_2,
+                        AtomicDatabase.MIGRATION_2_3,
+                        AtomicDatabase.MIGRATION_3_4,
+                    )
                     .allowMainThreadQueries()
                     .build()
             try {
@@ -118,8 +122,33 @@ class AtomicDatabaseMigrationTest {
                 val recents = RoomRecentsRepository(database.recentItems(), media = { _, _ -> emptyList() })
                 recents.recordOpened(node.copy(id = FileNodeId.file("/storage/emulated/0/a.pdf"), isDirectory = false))
                 assertEquals(1, recents.observeOpened(10).first().size)
+
+                val search = database.searchIndex()
+                search.upsert(
+                    listOf(
+                        row("My_Report.pdf"),
+                        row("Myxreport.pdf"),
+                    ),
+                )
+                // "_" is matched literally, not as a LIKE wildcard.
+                assertEquals(listOf("My_Report.pdf"), search.search("%y\\_r%", 10).map { it.name })
+                assertEquals(2, search.search("%report%", 10).size)
+                assertEquals(2, search.deleteOlderThan(8))
             } finally {
                 database.close()
             }
         }
+
+    private fun row(name: String) =
+        SearchIndexEntity(
+            id = "file:/a/$name",
+            name = name,
+            nameLower = name.lowercase(),
+            parentId = "file:/a",
+            isDirectory = false,
+            size = 9,
+            modifiedAt = 1,
+            mimeType = null,
+            generation = 7,
+        )
 }

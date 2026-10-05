@@ -1,6 +1,7 @@
 package com.devbehindyou.atomicfilemanager
 
 import android.app.Application
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.StrictMode
 import com.devbehindyou.atomicfilemanager.data.backend.FileSystemBackend
@@ -30,6 +31,7 @@ import com.devbehindyou.atomicfilemanager.data.repository.HiddenFilesRepositoryI
 import com.devbehindyou.atomicfilemanager.data.repository.SharedPreferencesSettingsRepository
 import com.devbehindyou.atomicfilemanager.data.repository.TransferBubbleRepositoryImpl
 import com.devbehindyou.atomicfilemanager.data.repository.volumeRootOf
+import com.devbehindyou.atomicfilemanager.data.search.RoomSearchIndex
 import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.repository.BackendType
@@ -37,6 +39,7 @@ import com.devbehindyou.atomicfilemanager.domain.repository.FavouritesRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.FolderSortMemory
 import com.devbehindyou.atomicfilemanager.domain.repository.HiddenFilesRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.RecentsRepository
+import com.devbehindyou.atomicfilemanager.domain.repository.SearchIndex
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.StorageBackend
 import com.devbehindyou.atomicfilemanager.domain.repository.TransferBubbleRepository
@@ -104,6 +107,9 @@ interface AppContainer {
 
     /** Sort order chosen per folder in Files (FR-3.3). */
     val folderSortMemory: FolderSortMemory
+
+    /** Search across all storage from an index (ALL_IN_ONE_PLAN.md 1.4). */
+    val searchIndex: SearchIndex
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
@@ -136,6 +142,28 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     override val trashStore: TrashStore by lazy { RoomTrashStore(database.trashEntries()) }
 
     override val folderSortMemory: FolderSortMemory by lazy { FolderSortPreferences(application) }
+
+    override val searchIndex: SearchIndex by lazy {
+        val prefs = application.getSharedPreferences("atomic_search_index", Context.MODE_PRIVATE)
+        RoomSearchIndex(
+            dao = database.searchIndex(),
+            listChildren = { id -> getDirectoryListingUseCase(id) },
+            scope = CoroutineScope(appScope.coroutineContext + Dispatchers.IO),
+            canonicalPath = { id ->
+                if (id.prefix == FileNodeId.Prefix.FILE) {
+                    runCatching { File(id.raw.removePrefix(FileNodeId.Prefix.FILE.scheme)).canonicalPath }.getOrNull()
+                } else {
+                    id.raw
+                }
+            },
+            builtAtStore =
+                object : RoomSearchIndex.BuiltAtStore {
+                    override fun get(): Long? = prefs.getLong("built_at", 0L).takeIf { it > 0 }
+
+                    override fun set(value: Long) = prefs.edit().putLong("built_at", value).apply()
+                },
+        )
+    }
 
     override val favouritesRepository: FavouritesRepository by lazy { RoomFavouritesRepository(database.favourites()) }
 

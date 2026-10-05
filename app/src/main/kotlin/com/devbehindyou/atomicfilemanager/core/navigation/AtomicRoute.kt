@@ -17,6 +17,11 @@ sealed interface AtomicRoute {
         override fun encode() = OPERATIONS
     }
 
+    /** Search across all storage. */
+    data object Search : AtomicRoute {
+        override fun encode() = SEARCH
+    }
+
     /** What is in the Trash: restore, delete for good, empty. */
     data object Trash : AtomicRoute {
         override fun encode() = TRASH
@@ -40,6 +45,7 @@ sealed interface AtomicRoute {
         private const val PRIVATE = "private"
         private const val OPERATIONS = "operations"
         private const val TRASH = "trash"
+        private const val SEARCH = "search"
         private const val CATEGORY = "category"
         private const val ANALYSIS = "analysis"
         private const val SEPARATOR = ':'
@@ -49,6 +55,7 @@ sealed interface AtomicRoute {
             if (value == PRIVATE) return PrivateFiles
             if (value == OPERATIONS) return Operations
             if (value == TRASH) return Trash
+            if (value == SEARCH) return Search
             val kind = value.substringBefore(SEPARATOR, missingDelimiterValue = "")
             val argument = value.substringAfter(SEPARATOR, missingDelimiterValue = "")
             if (argument.isEmpty()) return null
