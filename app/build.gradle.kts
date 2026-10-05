@@ -32,7 +32,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            isMinifyEnabled = false
+            // R8 shrinking and obfuscation (ALL_IN_ONE_PLAN.md 0.5, hotspot H3). Keep rules are in
+            // proguard-rules.pro; the emulator CI job launches the shrunk APK to catch missing ones.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
