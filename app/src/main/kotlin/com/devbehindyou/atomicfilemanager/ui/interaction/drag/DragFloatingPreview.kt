@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import kotlin.math.roundToInt
 
@@ -158,8 +155,8 @@ private fun MultiItemDragBadge(
 
 private fun getIconForNode(node: FileNode): ImageVector {
     return when {
-        node.isDirectory -> Icons.Default.Folder
-        node.mimeType?.startsWith("image/") == true -> Icons.Default.Image
-        else -> Icons.Default.Description
+        node.isDirectory -> AtomicIcons.Files
+        node.mimeType?.startsWith("image/") == true -> AtomicIcons.Image
+        else -> AtomicIcons.Document
     }
 }

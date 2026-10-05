@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.ContentPaste
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.FolderZip
+import androidx.compose.material.icons.outlined.Forward10
 import androidx.compose.material.icons.outlined.HideImage
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Image
@@ -40,6 +42,7 @@ import androidx.compose.material.icons.outlined.Preview
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Replay
+import androidx.compose.material.icons.outlined.Replay10
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
@@ -117,4 +120,7 @@ object AtomicIcons {
     // Media
     val Play: ImageVector = Icons.Outlined.PlayArrow
     val Pause: ImageVector = Icons.Outlined.Pause
+    val Rewind10: ImageVector = Icons.Outlined.Replay10
+    val Forward10: ImageVector = Icons.Outlined.Forward10
+    val Code: ImageVector = Icons.Outlined.Code
 }

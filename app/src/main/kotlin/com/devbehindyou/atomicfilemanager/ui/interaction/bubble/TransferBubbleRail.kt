@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AllInbox
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
@@ -53,6 +50,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.interaction.drag.ActiveDropTarget
@@ -171,7 +169,7 @@ fun TransferBubbleRail(
                     modifier = Modifier.size(48.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = AtomicIcons.Add,
                         contentDescription = "Create Transfer Bubble",
                         modifier = Modifier.size(20.dp),
                     )
@@ -267,7 +265,7 @@ private fun BubbleItem(
                 },
             ) {
                 Icon(
-                    imageVector = Icons.Default.AllInbox,
+                    imageVector = AtomicIcons.Bubble,
                     contentDescription = bubble.displayName,
                     tint =
                         if (isTarget) {

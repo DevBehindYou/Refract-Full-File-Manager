@@ -20,10 +20,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.WrapText
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -45,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devbehindyou.atomicfilemanager.AppContainer
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextContent
@@ -135,7 +132,7 @@ private fun MarkdownHeaderBar(
                     label = { Text("Rendered", style = MaterialTheme.typography.labelSmall) },
                     leadingIcon = {
                         Icon(
-                            Icons.Default.Visibility,
+                            AtomicIcons.Visible,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
                         )
@@ -147,7 +144,7 @@ private fun MarkdownHeaderBar(
                     label = { Text("Raw", style = MaterialTheme.typography.labelSmall) },
                     leadingIcon = {
                         Icon(
-                            Icons.Default.Code,
+                            AtomicIcons.Code,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
                         )
@@ -311,7 +308,7 @@ private fun RawMarkdownView(
         ) {
             IconButton(onClick = { wrapLines = !wrapLines }, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    Icons.AutoMirrored.Filled.WrapText,
+                    AtomicIcons.WrapText,
                     contentDescription = "Toggle wrap",
                     tint =
                         if (wrapLines) {

@@ -15,19 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -50,6 +41,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.devbehindyou.atomicfilemanager.AppContainer
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.data.preview.PreparedMedia
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
@@ -216,7 +211,7 @@ private fun AudioArtworkCard(
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = Icons.Default.MusicNote,
+                    imageVector = AtomicIcons.Audio,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(72.dp),
@@ -305,24 +300,15 @@ private fun AudioPlaybackControls(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onRewind, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Default.Replay10, contentDescription = "Rewind 10s")
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        FilledIconButton(
+        AtomicIconButton(AtomicIcons.Rewind10, "Back 10 seconds", onClick = onRewind)
+        Spacer(modifier = Modifier.width(AtomicSpacing.s16))
+        AtomicIconButton(
+            if (isPlaying) AtomicIcons.Pause else AtomicIcons.Play,
+            if (isPlaying) "Pause" else "Play",
             onClick = onTogglePlayPause,
-            modifier = Modifier.size(64.dp),
-            shape = CircleShape,
-        ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(36.dp),
-            )
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        IconButton(onClick = onForward, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Default.Forward10, contentDescription = "Forward 10s")
-        }
+            variant = AtomicIconButtonVariant.Accent,
+        )
+        Spacer(modifier = Modifier.width(AtomicSpacing.s16))
+        AtomicIconButton(AtomicIcons.Forward10, "Forward 10 seconds", onClick = onForward)
     }
 }
