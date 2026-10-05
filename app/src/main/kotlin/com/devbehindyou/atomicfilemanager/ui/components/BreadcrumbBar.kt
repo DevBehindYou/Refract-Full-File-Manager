@@ -1,28 +1,24 @@
 package com.devbehindyou.atomicfilemanager.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.ui.interaction.drag.ActiveDropTarget
 import com.devbehindyou.atomicfilemanager.ui.interaction.drag.DropTargetType
@@ -34,6 +30,11 @@ data class BreadcrumbItem(
     val path: String,
 )
 
+/**
+ * Mono path breadcrumb (ATOMIC_UI_PLAN.md §7.2): segments in original case, separated by "/",
+ * the current folder in ink, earlier ones tappable. Every segment is also a drop target that
+ * opens on hover while dragging. Scrolls to the end when the path grows.
+ */
 @Composable
 fun BreadcrumbBar(
     breadcrumbs: List<BreadcrumbItem>,
@@ -41,6 +42,7 @@ fun BreadcrumbBar(
     modifier: Modifier = Modifier,
     dragController: FileDragController? = null,
 ) {
+    val colors = Atomic.colors
     val scrollState = rememberScrollState()
 
     LaunchedEffect(breadcrumbs.size) {
@@ -51,74 +53,22 @@ fun BreadcrumbBar(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s6),
         modifier =
             modifier
                 .fillMaxWidth()
                 .horizontalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .padding(horizontal = AtomicSpacing.s16)
                 .testTag("breadcrumb_bar"),
     ) {
-        val rootTargetMod =
-            if (dragController != null && breadcrumbs.isNotEmpty()) {
-                FileNodeId.parse(breadcrumbs.first().path)?.let { targetId ->
-                    Modifier.fileDropTarget(
-                        controller = dragController,
-                        target =
-                            ActiveDropTarget(
-                                id = breadcrumbs.first().path,
-                                destinationId = targetId,
-                                type = DropTargetType.BREADCRUMB,
-                                displayName = "Storage",
-                                isWritable = true,
-                            ),
-                        onHoverSpringOpen = { onBreadcrumbClick(breadcrumbs.first()) },
-                    )
-                } ?: Modifier
-            } else {
-                Modifier
-            }
-
-        SuggestionChip(
-            modifier = rootTargetMod,
-            onClick = {
-                if (breadcrumbs.isNotEmpty()) {
-                    onBreadcrumbClick(breadcrumbs.first())
-                }
-            },
-            label = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = "Root",
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Storage")
-                }
-            },
-            colors =
-                SuggestionChipDefaults.suggestionChipColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                ),
-        )
-
-        breadcrumbs.drop(1).forEach { item ->
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier =
-                    Modifier
-                        .padding(horizontal = 2.dp)
-                        .size(18.dp),
-            )
-
-            val isLast = item == breadcrumbs.last()
-            val chipTargetMod =
-                if (dragController != null) {
+        breadcrumbs.forEachIndexed { index, item ->
+            val isLast = index == breadcrumbs.lastIndex
+            if (index > 0) AtomicText("/", AtomicTextRole.MonoMeta)
+            val dropTarget =
+                dragController?.let { controller ->
                     FileNodeId.parse(item.path)?.let { targetId ->
                         Modifier.fileDropTarget(
-                            controller = dragController,
+                            controller = controller,
                             target =
                                 ActiveDropTarget(
                                     id = item.path,
@@ -129,35 +79,18 @@ fun BreadcrumbBar(
                                 ),
                             onHoverSpringOpen = { onBreadcrumbClick(item) },
                         )
-                    } ?: Modifier
-                } else {
-                    Modifier
-                }
-
-            SuggestionChip(
-                modifier = chipTargetMod,
-                onClick = { onBreadcrumbClick(item) },
-                label = {
-                    Text(
-                        text = item.name,
-                        fontWeight = if (isLast) FontWeight.Bold else FontWeight.Normal,
-                    )
-                },
-                colors =
-                    SuggestionChipDefaults.suggestionChipColors(
-                        containerColor =
-                            if (isLast) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                            },
-                        labelColor =
-                            if (isLast) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                    ),
+                    }
+                } ?: Modifier
+            AtomicText(
+                text = item.name,
+                role = AtomicTextRole.MonoMeta,
+                color = if (isLast) colors.content else colors.contentSecondary,
+                maxLines = 1,
+                modifier =
+                    dropTarget
+                        .heightIn(min = AtomicSize.touchTarget)
+                        .clickable(enabled = !isLast, role = Role.Button) { onBreadcrumbClick(item) }
+                        .padding(vertical = AtomicSpacing.s12),
             )
         }
     }

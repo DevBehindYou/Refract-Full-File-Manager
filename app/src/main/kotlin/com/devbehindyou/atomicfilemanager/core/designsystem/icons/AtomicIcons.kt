@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.automirrored.outlined.WrapText
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AllInbox
@@ -80,6 +81,7 @@ object AtomicIcons {
     val Preview: ImageVector = Icons.Outlined.Preview
     val WrapText: ImageVector = Icons.AutoMirrored.Outlined.WrapText
     val DualPane: ImageVector = Icons.Outlined.VerticalSplit
+    val Sort: ImageVector = Icons.AutoMirrored.Outlined.Sort
 
     // File operations
     val Copy: ImageVector = Icons.Outlined.ContentCopy

@@ -561,6 +561,7 @@ private fun MainScreenContent(
                 initialFolderId = selectedFolderId,
                 onNavigateBack = onNavigateBack,
                 openRequest = browseOpenRequest,
+                onNotify = onNotify,
             )
         }
         NavigationTab.STORAGE -> {

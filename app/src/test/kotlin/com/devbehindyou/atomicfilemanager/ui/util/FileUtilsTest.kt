@@ -2,6 +2,7 @@ package com.devbehindyou.atomicfilemanager.ui.util
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.time.ZoneId
 
 class FileUtilsTest {
     @Test
@@ -27,5 +28,12 @@ class FileUtilsTest {
     fun `formatDate returns placeholder for non-positive timestamps`() {
         assertEquals("—", FileUtils.formatDate(0))
         assertEquals("—", FileUtils.formatDate(-1))
+    }
+
+    @Test
+    fun `formatDate uses ISO date and 24-hour time`() {
+        // 2026-10-04T08:11:00Z
+        assertEquals("2026-10-04 08:11", FileUtils.formatDate(1_791_101_460_000L, ZoneId.of("UTC")))
+        assertEquals("2026-10-04 13:41", FileUtils.formatDate(1_791_101_460_000L, ZoneId.of("Asia/Kolkata")))
     }
 }

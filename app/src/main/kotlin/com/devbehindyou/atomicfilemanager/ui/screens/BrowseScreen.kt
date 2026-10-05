@@ -1,61 +1,23 @@
 package com.devbehindyou.atomicfilemanager.ui.screens
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.AllInbox
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FolderZip
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Preview
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.VerticalSplit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -71,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isAltPressed
@@ -83,11 +44,34 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import com.devbehindyou.atomicfilemanager.AtomicApp
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicDivider
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicProgressBar
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextField
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicBorder
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicChoiceCard
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicEmptyState
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicErrorState
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicPushedHeader
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicTitleRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicActionStrip
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicStripAction
 import com.devbehindyou.atomicfilemanager.domain.model.CollisionPolicy
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
@@ -117,6 +101,7 @@ import com.devbehindyou.atomicfilemanager.ui.interaction.peek.QuickPeekControlle
 import com.devbehindyou.atomicfilemanager.ui.interaction.peek.QuickPeekOverlay
 import com.devbehindyou.atomicfilemanager.ui.interaction.peek.mediaGestureArbiter
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
+import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import kotlinx.coroutines.launch
 
 enum class DualPaneMode {
@@ -133,6 +118,8 @@ fun BrowseScreen(
     /** Changes each time the caller explicitly opens [initialFolderId]; see [BrowseViewModel.onOpenRequest]. */
     openRequest: Int = 0,
     onOpenFile: ((FileNode) -> Unit)? = null,
+    /** Shows feedback in the app snackbar. */
+    onNotify: (String) -> Unit = {},
     viewModel: BrowseViewModel =
         run {
             val app = LocalContext.current.applicationContext as AtomicApp
@@ -214,11 +201,11 @@ fun BrowseScreen(
             val error = result.exceptionOrNull()
             val message =
                 if (error == null) {
-                    "Hidden ${node.name}"
+                    "Hidden ${node.name}."
                 } else {
-                    "Could not hide ${node.name}: ${error.message ?: "unknown error"}"
+                    "Couldn't hide ${node.name}: ${error.message ?: "unknown error"}"
                 }
-            Toast.makeText(app, message, Toast.LENGTH_LONG).show()
+            onNotify(message)
             viewModel.refresh()
             nodeToHide = null
         }
@@ -296,71 +283,48 @@ fun BrowseScreen(
                     )
                 },
     ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                BrowseTopBar(
-                    uiState = uiState,
-                    isSelectionMode = isSelectionMode,
-                    bubbles = bubbles,
-                    isDualPane = isDualPane,
-                    dualPaneMode = dualPaneMode,
-                    showSortMenu = showSortMenu,
-                    onShowSortMenu = { showSortMenu = it },
-                    showAddToBubbleMenu = showAddToBubbleMenu,
-                    onShowAddToBubbleMenu = { showAddToBubbleMenu = it },
-                    actions =
-                        BrowseTopBarActions(
-                            onClearSelection = { viewModel.clearSelection() },
-                            onSelectAll = { viewModel.selectAll() },
-                            onAddToBubble = { bubbleId -> viewModel.addSelectionToBubble(bubbleId) },
-                            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                            onToggleSearch = { viewModel.toggleSearch(it) },
-                            onNavigateBack = {
-                                if (!viewModel.navigateBack()) {
-                                    onNavigateBack()
+        Column(Modifier.fillMaxSize().background(Atomic.colors.background)) {
+            BrowseTopBar(
+                uiState = uiState,
+                isSelectionMode = isSelectionMode,
+                bubbles = bubbles,
+                isDualPane = isDualPane,
+                dualPaneMode = dualPaneMode,
+                showSortMenu = showSortMenu,
+                onShowSortMenu = { showSortMenu = it },
+                showAddToBubbleMenu = showAddToBubbleMenu,
+                onShowAddToBubbleMenu = { showAddToBubbleMenu = it },
+                actions =
+                    BrowseTopBarActions(
+                        onClearSelection = { viewModel.clearSelection() },
+                        onSelectAll = { viewModel.selectAll() },
+                        onAddToBubble = { bubbleId -> viewModel.addSelectionToBubble(bubbleId) },
+                        onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                        onToggleSearch = { viewModel.toggleSearch(it) },
+                        onNavigateBack = {
+                            if (!viewModel.navigateBack()) {
+                                onNavigateBack()
+                            }
+                        },
+                        onSetSortOption = { viewModel.setSortOption(it) },
+                        onShowHiddenScreen = { showHiddenScreen = true },
+                        onToggleDualPaneMode = {
+                            dualPaneMode =
+                                if (dualPaneMode == DualPaneMode.DUAL_BROWSE) {
+                                    DualPaneMode.PREVIEW
+                                } else {
+                                    DualPaneMode.DUAL_BROWSE
                                 }
-                            },
-                            onSetSortOption = { viewModel.setSortOption(it) },
-                            onShowHiddenScreen = { showHiddenScreen = true },
-                            onToggleDualPaneMode = {
-                                dualPaneMode =
-                                    if (dualPaneMode == DualPaneMode.DUAL_BROWSE) {
-                                        DualPaneMode.PREVIEW
-                                    } else {
-                                        DualPaneMode.DUAL_BROWSE
-                                    }
-                            },
-                            onShowNewFolderDialog = { showNewFolderDialog = true },
-                        ),
-                )
-            },
-            bottomBar = {
-                BrowseBottomBar(
-                    uiState = uiState,
-                    isSelectionMode = isSelectionMode,
-                    onCopySelected = { viewModel.copySelected() },
-                    onCutSelected = { viewModel.cutSelected() },
-                    onCompressSelected = { viewModel.compressSelected() },
-                    onDeleteSelected = { confirmMultiDelete = true },
-                    onShowDetails = { node ->
-                        nodeForDetails = node
-                        viewModel.clearSelection()
-                    },
-                    onClearClipboard = { viewModel.clearClipboard() },
-                    onPaste = { viewModel.paste(CollisionPolicy.ASK) },
-                )
-            },
-        ) { innerPadding ->
+                        },
+                        onShowNewFolderDialog = { showNewFolderDialog = true },
+                    ),
+            )
             val pullState = rememberPullToRefreshState()
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
                 onRefresh = { viewModel.refresh() },
                 state = pullState,
-                modifier =
-                    Modifier
-                        .padding(innerPadding)
-                        .fillMaxSize(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 if (isDualPane) {
                     DualPaneBrowseContent(
@@ -390,6 +354,7 @@ fun BrowseScreen(
                                 onRename = { nodeToRename = it },
                                 onDelete = { nodeToDelete = it },
                                 onHide = { nodeToHide = it },
+                                onNewFolder = { showNewFolderDialog = true },
                             ),
                     )
                 } else {
@@ -405,9 +370,24 @@ fun BrowseScreen(
                         onRename = { nodeToRename = it },
                         onDelete = { nodeToDelete = it },
                         onHide = { nodeToHide = it },
+                        onNewFolder = { showNewFolderDialog = true },
                     )
                 }
             }
+            BrowseBottomBar(
+                uiState = uiState,
+                isSelectionMode = isSelectionMode,
+                onCopySelected = { viewModel.copySelected() },
+                onCutSelected = { viewModel.cutSelected() },
+                onCompressSelected = { viewModel.compressSelected() },
+                onDeleteSelected = { confirmMultiDelete = true },
+                onShowDetails = { node ->
+                    nodeForDetails = node
+                    viewModel.clearSelection()
+                },
+                onClearClipboard = { viewModel.clearClipboard() },
+                onPaste = { viewModel.paste(CollisionPolicy.ASK) },
+            )
         }
 
         // Floating drag preview follows pointer
@@ -560,7 +540,6 @@ private data class BrowseTopBarActions(
     val onShowNewFolderDialog: () -> Unit,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BrowseTopBar(
     uiState: BrowseUiState,
@@ -575,149 +554,178 @@ private fun BrowseTopBar(
     actions: BrowseTopBarActions,
 ) {
     when {
-        isSelectionMode ->
-            TopAppBar(
-                title = { Text("${uiState.selectedIds.size} selected") },
-                navigationIcon = {
-                    IconButton(onClick = actions.onClearSelection) {
-                        Icon(Icons.Filled.Close, contentDescription = "Clear selection")
-                    }
-                },
-                actions = {
-                    if (bubbles.isNotEmpty()) {
-                        Box {
-                            IconButton(onClick = { onShowAddToBubbleMenu(true) }) {
-                                Icon(Icons.Filled.AllInbox, contentDescription = "Add to Transfer Bubble")
-                            }
-                            DropdownMenu(
-                                expanded = showAddToBubbleMenu,
-                                onDismissRequest = { onShowAddToBubbleMenu(false) },
-                            ) {
-                                for (bubble in bubbles) {
-                                    DropdownMenuItem(
-                                        text = { Text("Add to ${bubble.displayName}") },
-                                        onClick = {
-                                            actions.onAddToBubble(bubble.id)
-                                            onShowAddToBubbleMenu(false)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    IconButton(
-                        onClick = actions.onSelectAll,
-                        modifier = Modifier.testTag("select_all_button"),
-                    ) {
-                        Icon(Icons.Filled.SelectAll, contentDescription = "Select all")
-                    }
+        isSelectionMode -> SelectionHeader(uiState, bubbles, onShowAddToBubbleMenu, actions)
+        uiState.isSearching -> SearchHeader(uiState, actions)
+        else -> FolderHeader(uiState, isDualPane, dualPaneMode, onShowSortMenu, actions)
+    }
+
+    if (showSortMenu) {
+        AtomicSheet(label = "Sort by", onDismiss = { onShowSortMenu(false) }) {
+            SortOption.entries.forEach { option ->
+                AtomicChoiceCard(
+                    title = option.label,
+                    selected = uiState.sortOption == option,
+                    onSelect = {
+                        actions.onSetSortOption(option)
+                        onShowSortMenu(false)
+                    },
+                )
+            }
+            AtomicSettingsRow(
+                title = "Hidden files",
+                value = "Hidden, obscured and private files",
+                onClick = {
+                    onShowSortMenu(false)
+                    actions.onShowHiddenScreen()
                 },
             )
-        uiState.isSearching ->
-            TopAppBar(
-                title = {
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = actions.onSearchQueryChanged,
-                        placeholder = { Text("Search this folder") },
-                        singleLine = true,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .testTag("search_field"),
+        }
+    }
+
+    if (showAddToBubbleMenu) {
+        AtomicSheet(label = "Add to bubble", onDismiss = { onShowAddToBubbleMenu(false) }) {
+            Column {
+                bubbles.forEach { bubble ->
+                    AtomicSettingsRow(
+                        title = bubble.displayName,
+                        onClick = {
+                            actions.onAddToBubble(bubble.id)
+                            onShowAddToBubbleMenu(false)
+                        },
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { actions.onToggleSearch(false) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
-                    }
-                },
+                }
+            }
+        }
+    }
+}
+
+/** "3 selected · All · Cancel" header (canvas "Files · selection"). */
+@Composable
+private fun SelectionHeader(
+    uiState: BrowseUiState,
+    bubbles: List<TransferBubble>,
+    onShowAddToBubbleMenu: (Boolean) -> Unit,
+    actions: BrowseTopBarActions,
+) {
+    val selectedBytes =
+        remember(uiState.rawItems, uiState.selectedIds) {
+            uiState.rawItems.filter { it.id in uiState.selectedIds && !it.isDirectory }.sumOf { it.size }
+        }
+    Column(Modifier.fillMaxWidth().padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s8)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AtomicText(
+                "${uiState.selectedIds.size} selected",
+                AtomicTextRole.DisplayPushed,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
             )
-        else ->
-            TopAppBar(
-                title = {
-                    Text(
-                        uiState.currentFolderName.ifEmpty { "Files" },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+            if (bubbles.isNotEmpty()) {
+                AtomicIconButton(
+                    AtomicIcons.Bubble,
+                    "Add to Transfer Bubble",
+                    onClick = { onShowAddToBubbleMenu(true) },
+                )
+            }
+            AtomicButton(
+                "All",
+                onClick = actions.onSelectAll,
+                variant = AtomicButtonVariant.Text,
+                modifier = Modifier.testTag("select_all_button"),
+            )
+            AtomicButton("Cancel", onClick = actions.onClearSelection, variant = AtomicButtonVariant.Text)
+        }
+        AtomicText(
+            "${uiState.currentFolderName.ifEmpty { "Files" }} · ${FileUtils.formatBytes(selectedBytes)} selected",
+            AtomicTextRole.MonoMeta,
+            maxLines = 1,
+        )
+        AtomicDivider(strong = true, modifier = Modifier.padding(top = AtomicSpacing.s8))
+    }
+}
+
+@Composable
+private fun SearchHeader(
+    uiState: BrowseUiState,
+    actions: BrowseTopBarActions,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = AtomicSpacing.s10, end = AtomicSpacing.s16, top = AtomicSpacing.s8),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
+        ) {
+            AtomicIconButton(
+                AtomicIcons.Back,
+                "Close search",
+                onClick = { actions.onToggleSearch(false) },
+                variant = AtomicIconButtonVariant.Back,
+            )
+            AtomicTextField(
+                value = uiState.searchQuery,
+                onValueChange = actions.onSearchQueryChanged,
+                label = "Search this folder",
+                placeholder = "Name contains…",
+                modifier = Modifier.weight(1f).testTag("search_field"),
+            )
+        }
+        AtomicDivider(strong = true, modifier = Modifier.padding(top = AtomicSpacing.s8))
+    }
+}
+
+/**
+ * Pushed header with the volume as eyebrow, then the folder name as stored (`NameLarge`, never
+ * uppercased) with an item counter, then the mono breadcrumb (ATOMIC_UI_PLAN.md §7.2).
+ */
+@Composable
+private fun FolderHeader(
+    uiState: BrowseUiState,
+    isDualPane: Boolean,
+    dualPaneMode: DualPaneMode,
+    onShowSortMenu: (Boolean) -> Unit,
+    actions: BrowseTopBarActions,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        AtomicPushedHeader(
+            onBack = actions.onNavigateBack,
+            eyebrow = uiState.breadcrumbs.firstOrNull()?.name ?: "Files",
+            actions = {
+                AtomicIconButton(
+                    AtomicIcons.Search,
+                    "Search this folder",
+                    onClick = { actions.onToggleSearch(true) },
+                    modifier = Modifier.testTag("search_icon_button"),
+                )
+                AtomicIconButton(
+                    AtomicIcons.Sort,
+                    "Sort by",
+                    onClick = { onShowSortMenu(true) },
+                    modifier = Modifier.testTag("sort_button"),
+                )
+                if (isDualPane) {
+                    AtomicIconButton(
+                        if (dualPaneMode == DualPaneMode.DUAL_BROWSE) AtomicIcons.Preview else AtomicIcons.DualPane,
+                        if (dualPaneMode == DualPaneMode.DUAL_BROWSE) {
+                            "Switch to preview pane"
+                        } else {
+                            "Switch to dual browse"
+                        },
+                        onClick = actions.onToggleDualPaneMode,
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = actions.onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { actions.onToggleSearch(true) },
-                        modifier = Modifier.testTag("search_icon_button"),
-                    ) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search this folder")
-                    }
-                    Box {
-                        IconButton(
-                            onClick = { onShowSortMenu(true) },
-                            modifier = Modifier.testTag("sort_button"),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort by")
-                        }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { onShowSortMenu(false) },
-                        ) {
-                            SortOption.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option.label) },
-                                    leadingIcon = {
-                                        if (uiState.sortOption == option) {
-                                            Icon(
-                                                Icons.Filled.Check,
-                                                contentDescription = "Currently sorted by ${option.label}",
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        actions.onSetSortOption(option)
-                                        onShowSortMenu(false)
-                                    },
-                                )
-                            }
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text("Hidden files") },
-                                onClick = {
-                                    onShowSortMenu(false)
-                                    actions.onShowHiddenScreen()
-                                },
-                            )
-                        }
-                    }
-                    if (isDualPane) {
-                        IconButton(onClick = actions.onToggleDualPaneMode) {
-                            Icon(
-                                imageVector =
-                                    if (dualPaneMode == DualPaneMode.DUAL_BROWSE) {
-                                        Icons.Filled.Preview
-                                    } else {
-                                        Icons.Filled.VerticalSplit
-                                    },
-                                contentDescription =
-                                    if (dualPaneMode == DualPaneMode.DUAL_BROWSE) {
-                                        "Switch to Preview Pane"
-                                    } else {
-                                        "Switch to Dual Browse"
-                                    },
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = actions.onShowNewFolderDialog,
-                        modifier = Modifier.testTag("new_folder_button"),
-                    ) {
-                        Icon(Icons.Filled.CreateNewFolder, contentDescription = "New folder")
-                    }
-                },
-            )
+                }
+                AtomicIconButton(
+                    AtomicIcons.NewFolder,
+                    "New folder",
+                    onClick = actions.onShowNewFolderDialog,
+                    modifier = Modifier.testTag("new_folder_button"),
+                )
+            },
+        )
+        AtomicTitleRow(
+            title = uiState.currentFolderName.ifEmpty { "Files" },
+            counter = "${uiState.filteredItems.size} items · ${uiState.sortOption.label}",
+            titleRole = AtomicTextRole.NameLarge,
+            modifier = Modifier.padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s8),
+        )
     }
 }
 
@@ -733,64 +741,54 @@ private fun BrowseBottomBar(
     onClearClipboard: () -> Unit,
     onPaste: () -> Unit,
 ) {
+    val clip = uiState.clipboard
     if (isSelectionMode) {
-        Surface(tonalElevation = 3.dp) {
+        AtomicActionStrip(
+            actions =
+                listOfNotNull(
+                    AtomicStripAction("Copy", AtomicIcons.Copy, onCopySelected),
+                    AtomicStripAction("Move", AtomicIcons.Move, onCutSelected),
+                    AtomicStripAction("Zip", AtomicIcons.Archive, onCompressSelected),
+                    AtomicStripAction("Delete", AtomicIcons.Trash, onDeleteSelected, destructive = true),
+                    if (uiState.selectedIds.size == 1) {
+                        AtomicStripAction(
+                            label = "Info",
+                            icon = AtomicIcons.Info,
+                            onClick = {
+                                val single = uiState.rawItems.firstOrNull { it.id in uiState.selectedIds }
+                                if (single != null) onShowDetails(single)
+                            },
+                        )
+                    } else {
+                        null
+                    },
+                ),
+        )
+    } else if (clip != null) {
+        Column(Modifier.fillMaxWidth().background(Atomic.colors.background)) {
+            AtomicDivider(strong = true)
             Row(
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                SelectionAction(Icons.Filled.ContentCopy, "Copy", onCopySelected)
-                SelectionAction(Icons.Filled.ContentCut, "Move", onCutSelected)
-                SelectionAction(Icons.Filled.FolderZip, "Compress", onCompressSelected)
-                SelectionAction(Icons.Filled.Delete, "Delete", onDeleteSelected)
-                if (uiState.selectedIds.size == 1) {
-                    SelectionAction(Icons.Filled.Info, "Info") {
-                        val single = uiState.rawItems.firstOrNull { it.id in uiState.selectedIds }
-                        if (single != null) onShowDetails(single)
-                    }
-                }
-            }
-        }
-    } else if (uiState.clipboard != null) {
-        val clip = uiState.clipboard!!
-        Surface(tonalElevation = 3.dp) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    Modifier.fillMaxWidth().padding(
+                        horizontal = AtomicSpacing.s16,
+                        vertical = AtomicSpacing.s10,
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text =
-                        "${clip.items.size} item(s) ready to " +
-                            if (clip.operation == ClipboardOp.COPY) "copy" else "move",
-                    style = MaterialTheme.typography.bodyMedium,
+                AtomicText(
+                    "${clip.items.size} ready to " + if (clip.operation == ClipboardOp.COPY) "copy" else "move",
+                    AtomicTextRole.MonoLabel,
                     modifier = Modifier.weight(1f),
                 )
-                Row {
-                    TextButton(onClick = onClearClipboard) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Button(
-                        onClick = onPaste,
-                        modifier = Modifier.testTag("paste_button"),
-                    ) {
-                        Icon(
-                            Icons.Filled.ContentPaste,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Paste here")
-                    }
-                }
+                AtomicButton("Cancel", onClick = onClearClipboard, variant = AtomicButtonVariant.Text)
+                AtomicButton(
+                    "Paste here",
+                    onClick = onPaste,
+                    variant = AtomicButtonVariant.Solid,
+                    leadingIcon = AtomicIcons.Paste,
+                    modifier = Modifier.testTag("paste_button"),
+                )
             }
         }
     }
@@ -805,6 +803,7 @@ private data class DualPaneItemActions(
     val onRename: (FileNode) -> Unit,
     val onDelete: (FileNode) -> Unit,
     val onHide: (FileNode) -> Unit,
+    val onNewFolder: () -> Unit,
 )
 
 @Composable
@@ -849,11 +848,10 @@ private fun DualPaneBrowseContent(
                 onRename = actions.onRename,
                 onDelete = actions.onDelete,
                 onHide = actions.onHide,
+                onNewFolder = actions.onNewFolder,
             )
         }
-        VerticalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-        )
+        Box(Modifier.fillMaxHeight().width(AtomicBorder.rule).background(Atomic.colors.borderStrong))
         Box(
             modifier =
                 Modifier
@@ -889,6 +887,7 @@ private fun DualPaneBrowseContent(
                         onRename = actions.onRename,
                         onDelete = actions.onDelete,
                         onHide = actions.onHide,
+                        onNewFolder = actions.onNewFolder,
                     )
                 }
             } else {
@@ -1018,23 +1017,19 @@ private fun BrowseDialogs(
     }
 
     state.nodeToDelete?.let { node ->
-        AlertDialog(
-            onDismissRequest = callbacks.onDismissDelete,
-            title = { Text("Delete file?") },
-            text = { Text("Are you sure you want to delete \"${node.name}\"?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteNodes(listOf(node.id))
-                        callbacks.onDismissDelete()
-                    },
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+        AtomicConfirmSheet(
+            label = "Delete",
+            headline = if (node.isDirectory) "Delete folder?" else "Delete file?",
+            body =
+                "\"${node.name}\" will be deleted" +
+                    (if (node.isDirectory) " with everything inside it" else "") + ". This can't be undone.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = {
+                viewModel.deleteNodes(listOf(node.id))
+                callbacks.onDismissDelete()
             },
-            dismissButton = {
-                TextButton(onClick = callbacks.onDismissDelete) { Text("Cancel") }
-            },
+            onDismiss = callbacks.onDismissDelete,
         )
     }
 
@@ -1048,25 +1043,21 @@ private fun BrowseDialogs(
 
     if (state.confirmMultiDelete) {
         val count = uiState.selectedIds.size
-        AlertDialog(
-            onDismissRequest = callbacks.onDismissMultiDelete,
-            title = { Text("Delete $count items?") },
-            text = { Text("Are you sure you want to delete $count selected items?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val ids = uiState.selectedIds.toList()
-                        viewModel.deleteNodes(ids)
-                        viewModel.clearSelection()
-                        callbacks.onDismissMultiDelete()
-                    },
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+        AtomicConfirmSheet(
+            label = "Delete",
+            headline = "Delete $count items?",
+            body =
+                "The $count selected items will be deleted, including everything inside selected folders. " +
+                    "This can't be undone.",
+            confirmLabel = "Delete $count",
+            destructive = true,
+            onConfirm = {
+                val ids = uiState.selectedIds.toList()
+                viewModel.deleteNodes(ids)
+                viewModel.clearSelection()
+                callbacks.onDismissMultiDelete()
             },
-            dismissButton = {
-                TextButton(onClick = callbacks.onDismissMultiDelete) { Text("Cancel") }
-            },
+            onDismiss = callbacks.onDismissMultiDelete,
         )
     }
 
@@ -1091,6 +1082,7 @@ private fun FileListContent(
     onRename: (FileNode) -> Unit,
     onDelete: (FileNode) -> Unit,
     onHide: (FileNode) -> Unit,
+    onNewFolder: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -1104,75 +1096,57 @@ private fun FileListContent(
 
         // Active operations banner
         uiState.activeOperation?.let { op ->
-            when (val status = op.status) {
-                is OperationStatus.Running -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = "${op.operation.type}: ${status.progress.currentName.orEmpty()}",
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                            )
-                            Text(
-                                text = "${status.progress.itemsDone}/${status.progress.itemsTotal}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val progressFraction =
-                            if (status.progress.itemsTotal > 0) {
-                                status.progress.itemsDone.toFloat() / status.progress.itemsTotal.toFloat()
-                            } else {
-                                0f
-                            }
-                        LinearProgressIndicator(
-                            progress = { progressFraction },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+            val status = op.status
+            if (status is OperationStatus.Running) {
+                val progress = status.progress
+                val fraction =
+                    if (progress.itemsTotal > 0) progress.itemsDone.toFloat() / progress.itemsTotal else 0f
+                val label = op.operation.type.toString().lowercase().replaceFirstChar { it.uppercase() }
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s8),
+                    verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s6),
+                ) {
+                    AtomicProgressBar(
+                        fraction = fraction,
+                        contentDescription = "$label, ${progress.itemsDone} of ${progress.itemsTotal}",
+                    )
+                    AtomicText(
+                        "$label · ${progress.itemsDone} / ${progress.itemsTotal} · ${progress.currentName.orEmpty()}",
+                        AtomicTextRole.MonoMeta,
+                        maxLines = 1,
+                    )
                 }
-                else -> { /* other statuses handled or completed */ }
             }
         }
 
         when {
             uiState.isLoading ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.testTag("loading_indicator"))
-                }
+                AtomicLoading(
+                    "Loading folder…",
+                    modifier = Modifier.padding(AtomicSpacing.s16).testTag("loading_indicator"),
+                )
             uiState.errorMessage != null ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(uiState.errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
-                }
+                AtomicErrorState(
+                    title = "Can't open this folder",
+                    message = uiState.errorMessage.orEmpty(),
+                    actionLabel = "Go up",
+                    onAction = { viewModel.navigateUp() },
+                    modifier = Modifier.padding(AtomicSpacing.s16),
+                )
             uiState.filteredItems.isEmpty() ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text =
-                            if (uiState.searchQuery.isNotEmpty()) {
-                                "No files match \"${uiState.searchQuery}\""
-                            } else {
-                                "This folder is empty"
-                            },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(AtomicSpacing.s16)) {
+                    if (uiState.searchQuery.isNotEmpty()) {
+                        AtomicEmptyState(
+                            message = "Nothing here matches \"${uiState.searchQuery}\".",
+                            detail = "Search looks at names in this folder only.",
+                        )
+                    } else {
+                        AtomicEmptyState(
+                            message = "This folder is empty.",
+                            actionLabel = "New folder",
+                            onAction = onNewFolder,
+                        )
+                    }
                 }
             else -> {
                 val lazyListState = rememberLazyListState()
@@ -1281,44 +1255,10 @@ private fun FileListContent(
 
 @Composable
 private fun EmptyPreviewPane(modifier: Modifier = Modifier) {
-    Box(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(32.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.Description,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Select a file to preview",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Images, documents, code, archives, and audio previews will appear here",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SelectionAction(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-) {
-    IconButton(onClick = onClick) {
-        Icon(icon, contentDescription = label)
+    Box(modifier.fillMaxSize().padding(AtomicSpacing.s24)) {
+        AtomicEmptyState(
+            message = "Select a file to preview.",
+            detail = "Images, documents, code, archives and audio appear here.",
+        )
     }
 }

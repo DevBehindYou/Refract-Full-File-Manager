@@ -1,7 +1,8 @@
 package com.devbehindyou.atomicfilemanager.ui.util
 
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.ln
 import kotlin.math.pow
@@ -15,26 +16,15 @@ object FileUtils {
         return String.format(Locale.US, "%.1f %s", value, units[digitGroups])
     }
 
-    fun formatDate(epochMillis: Long): String {
-        if (epochMillis <= 0L) return "—"
-        val now = System.currentTimeMillis()
-        val diff = now - epochMillis
-        val oneDay = 24L * 60 * 60 * 1000
+    private val isoDateTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ROOT)
 
-        return when {
-            diff in 0..oneDay -> {
-                val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-                "Today, " + timeFormat.format(Date(epochMillis))
-            }
-            diff in oneDay..(2 * oneDay) -> {
-                val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-                "Yesterday, " + timeFormat.format(Date(epochMillis))
-            }
-            else -> {
-                val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                dateFormat.format(Date(epochMillis))
-            }
-        }
+    /** ISO date and 24-hour time in the device's zone, for example "2026-10-04 08:11" (owner decision). */
+    fun formatDate(
+        epochMillis: Long,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String {
+        if (epochMillis <= 0L) return "—"
+        return isoDateTime.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
     }
 
     fun formatDuration(ms: Long): String {
