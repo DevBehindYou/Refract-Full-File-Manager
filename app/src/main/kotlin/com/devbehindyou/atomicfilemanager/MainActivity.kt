@@ -432,18 +432,21 @@ fun AtomicAppContent() {
             hasStorageAccess = hasStorageAccess,
             selectedFolderId = selectedFolderId,
             browseOpenRequest = browseOpenRequest,
-            onFolderSelected = ::openInBrowse,
-            onNavigateBack = ::navigateBack,
-            onRequestStorageAccess = { requestStorageAccess() },
-            onBrowseVolume = ::openVolume,
-            onCategorySelected = ::openCategory,
-            onOpenPrivateFiles = { push(AtomicRoute.PrivateFiles) },
-            onOpenStorageIntelligence = { push(AtomicRoute.Analysis(it.raw)) },
             settingsRepository = settingsRepository,
-            onClearScanCache = phoneIndex::invalidate,
-            onNotify = ::notify,
-            onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
             privateLocked = settings.requireAuthForHidden,
+            callbacks =
+                ShellCallbacks(
+                    onFolderSelected = ::openInBrowse,
+                    onNavigateBack = ::navigateBack,
+                    onRequestStorageAccess = { requestStorageAccess() },
+                    onBrowseVolume = ::openVolume,
+                    onCategorySelected = ::openCategory,
+                    onOpenPrivateFiles = { push(AtomicRoute.PrivateFiles) },
+                    onOpenStorageIntelligence = { push(AtomicRoute.Analysis(it.raw)) },
+                    onClearScanCache = phoneIndex::invalidate,
+                    onNotify = ::notify,
+                    onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
+                ),
         )
     }
 
@@ -522,6 +525,20 @@ fun AtomicAppContent() {
     }
 }
 
+/** Navigation and feedback callbacks the tab screens share. */
+private class ShellCallbacks(
+    val onFolderSelected: (FileNodeId) -> Unit,
+    val onNavigateBack: () -> Unit,
+    val onRequestStorageAccess: () -> Unit,
+    val onBrowseVolume: (StorageVolumeInfo) -> Unit,
+    val onCategorySelected: (FileCategory) -> Unit,
+    val onOpenPrivateFiles: () -> Unit,
+    val onOpenStorageIntelligence: (FileNodeId) -> Unit,
+    val onClearScanCache: () -> Unit,
+    val onNotify: (String) -> Unit,
+    val onOpenStorageDetails: () -> Unit,
+)
+
 @Composable
 private fun MainScreenContent(
     currentTab: NavigationTab,
@@ -529,56 +546,47 @@ private fun MainScreenContent(
     hasStorageAccess: Boolean,
     selectedFolderId: FileNodeId,
     browseOpenRequest: Int,
-    onFolderSelected: (FileNodeId) -> Unit,
-    onNavigateBack: () -> Unit,
-    onRequestStorageAccess: () -> Unit,
-    onBrowseVolume: (StorageVolumeInfo) -> Unit,
-    onCategorySelected: (FileCategory) -> Unit,
-    onOpenPrivateFiles: () -> Unit,
-    onOpenStorageIntelligence: (FileNodeId) -> Unit,
     settingsRepository: SettingsRepository,
-    onClearScanCache: () -> Unit,
-    onNotify: (String) -> Unit,
-    onOpenStorageDetails: () -> Unit,
     privateLocked: Boolean,
+    callbacks: ShellCallbacks,
 ) {
     when (currentTab) {
         NavigationTab.HOME -> {
             HomeScreen(
                 volumes = volumes,
                 hasStorageAccess = hasStorageAccess,
-                onNavigateToVolume = onBrowseVolume,
-                onNavigateToCategory = onCategorySelected,
-                onOpenPrivateFiles = onOpenPrivateFiles,
-                onNavigateToFolder = onFolderSelected,
-                onRequestStorageAccess = onRequestStorageAccess,
-                onOpenStorageDetails = onOpenStorageDetails,
+                onNavigateToVolume = callbacks.onBrowseVolume,
+                onNavigateToCategory = callbacks.onCategorySelected,
+                onOpenPrivateFiles = callbacks.onOpenPrivateFiles,
+                onNavigateToFolder = callbacks.onFolderSelected,
+                onRequestStorageAccess = callbacks.onRequestStorageAccess,
+                onOpenStorageDetails = callbacks.onOpenStorageDetails,
                 privateLocked = privateLocked,
             )
         }
         NavigationTab.BROWSE -> {
             BrowseScreen(
                 initialFolderId = selectedFolderId,
-                onNavigateBack = onNavigateBack,
+                onNavigateBack = callbacks.onNavigateBack,
                 openRequest = browseOpenRequest,
-                onNotify = onNotify,
+                onNotify = callbacks.onNotify,
             )
         }
         NavigationTab.STORAGE -> {
             StorageScreen(
                 volumes = volumes,
-                onBrowseVolume = onBrowseVolume,
-                onBrowseFolder = onFolderSelected,
-                onOpenStorageIntelligence = onOpenStorageIntelligence,
+                onBrowseVolume = callbacks.onBrowseVolume,
+                onBrowseFolder = callbacks.onFolderSelected,
+                onOpenStorageIntelligence = callbacks.onOpenStorageIntelligence,
             )
         }
         NavigationTab.SETTINGS -> {
             SettingsScreen(
                 settingsRepository = settingsRepository,
                 hasStorageAccess = hasStorageAccess,
-                onRequestStorageAccess = onRequestStorageAccess,
-                onClearScanCache = onClearScanCache,
-                onNotify = onNotify,
+                onRequestStorageAccess = callbacks.onRequestStorageAccess,
+                onClearScanCache = callbacks.onClearScanCache,
+                onNotify = callbacks.onNotify,
             )
         }
     }
