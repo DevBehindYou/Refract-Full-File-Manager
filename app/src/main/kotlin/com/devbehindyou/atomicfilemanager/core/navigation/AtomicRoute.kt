@@ -1,0 +1,74 @@
+package com.devbehindyou.atomicfilemanager.core.navigation
+
+/**
+ * Screens pushed over the four top-level tabs (ATOMIC_UI_PLAN.md §6). Each route encodes to a
+ * short string so the whole stack survives rotation and process death in a saved-state bundle.
+ */
+sealed interface AtomicRoute {
+    fun encode(): String
+
+    /** Private files behind the app lock. */
+    data object PrivateFiles : AtomicRoute {
+        override fun encode() = PRIVATE
+    }
+
+    /** A category collection; [collection] is a `FileCollection` name. */
+    data class Category(
+        val collection: String,
+    ) : AtomicRoute {
+        override fun encode() = "$CATEGORY$SEPARATOR$collection"
+    }
+
+    /** Storage analysis rooted at [rootRaw], a raw `FileNodeId`. */
+    data class Analysis(
+        val rootRaw: String,
+    ) : AtomicRoute {
+        override fun encode() = "$ANALYSIS$SEPARATOR$rootRaw"
+    }
+
+    companion object {
+        private const val PRIVATE = "private"
+        private const val CATEGORY = "category"
+        private const val ANALYSIS = "analysis"
+        private const val SEPARATOR = ':'
+
+        /** Returns null for anything it does not recognise, so a stale bundle never crashes. */
+        fun decode(value: String): AtomicRoute? {
+            if (value == PRIVATE) return PrivateFiles
+            val kind = value.substringBefore(SEPARATOR, missingDelimiterValue = "")
+            val argument = value.substringAfter(SEPARATOR, missingDelimiterValue = "")
+            if (argument.isEmpty()) return null
+            return when (kind) {
+                CATEGORY -> Category(argument)
+                ANALYSIS -> Analysis(argument)
+                else -> null
+            }
+        }
+    }
+}
+
+/**
+ * Immutable back stack of [AtomicRoute]s. The top entry is the visible screen; an empty stack
+ * shows the current tab. Pushing the route already on top is a no-op so a double tap cannot
+ * stack two copies of the same screen.
+ */
+data class RouteStack(
+    val entries: List<AtomicRoute> = emptyList(),
+) {
+    val top: AtomicRoute? get() = entries.lastOrNull()
+
+    val isEmpty: Boolean get() = entries.isEmpty()
+
+    fun push(route: AtomicRoute): RouteStack = if (top == route) this else RouteStack(entries + route)
+
+    fun pop(): RouteStack = if (isEmpty) this else RouteStack(entries.dropLast(1))
+
+    /** Replaces the top entry, for example when a sheet hands over to a full screen. */
+    fun replaceTop(route: AtomicRoute): RouteStack = pop().push(route)
+
+    fun encode(): List<String> = entries.map(AtomicRoute::encode)
+
+    companion object {
+        fun decode(values: List<String>): RouteStack = RouteStack(values.mapNotNull(AtomicRoute::decode))
+    }
+}

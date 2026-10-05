@@ -62,6 +62,8 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicInfo
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicNavRail
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSnackbarHost
+import com.devbehindyou.atomicfilemanager.core.navigation.AtomicRoute
+import com.devbehindyou.atomicfilemanager.core.navigation.RouteStack
 import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
 import com.devbehindyou.atomicfilemanager.domain.model.FileCategory
 import com.devbehindyou.atomicfilemanager.domain.model.FileCollection
@@ -130,9 +132,19 @@ fun AtomicAppContent() {
     val phoneIndex = app.container.phoneFileIndex
     val settingsRepository = app.container.settingsRepository
     val settings by settingsRepository.settings.collectAsState()
-    var collectionName by rememberSaveable { mutableStateOf<String?>(null) }
     var showMoreCategories by rememberSaveable { mutableStateOf(false) }
-    var showPrivateFiles by rememberSaveable { mutableStateOf(false) }
+
+    // Screens pushed over the tabs (private files, categories, analysis), saved as strings.
+    var routeEntries by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    val routes = RouteStack.decode(routeEntries)
+
+    fun push(route: AtomicRoute) {
+        routeEntries = routes.push(route).encode()
+    }
+
+    fun pop() {
+        routeEntries = routes.pop().encode()
+    }
     var currentTab by rememberSaveable { mutableStateOf(NavigationTab.HOME) }
     val defaultPath = Environment.getExternalStorageDirectory()?.absolutePath ?: context.filesDir.absolutePath
     var selectedFolderRaw by rememberSaveable { mutableStateOf(FileNodeId.file(defaultPath).raw) }
@@ -173,8 +185,6 @@ fun AtomicAppContent() {
     fun notify(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
-    var analysisRootRaw by rememberSaveable { mutableStateOf<String?>(null) }
-    val storageIntelligenceRootId = analysisRootRaw?.let(::FileNodeId)
 
     fun checkAccess(): Boolean {
         return runCatching {
@@ -290,7 +300,7 @@ fun AtomicAppContent() {
         }
     }
 
-    BackHandler(enabled = tabHistory.isNotEmpty() && storageIntelligenceRootId == null) {
+    BackHandler(enabled = tabHistory.isNotEmpty() && routes.isEmpty) {
         navigateBack()
     }
 
@@ -311,7 +321,7 @@ fun AtomicAppContent() {
                 ),
             )
         } else {
-            collectionName =
+            val collection =
                 when (category) {
                     FileCategory.IMAGE -> FileCollection.IMAGES
                     FileCategory.VIDEO -> FileCollection.VIDEOS
@@ -320,35 +330,55 @@ fun AtomicAppContent() {
                     FileCategory.ARCHIVE -> FileCollection.ARCHIVES
                     FileCategory.APK -> FileCollection.APKS
                     else -> FileCollection.OTHER
-                }.name
+                }
+            push(AtomicRoute.Category(collection.name))
         }
     }
 
-    if (showPrivateFiles) {
-        BackHandler { showPrivateFiles = false }
-        AuthGate(
-            required = settings.requireAuthForHidden,
-            title = "Unlock private files",
-            onDenied = { showPrivateFiles = false },
-        ) {
-            HiddenFilesScreen(
-                repository = app.container.hiddenFilesRepository,
-                onNavigateBack = { showPrivateFiles = false },
-                initialMode = HideMode.PRIVATE_STORAGE,
-                privateOnly = true,
-            )
+    BackHandler(enabled = !routes.isEmpty) { pop() }
+    when (val route = routes.top) {
+        AtomicRoute.PrivateFiles -> {
+            AuthGate(
+                required = settings.requireAuthForHidden,
+                title = "Unlock private files",
+                onDenied = ::pop,
+            ) {
+                HiddenFilesScreen(
+                    repository = app.container.hiddenFilesRepository,
+                    onNavigateBack = ::pop,
+                    initialMode = HideMode.PRIVATE_STORAGE,
+                    privateOnly = true,
+                )
+            }
+            return
         }
-        return
-    }
-    if (collectionName != null) {
-        CategoryScreen(
-            collection = FileCollection.valueOf(collectionName!!),
-            roots = volumes.filter { it.isMounted }.mapNotNull { it.rootNodeId },
-            index = phoneIndex,
-            onBack = { collectionName = null },
-            onGrantAccess = { requestStorageAccess() },
-        )
-        return
+        is AtomicRoute.Category -> {
+            val collection = FileCollection.entries.firstOrNull { it.name == route.collection }
+            if (collection != null) {
+                CategoryScreen(
+                    collection = collection,
+                    roots = volumes.filter { it.isMounted }.mapNotNull { it.rootNodeId },
+                    index = phoneIndex,
+                    onBack = ::pop,
+                    onGrantAccess = { requestStorageAccess() },
+                )
+                return
+            }
+            // A collection removed in an update: drop the stale entry instead of crashing.
+            LaunchedEffect(route) { pop() }
+        }
+        is AtomicRoute.Analysis -> {
+            StorageIntelligenceScreen(
+                rootId = FileNodeId(route.rootRaw),
+                onNavigateBack = ::pop,
+                onOpenFile = { file ->
+                    pop()
+                    openInBrowse(file.id)
+                },
+            )
+            return
+        }
+        null -> Unit
     }
     if (showMoreCategories) {
         AtomicSheet(label = "More categories", onDismiss = { showMoreCategories = false }) {
@@ -363,23 +393,11 @@ fun AtomicAppContent() {
                     title = collection.title,
                     onClick = {
                         showMoreCategories = false
-                        collectionName = collection.name
+                        push(AtomicRoute.Category(collection.name))
                     },
                 )
             }
         }
-    }
-
-    if (storageIntelligenceRootId != null) {
-        StorageIntelligenceScreen(
-            rootId = storageIntelligenceRootId!!,
-            onNavigateBack = { analysisRootRaw = null },
-            onOpenFile = { file ->
-                analysisRootRaw = null
-                openInBrowse(file.id)
-            },
-        )
-        return
     }
 
     val destinations =
@@ -419,8 +437,8 @@ fun AtomicAppContent() {
             onRequestStorageAccess = { requestStorageAccess() },
             onBrowseVolume = ::openVolume,
             onCategorySelected = ::openCategory,
-            onOpenPrivateFiles = { showPrivateFiles = true },
-            onOpenStorageIntelligence = { analysisRootRaw = it.raw },
+            onOpenPrivateFiles = { push(AtomicRoute.PrivateFiles) },
+            onOpenStorageIntelligence = { push(AtomicRoute.Analysis(it.raw)) },
             settingsRepository = settingsRepository,
             onClearScanCache = phoneIndex::invalidate,
         )

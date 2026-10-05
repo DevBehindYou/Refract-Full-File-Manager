@@ -182,3 +182,9 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - **U2 part 2:** `core/designsystem/icons/AtomicIcons.kt` is the one icon set (outlined). New lint detector `AtomicDesignDetector` (NoHardcodedColor, NoFilledIcons, NoToast, NoAlertDialog, NoBouncySpring) plus `NoHardcodedDp` now report as **warnings** in the Lint report while screens migrate; they become errors at U8. Next: U3 atoms.
 - **U3 atoms** are in `core/designsystem/atoms/` with a preview catalogue (`core/designsystem/preview/AtomicCatalog.kt`) and Robolectric tests (`AtomicAtomsComposeTest`). No screen uses them yet; U4 (shell + navigation) and U5 (screens) do. The lint-rules test module now prints full failure output in CI.
 - **U4 part 1 (shell):** `MainActivity` now uses the Atomic header, bottom bar and rail (tab labelled FILES), an Atomic sheet for "More categories", an info sheet for About and snackbars instead of toasts. Test tags (`tab_*`, `bottom_nav_bar`, `nav_rail`, `about_button`) are unchanged. Overlay booleans (private files, category, storage analysis) still route screens; the saved route stack is U4 part 2.
+
+## Update — 5 October 2026 (CI run 16 fixes, route stack)
+
+- CI run 16 failed on two things, both fixed: Compose lint's `NonObservableLocale` error (`AtomicText` now reads the locale from `LocalConfiguration`), and the `NoFilledIcons` rule missing aliased imports (it now resolves the reference to `Icons.Filled`/`Default` instead of matching text).
+- **U4 part 2:** private files, category and storage-analysis screens now go through a saved route stack (`core/navigation/`), replacing three overlay variables in `MainActivity`. Back pops the stack; tab history works as before. Navigation Compose was decided against; see `ATOMIC_UI_PLAN.md` §6.
+
