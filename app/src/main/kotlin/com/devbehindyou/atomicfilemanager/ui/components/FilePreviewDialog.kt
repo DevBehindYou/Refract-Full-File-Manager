@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -51,6 +53,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicTypography
 import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
@@ -58,7 +61,11 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicErro
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFact
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFactSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFileRow
+import com.devbehindyou.atomicfilemanager.data.preview.ApkInfo
+import com.devbehindyou.atomicfilemanager.data.preview.ApkInfoReader
+import com.devbehindyou.atomicfilemanager.data.preview.androidVersionName
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
+import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveEntryInfo
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileChecksums
@@ -523,7 +530,11 @@ private fun GenericFileContent(
                 .padding(AtomicSpacing.s16),
         verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s16),
     ) {
-        AtomicText("No preview for this type. Details are below.", AtomicTextRole.BodySecondary)
+        if (node.name.endsWith(".apk", ignoreCase = true) && node.id.prefix == FileNodeId.Prefix.FILE) {
+            ApkSummary(node)
+        } else {
+            AtomicText("No preview for this type. Details are below.", AtomicTextRole.BodySecondary)
+        }
         val hashes = checksums
         AtomicFactSheet(
             buildList {
@@ -572,3 +583,58 @@ private fun GenericFileContent(
 
 private const val MIN_ZOOM = 0.5f
 private const val MAX_ZOOM = 6f
+
+/**
+ * App details read from an APK without installing it (FR-8.7). Says plainly when the file can't be
+ * read as an app. Installing is left to "Open with" so Atomic File Manager needs no install permission.
+ */
+@Composable
+private fun ApkSummary(node: FileNode) {
+    val context = LocalContext.current
+    val reader = remember { ApkInfoReader(context.applicationContext) }
+    // First: finished reading; second: what was read (null when it isn't a readable app).
+    val read by produceState<Pair<Boolean, ApkInfo?>>(false to null, node.id) {
+        value = true to reader.read(node.id.raw.removePrefix(FileNodeId.Prefix.FILE.scheme))
+    }
+    val (done, apk) = read
+    if (apk == null) {
+        AtomicText(
+            if (done) "This APK can't be read as an app. It may be damaged or incomplete." else "Reading app details…",
+            AtomicTextRole.BodySecondary,
+            modifier = Modifier.testTag("apk_reading"),
+        )
+        return
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
+        modifier = Modifier.testTag("apk_summary"),
+    ) {
+        apk.icon?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.size(AtomicSize.touchTarget),
+            )
+        }
+        Column(Modifier.weight(1f)) {
+            AtomicText(apk.label, AtomicTextRole.NameLarge)
+            AtomicText(apk.packageName, AtomicTextRole.MonoMeta)
+        }
+    }
+    AtomicFactSheet(apkFacts(apk))
+    AtomicText("Use Open with to install it with Android's installer.", AtomicTextRole.BodySecondary)
+}
+
+/** Facts shown for an APK; pure so the wording is unit-tested. */
+internal fun apkFacts(apk: ApkInfo): List<AtomicFact> =
+    listOfNotNull(
+        AtomicFact(
+            "Version",
+            listOfNotNull(apk.versionName, "(${apk.versionCode})").joinToString(" "),
+            monoValue = true,
+        ),
+        apk.minSdk?.let { AtomicFact("Needs", androidVersionName(it) + " or newer") },
+        AtomicFact("Built for", androidVersionName(apk.targetSdk)),
+        AtomicFact("Permissions", if (apk.permissionCount == 1) "1 requested" else "${apk.permissionCount} requested"),
+    )
