@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.VisualTransformation
 import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicBorder
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
@@ -45,6 +46,8 @@ fun AtomicTextField(
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    /** For passwords: `PasswordVisualTransformation()`. */
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     val colors = Atomic.colors
     val interaction = remember { MutableInteractionSource() }
@@ -70,6 +73,7 @@ fun AtomicTextField(
             cursorBrush = SolidColor(colors.accentText),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
+            visualTransformation = visualTransformation,
             interactionSource = interaction,
             decorationBox = { inner ->
                 Box(

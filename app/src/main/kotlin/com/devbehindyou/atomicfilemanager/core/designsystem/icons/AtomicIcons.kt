@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.FolderZip
@@ -63,6 +64,7 @@ object AtomicIcons {
     val FolderOpen: ImageVector = Icons.Outlined.FolderOpen
     val NewFolder: ImageVector = Icons.Outlined.CreateNewFolder
     val Storage: ImageVector = Icons.Outlined.Storage
+    val Network: ImageVector = Icons.Outlined.Dns
     val Settings: ImageVector = Icons.Outlined.Settings
     val Search: ImageVector = Icons.Outlined.Search
     val More: ImageVector = Icons.Outlined.MoreVert
