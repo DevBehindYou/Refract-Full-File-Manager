@@ -1,7 +1,5 @@
 package com.devbehindyou.atomicfilemanager.data.operations
 
-import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
-import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalEntity
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalState
 import com.devbehindyou.atomicfilemanager.domain.model.AccessFlags
 import com.devbehindyou.atomicfilemanager.domain.model.Conflict
@@ -21,10 +19,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -36,41 +31,6 @@ import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OperationQueueTest {
-    private class FakeJournal : OperationJournalDao {
-        val rows = linkedMapOf<String, OperationJournalEntity>()
-        val log = mutableListOf<Pair<String, OperationJournalState>>()
-
-        override suspend fun upsert(entry: OperationJournalEntity) {
-            rows[entry.id] = entry
-            log += entry.id to entry.state
-        }
-
-        override suspend fun get(id: String) = rows[id]
-
-        override suspend fun updateProgress(
-            id: String,
-            state: OperationJournalState,
-            itemsDone: Int,
-            itemsTotal: Int,
-            bytesDone: Long,
-            bytesTotal: Long,
-            errorMessage: String?,
-            updatedAt: Long,
-        ) {
-            rows[id] = rows.getValue(id).copy(state = state, itemsDone = itemsDone, errorMessage = errorMessage)
-            log += id to state
-        }
-
-        override fun observeRecent(limit: Int): Flow<List<OperationJournalEntity>> =
-            MutableStateFlow(rows.values.toList()).map { it.take(limit) }
-
-        override suspend fun unfinished() = rows.values.filter { !it.state.isFinished }
-
-        override suspend fun markInterrupted(now: Long) = 0
-
-        override suspend fun pruneFinishedBefore(before: Long) = 0
-    }
-
     private fun op(id: String) =
         FileOperation(
             id = OperationId(id),
@@ -88,7 +48,7 @@ class OperationQueueTest {
     /** An engine that runs each operation for 100 ms of virtual time and records start order. */
     private fun TestScope.queue(
         started: MutableList<String>,
-        journal: FakeJournal? = FakeJournal(),
+        journal: FakeOperationJournal? = FakeOperationJournal(),
         failing: Set<String> = emptySet(),
     ): OperationQueue =
         OperationQueue(
@@ -127,7 +87,7 @@ class OperationQueueTest {
     @Test
     fun `the journal sees queued, running and completed in order`() =
         runTest {
-            val journal = FakeJournal()
+            val journal = FakeOperationJournal()
             val queue = queue(mutableListOf(), journal)
 
             queue.runAndAwait(op("a"))
@@ -144,7 +104,7 @@ class OperationQueueTest {
     fun `a failing operation is recorded and the next one still runs`() =
         runTest {
             val started = mutableListOf<String>()
-            val journal = FakeJournal()
+            val journal = FakeOperationJournal()
             val queue = queue(started, journal, failing = setOf("a"))
 
             val failed = async { queue.runAndAwait(op("a")) }
@@ -208,7 +168,7 @@ class OperationQueueTest {
                     emit(OperationSnapshot(operation, OperationStatus.Completed(done)))
                 }
             },
-            journal = FakeJournal(),
+            journal = FakeOperationJournal(),
             scope = backgroundScope,
             clock = { testScheduler.currentTime },
         )
@@ -262,5 +222,38 @@ class OperationQueueTest {
 
             assertEquals(OperationStatus.Cancelled, result.await().status)
             assertNull(queue.pendingConflict.value)
+        }
+
+    @Test
+    fun `nothing runs or is journaled until start-up recovery has finished`() =
+        runTest {
+            val started = mutableListOf<String>()
+            val journal = FakeOperationJournal()
+            var recovered = false
+            val queue =
+                OperationQueue(
+                    engine = { operation, _ ->
+                        flow {
+                            started += operation.id.raw
+                            emit(OperationSnapshot(operation, OperationStatus.Completed(done)))
+                        }
+                    },
+                    journal = journal,
+                    scope = backgroundScope,
+                    clock = { testScheduler.currentTime },
+                    startup = {
+                        delay(500)
+                        recovered = true
+                    },
+                )
+
+            val result = async { queue.runAndAwait(op("new")) }
+            runCurrent()
+            assertTrue(started.isEmpty())
+            assertTrue(journal.log.isEmpty(), "a new row written before the sweep would be marked interrupted")
+
+            assertTrue(result.await().status is OperationStatus.Completed)
+            assertTrue(recovered)
+            assertEquals(listOf("new"), started)
         }
 }

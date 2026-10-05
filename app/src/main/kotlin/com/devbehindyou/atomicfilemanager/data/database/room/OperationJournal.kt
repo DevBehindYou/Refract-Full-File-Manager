@@ -16,7 +16,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationType
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Where an operation got to. QUEUED and RUNNING rows found at start-up belong to a process that
+ * Where an operation got to. QUEUED, RUNNING and PAUSED rows found at start-up belong to a process that
  * died mid-operation and are moved to INTERRUPTED so the Operations screen can offer Resume
  * (ALL_IN_ONE_PLAN.md Phase 0.1).
  */
@@ -87,8 +87,11 @@ interface OperationJournalDao {
     @Query("SELECT * FROM operation_journal WHERE state IN ('QUEUED', 'RUNNING', 'PAUSED') ORDER BY createdAt")
     suspend fun unfinished(): List<OperationJournalEntity>
 
-    /** Run once at start-up: nothing can still be running in a fresh process. */
-    @Query("UPDATE operation_journal SET state = 'INTERRUPTED', updatedAt = :now WHERE state IN ('QUEUED', 'RUNNING')")
+    /** Run once at start-up: nothing can still be running, or waiting for an answer, in a fresh process. */
+    @Query(
+        "UPDATE operation_journal SET state = 'INTERRUPTED', updatedAt = :now " +
+            "WHERE state IN ('QUEUED', 'RUNNING', 'PAUSED')",
+    )
     suspend fun markInterrupted(now: Long): Int
 
     @Query(

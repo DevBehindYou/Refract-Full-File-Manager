@@ -76,6 +76,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.StorageVolumeInfo
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
 import com.devbehindyou.atomicfilemanager.ui.components.ConflictSheet
+import com.devbehindyou.atomicfilemanager.ui.components.RecoverySheet
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.CategoryScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HiddenFilesScreen
@@ -87,6 +88,9 @@ import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -99,9 +103,14 @@ enum class NavigationTab(val title: String) {
 
 // FragmentActivity (a ComponentActivity) because BiometricPrompt needs one.
 class MainActivity : FragmentActivity() {
+    /** Screens asked for from outside (a notification tap); consumed by [AtomicAppContent]. */
+    private val externalOpen = MutableStateFlow<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // After recreation the route stack is already restored; don't push the same screen again.
+        if (savedInstanceState == null) externalOpen.value = intent?.getStringExtra(EXTRA_OPEN)
 
         enableEdgeToEdge()
 
@@ -125,15 +134,30 @@ class MainActivity : FragmentActivity() {
                 onDispose {}
             }
             AtomicTheme(darkTheme = darkTheme, wallpaperAccent = settings.dynamicColor) {
-                AtomicAppContent()
+                val openRequest by externalOpen.collectAsState()
+                AtomicAppContent(openRequest = openRequest, onOpenRequestHandled = { externalOpen.value = null })
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra(EXTRA_OPEN)?.let { externalOpen.value = it }
+    }
+
+    companion object {
+        const val EXTRA_OPEN = "com.devbehindyou.atomicfilemanager.extra.OPEN"
+        const val OPEN_OPERATIONS = "operations"
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AtomicAppContent() {
+fun AtomicAppContent(
+    openRequest: String? = null,
+    onOpenRequestHandled: () -> Unit = {},
+) {
     val context = LocalContext.current
     val app = context.applicationContext as AtomicApp
     val phoneIndex = app.container.phoneFileIndex
@@ -343,6 +367,46 @@ fun AtomicAppContent() {
             onCancelOperation = { operationQueue.cancel(pending.operation.id) },
             onDismiss = { hiddenConflict = pending },
         )
+    }
+
+    // Work the previous run left unfinished: offered once, right after start-up.
+    val recovery = app.container.operationRecovery
+    val recovered by recovery.pending.collectAsState()
+    recovered?.let {
+        RecoverySheet(
+            recovered = it,
+            onResume = recovery::resumeAll,
+            onDiscard = recovery::discardAll,
+            onLater = recovery::later,
+        )
+    }
+
+    // Android 13+ hides the progress notification without this permission. Ask when the user
+    // starts their first operation (it runs either way), at most once per app session.
+    val notificationPermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var askedForNotifications by rememberSaveable { mutableStateOf(false) }
+    val operationRunning by remember(operationQueue) {
+        operationQueue.active.map { it != null }.distinctUntilChanged()
+    }.collectAsState(initial = false)
+    LaunchedEffect(operationRunning) {
+        if (operationRunning &&
+            !askedForNotifications &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            askedForNotifications = true
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    // A tap on the operation notification opens Operations on top of whatever is showing.
+    LaunchedEffect(openRequest) {
+        if (openRequest == MainActivity.OPEN_OPERATIONS) {
+            if (routes.top != AtomicRoute.Operations) push(AtomicRoute.Operations)
+            onOpenRequestHandled()
+        }
     }
 
     BackHandler(enabled = !routes.isEmpty) { pop() }
@@ -591,6 +655,7 @@ private fun MainScreenContent(
                 onNavigateBack = callbacks.onNavigateBack,
                 openRequest = browseOpenRequest,
                 onNotify = callbacks.onNotify,
+                onOpenOperations = callbacks.onOpenOperations,
             )
         }
         NavigationTab.STORAGE -> {

@@ -17,6 +17,7 @@ import com.devbehindyou.atomicfilemanager.data.database.TransferBubbleDatabaseHe
 import com.devbehindyou.atomicfilemanager.data.database.room.AtomicDatabase
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
 import com.devbehindyou.atomicfilemanager.data.operations.OperationQueue
+import com.devbehindyou.atomicfilemanager.data.operations.OperationRecovery
 import com.devbehindyou.atomicfilemanager.data.preview.ImagePreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.MediaPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.PdfPreviewHelper
@@ -46,6 +47,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 interface AppContainer {
     val storageBackendSelector: StorageBackendSelector
@@ -75,18 +77,16 @@ interface AppContainer {
 
     /** The one place file operations run, one at a time, journaled. */
     val operationQueue: OperationQueue
+
+    /** Work a previous process left unfinished, offered once as "Resume or discard". */
+    val operationRecovery: OperationRecovery
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
     /** Lives as long as the process; used for start-up loads that must not block the main thread. */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val database by lazy {
-        AtomicDatabase.create(application).also { db ->
-            // A fresh process can't still be running anything the journal says is running.
-            appScope.launch(Dispatchers.IO) { db.operationJournal().markInterrupted(System.currentTimeMillis()) }
-        }
-    }
+    private val database by lazy { AtomicDatabase.create(application) }
 
     override val operationJournal: OperationJournalDao get() = database.operationJournal()
 
@@ -95,6 +95,8 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
             engine = { operation, resolver -> fileOperationsEngine.execute(operation, resolver) },
             journal = operationJournal,
             scope = appScope,
+            // A fresh process can't still be running anything the journal says is running.
+            startup = { withContext(Dispatchers.IO) { operationRecovery.sweep() } },
         ).also { queue ->
             // Show the progress notification whenever the queue goes from idle to busy.
             appScope.launch {
@@ -105,6 +107,15 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
                     .collect { FileOperationService.start(application) }
             }
         }
+    }
+
+    override val operationRecovery: OperationRecovery by lazy {
+        OperationRecovery(
+            journal = operationJournal,
+            queue = operationQueue,
+            backendFor = { id -> storageBackendSelector.forNode(id) },
+            scope = appScope,
+        )
     }
 
     override val hiddenFilesRepository: HiddenFilesRepository by lazy {

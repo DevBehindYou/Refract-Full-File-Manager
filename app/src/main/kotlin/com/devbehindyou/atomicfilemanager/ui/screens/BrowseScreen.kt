@@ -2,6 +2,7 @@ package com.devbehindyou.atomicfilemanager.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
@@ -75,6 +77,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.CollisionPolicy
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
+import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
@@ -119,6 +122,8 @@ fun BrowseScreen(
     onOpenFile: ((FileNode) -> Unit)? = null,
     /** Shows feedback in the app snackbar. */
     onNotify: (String) -> Unit = {},
+    /** Opens the Operations screen from the progress banner. */
+    onOpenOperations: () -> Unit = {},
     viewModel: BrowseViewModel =
         run {
             val app = LocalContext.current.applicationContext as AtomicApp
@@ -317,6 +322,7 @@ fun BrowseScreen(
                         onShowNewFolderDialog = { showNewFolderDialog = true },
                     ),
             )
+            OperationBanner(uiState.activeOperation, onOpen = onOpenOperations)
             val pullState = rememberPullToRefreshState()
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
@@ -1065,6 +1071,51 @@ private fun BrowseDialogs(
     }
 }
 
+/**
+ * The running operation as one tappable line that opens Operations (ALL_IN_ONE_PLAN.md 0.1):
+ * progress while it runs, "waiting for your decision" while a name clash is open.
+ */
+@Composable
+private fun OperationBanner(
+    snapshot: OperationSnapshot?,
+    onOpen: () -> Unit,
+) {
+    if (snapshot == null) return
+    val status = snapshot.status
+    val label = OperationText.verb(snapshot.operation.type)
+    val progress = (status as? OperationStatus.Running)?.progress
+    val waiting = status is OperationStatus.AwaitingInput
+    val fraction =
+        if (progress != null && progress.itemsTotal > 0) progress.itemsDone.toFloat() / progress.itemsTotal else 0f
+    val line =
+        when {
+            waiting -> "$label · waiting for your decision · tap to open"
+            progress != null ->
+                "$label · ${progress.itemsDone} / ${progress.itemsTotal} · ${progress.currentName.orEmpty()}"
+            else -> "$label · preparing"
+        }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = "Open operations", role = Role.Button, onClick = onOpen)
+            .padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s8)
+            .testTag("operation_banner"),
+        verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s6),
+    ) {
+        AtomicProgressBar(
+            fraction = fraction,
+            contentDescription =
+                if (progress != null) "$label, ${progress.itemsDone} of ${progress.itemsTotal}" else line,
+        )
+        AtomicText(
+            line,
+            AtomicTextRole.MonoMeta,
+            color = if (waiting) Atomic.colors.accentText else Atomic.colors.contentSecondary,
+            maxLines = 1,
+        )
+    }
+}
+
 @Composable
 private fun FileListContent(
     uiState: BrowseUiState,
@@ -1088,31 +1139,6 @@ private fun FileListContent(
                 onBreadcrumbClick = { viewModel.navigateToBreadcrumb(it) },
                 dragController = dragController,
             )
-        }
-
-        // Active operations banner
-        uiState.activeOperation?.let { op ->
-            val status = op.status
-            if (status is OperationStatus.Running) {
-                val progress = status.progress
-                val fraction =
-                    if (progress.itemsTotal > 0) progress.itemsDone.toFloat() / progress.itemsTotal else 0f
-                val label = op.operation.type.toString().lowercase().replaceFirstChar { it.uppercase() }
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s8),
-                    verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s6),
-                ) {
-                    AtomicProgressBar(
-                        fraction = fraction,
-                        contentDescription = "$label, ${progress.itemsDone} of ${progress.itemsTotal}",
-                    )
-                    AtomicText(
-                        "$label · ${progress.itemsDone} / ${progress.itemsTotal} · ${progress.currentName.orEmpty()}",
-                        AtomicTextRole.MonoMeta,
-                        maxLines = 1,
-                    )
-                }
-            }
         }
 
         when {

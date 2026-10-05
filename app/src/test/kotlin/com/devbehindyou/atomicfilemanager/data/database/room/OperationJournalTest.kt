@@ -82,16 +82,19 @@ class OperationJournalTest {
         }
 
     @Test
-    fun startUpMarksQueuedAndRunningAsInterruptedButKeepsPaused() =
+    fun startUpMarksEverythingUnfinishedAsInterrupted() =
         runBlocking {
             dao.upsert(operation("queued").toJournalEntry(OperationJournalState.QUEUED))
             dao.upsert(operation("running").toJournalEntry(OperationJournalState.RUNNING))
+            // PAUSED means "waiting for a name-clash answer"; that question died with the process.
             dao.upsert(operation("paused").toJournalEntry(OperationJournalState.PAUSED))
             dao.upsert(operation("done").toJournalEntry(OperationJournalState.COMPLETED))
 
-            assertEquals(2, dao.markInterrupted(now = 5_000L))
-            assertEquals(listOf("paused"), dao.unfinished().map { it.id })
+            assertEquals(3, dao.markInterrupted(now = 5_000L))
+            assertEquals(emptyList<String>(), dao.unfinished().map { it.id })
             assertEquals(OperationJournalState.INTERRUPTED, dao.get("running")!!.state)
+            assertEquals(OperationJournalState.INTERRUPTED, dao.get("paused")!!.state)
+            assertEquals(OperationJournalState.COMPLETED, dao.get("done")!!.state)
         }
 
     @Test

@@ -10,7 +10,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
-import java.util.UUID
 import kotlin.coroutines.coroutineContext
 
 /** Stages and verifies a file before publishing it or removing its source. */
@@ -28,7 +27,7 @@ internal object VerifiedFileTransfer {
         if (!destination.capabilities.canRename) {
             return FileOperationsEngine.ItemResult.Failure(FileError.InvalidDestination(name))
         }
-        val stagingName = ".atomic-${UUID.randomUUID()}.partial"
+        val stagingName = InterruptedTransferCleanup.stagingName()
         val output =
             when (val result = destination.openOutput(parent, stagingName, source.mimeType)) {
                 is FileResult.Success -> result.value
@@ -87,7 +86,9 @@ internal object VerifiedFileTransfer {
             destination.listChildren(parent).collect { chunk ->
                 chunk.requireSuccess().firstOrNull { it.name == name }?.let { existing ->
                     check(backup == null) { "Ambiguous destination" }
-                    backup = destination.rename(existing.id, ".atomic-${UUID.randomUUID()}.backup").requireSuccess()
+                    // The name keeps the original's name so start-up recovery can put it back after a crash.
+                    val backupName = InterruptedTransferCleanup.backupName(name)
+                    backup = destination.rename(existing.id, backupName).requireSuccess()
                 }
             }
             destination.rename(staged.id, name).requireSuccess()

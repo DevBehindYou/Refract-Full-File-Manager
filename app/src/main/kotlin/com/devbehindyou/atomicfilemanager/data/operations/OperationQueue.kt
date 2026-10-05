@@ -47,7 +47,11 @@ class OperationQueue(
     private val journal: OperationJournalDao?,
     private val scope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Runs before the first journal write or operation, e.g. start-up recovery of a dead process's work. */
+    private val startup: (suspend () -> Unit)? = null,
 ) {
+    private val ready = CompletableDeferred<Unit>()
+
     private val pending = Channel<FileOperation>(Channel.UNLIMITED)
 
     // Journal writes run strictly in the order they were requested.
@@ -99,8 +103,20 @@ class OperationQueue(
     private var activeId: String? = null
 
     init {
+        scope.launch {
+            try {
+                startup?.invoke()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Recovery is best effort; new operations must still run.
+            } finally {
+                ready.complete(Unit)
+            }
+        }
         if (journal != null) {
             scope.launch {
+                ready.await()
                 for (write in journalWrites) {
                     try {
                         write(journal)
@@ -112,7 +128,10 @@ class OperationQueue(
                 }
             }
         }
-        scope.launch { for (operation in pending) runOne(operation) }
+        scope.launch {
+            ready.await()
+            for (operation in pending) runOne(operation)
+        }
     }
 
     /** Adds [operation] to the end of the queue and returns at once. */
