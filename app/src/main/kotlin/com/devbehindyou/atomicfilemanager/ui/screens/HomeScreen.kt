@@ -1,12 +1,8 @@
 package com.devbehindyou.atomicfilemanager.ui.screens
 
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.os.Environment
-import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,40 +10,48 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderSpecial
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicCategoryTile
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFileRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSectionLabel
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicWarningBox
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicStorageCard
 import com.devbehindyou.atomicfilemanager.domain.model.FileCategory
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
-import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import com.devbehindyou.atomicfilemanager.domain.model.StorageVolumeInfo
-import com.devbehindyou.atomicfilemanager.ui.components.CategoryGrid
-import com.devbehindyou.atomicfilemanager.ui.components.StorageOverviewCard
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 
+private const val LARGE_FONT_SCALE = 1.5f
+private val TWO_COLUMN_MAX = 340.dp
+private val THREE_COLUMN_MAX = 560.dp
+private const val WIDE_COLUMNS = 5
+
+private class HomeTile(
+    val label: String,
+    val meta: String,
+    val icon: ImageVector,
+    val testTag: String,
+    val inverted: Boolean = false,
+    val onClick: () -> Unit,
+)
+
+/**
+ * Home (ATOMIC_UI_PLAN.md §7.1, canvas "Home"): storage cards with a meter per volume, a category
+ * grid that also holds Downloads, Private and More, and the common public folders. Search,
+ * favourites and recents join in Phase 1.
+ */
 @Composable
 fun HomeScreen(
     volumes: List<StorageVolumeInfo>,
@@ -56,257 +60,143 @@ fun HomeScreen(
     onNavigateToCategory: (FileCategory) -> Unit,
     onNavigateToFolder: (FileNodeId) -> Unit,
     onRequestStorageAccess: () -> Unit,
-    onOpenPrivateFiles: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onOpenPrivateFiles: () -> Unit = {},
+    onOpenStorageDetails: () -> Unit = {},
+    privateLocked: Boolean = false,
 ) {
-    val context = LocalContext.current
-    val scrollState = rememberScrollState()
-    val primaryVolume = volumes.firstOrNull { it.type == StorageType.INTERNAL_SHARED } ?: volumes.firstOrNull()
-
     Column(
         modifier =
             modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s16)
                 .testTag("home_screen"),
+        verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s24),
     ) {
         if (!hasStorageAccess) {
-            PermissionCard(
-                onGrantClick = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        try {
-                            val intent =
-                                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                    data = Uri.parse("package:${context.packageName}")
-                                }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                            context.startActivity(intent)
-                        }
-                    } else {
-                        onRequestStorageAccess()
-                    }
-                },
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // Storage Overview Card
-        StorageOverviewCard(
-            volume = primaryVolume,
-            onClick = {
-                primaryVolume?.let { onNavigateToVolume(it) }
-            },
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Categories Grid
-        CategoryGrid(
-            onCategoryClick = onNavigateToCategory,
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Storage Volumes Section
-        Text(
-            text = "Storage Locations",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-
-        volumes.forEach { volume ->
-            VolumeItem(
-                volume = volume,
-                onClick = { onNavigateToVolume(volume) },
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // Always show App Private storage option
-        AppPrivateStorageItem(
-            onClick = onOpenPrivateFiles,
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Quick Access Directories
-        Text(
-            text = "Quick Access",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-
-        QuickAccessFolders(
-            onFolderClick = onNavigateToFolder,
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun PermissionCard(
-    onGrantClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .testTag("permission_warning_card"),
-        shape = RoundedCornerShape(12.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-            ),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Security,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(24.dp),
+            Column(
+                Modifier.testTag("permission_warning_card"),
+                verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
+            ) {
+                AtomicWarningBox(
+                    title = "All files access is off",
+                    body =
+                        "Atomic File Manager needs it to browse photos, downloads and other shared files. " +
+                            "Nothing leaves your phone.",
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "All Files Access Required",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
+                AtomicButton("Grant access", onClick = onRequestStorageAccess, modifier = Modifier.fillMaxWidth())
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text =
-                    "To browse and manage your photos, downloads, and other shared files on this device, " +
-                        "Atomic File Manager needs All Files Access permission.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = onGrantClick,
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s16)) {
+            AtomicSectionLabel("Storage", actionLabel = "Details →", onAction = onOpenStorageDetails)
+            volumes.forEach { volume -> VolumeCard(volume, onBrowse = { onNavigateToVolume(volume) }) }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
+            AtomicSectionLabel("Categories", trailingText = "All storage")
+            CategoryGrid(
+                tiles =
+                    categoryTiles(
+                        onCategory = onNavigateToCategory,
+                        onPrivate = onOpenPrivateFiles,
+                        privateLocked = privateLocked,
                     ),
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Text("Grant Access")
-            }
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s4)) {
+            AtomicSectionLabel("Folders")
+            QuickAccessFolders(onFolderClick = onNavigateToFolder)
         }
     }
 }
 
 @Composable
-private fun VolumeItem(
+private fun VolumeCard(
     volume: StorageVolumeInfo,
-    onClick: () -> Unit,
+    onBrowse: () -> Unit,
 ) {
-    Card(
-        onClick = onClick,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .testTag("volume_item_${volume.id}"),
-        shape = RoundedCornerShape(14.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            ),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(16.dp),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                modifier = Modifier.size(40.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Storage,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp),
-                    )
+    val total = volume.totalBytes.coerceAtLeast(1L)
+    val used = (volume.totalBytes - volume.freeBytes).coerceIn(0L, total)
+    val fraction = used.toFloat() / total
+    val percent = (fraction * 100).toInt()
+    AtomicStorageCard(
+        name = volume.label,
+        usage =
+            if (volume.isMounted) {
+                "${FileUtils.formatBytes(volume.freeBytes)} free · " +
+                    "${FileUtils.formatBytes(used)} / ${FileUtils.formatBytes(volume.totalBytes)}"
+            } else {
+                "Not mounted"
+            },
+        fraction = if (volume.isMounted) fraction else 0f,
+        meterDescription = "${volume.label}, $percent percent used",
+        onBrowse = onBrowse,
+        nearlyFullLabel = "Nearly full",
+        modifier = Modifier.testTag("volume_item_${volume.id}"),
+    )
+}
+
+private fun categoryTiles(
+    onCategory: (FileCategory) -> Unit,
+    onPrivate: () -> Unit,
+    privateLocked: Boolean,
+): List<HomeTile> =
+    listOf(
+        HomeTile("Images", "JPG · PNG", AtomicIcons.Image, "category_image") { onCategory(FileCategory.IMAGE) },
+        HomeTile("Videos", "MP4 · MKV", AtomicIcons.Video, "category_video") { onCategory(FileCategory.VIDEO) },
+        HomeTile("Audio", "MP3 · FLAC", AtomicIcons.Audio, "category_audio") { onCategory(FileCategory.AUDIO) },
+        HomeTile("Docs", "PDF · DOCX", AtomicIcons.Document, "category_document") {
+            onCategory(FileCategory.DOCUMENT)
+        },
+        HomeTile("Archives", "ZIP · 7Z", AtomicIcons.Archive, "category_archive") {
+            onCategory(FileCategory.ARCHIVE)
+        },
+        HomeTile("APKs", "Installers", AtomicIcons.Apk, "category_apk") { onCategory(FileCategory.APK) },
+        HomeTile("Downloads", "Folder", AtomicIcons.Files, "category_download") {
+            onCategory(FileCategory.DOWNLOAD)
+        },
+        HomeTile(
+            label = "Private",
+            meta = if (privateLocked) "Locked" else "App storage",
+            icon = AtomicIcons.Lock,
+            testTag = "app_private_storage_item",
+            inverted = true,
+            onClick = onPrivate,
+        ),
+        HomeTile("More", "PDF · Fonts", AtomicIcons.MoreHorizontal, "category_more") {
+            onCategory(FileCategory.OTHER)
+        },
+    )
+
+@Composable
+private fun CategoryGrid(tiles: List<HomeTile>) {
+    val largeFont = LocalDensity.current.fontScale >= LARGE_FONT_SCALE
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns =
+            when {
+                largeFont || maxWidth < TWO_COLUMN_MAX -> 2
+                maxWidth < THREE_COLUMN_MAX -> 3
+                else -> WIDE_COLUMNS
+            }
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s8)) {
+            tiles.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8)) {
+                    row.forEach { tile ->
+                        AtomicCategoryTile(
+                            label = tile.label,
+                            meta = tile.meta,
+                            icon = tile.icon,
+                            onClick = tile.onClick,
+                            inverted = tile.inverted,
+                            modifier = Modifier.weight(1f).testTag(tile.testTag),
+                        )
+                    }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f).height(AtomicSpacing.s2)) }
                 }
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = volume.label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "${FileUtils.formatBytes(
-                        volume.freeBytes,
-                    )} free of ${FileUtils.formatBytes(volume.totalBytes)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                text = "Open ›",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AppPrivateStorageItem(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .testTag("app_private_storage_item"),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(16.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.FolderSpecial,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Private files",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Files moved into private storage",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                text = "Open ›",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium,
-            )
         }
     }
 }
@@ -314,81 +204,29 @@ private fun AppPrivateStorageItem(
 @Composable
 private fun QuickAccessFolders(onFolderClick: (FileNodeId) -> Unit) {
     val context = LocalContext.current
-    val fallback = FileNodeId.file(context.filesDir.absolutePath)
-    val quickFolders =
-        listOf(
-            "Downloads" to (
-                runCatching {
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.absolutePath?.let {
-                        FileNodeId.file(it)
-                    }
-                }.getOrNull() ?: fallback
-            ),
-            "DCIM" to (
-                runCatching {
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)?.absolutePath?.let {
-                        FileNodeId.file(it)
-                    }
-                }.getOrNull() ?: fallback
-            ),
-            "Documents" to (
-                runCatching {
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)?.absolutePath?.let {
-                        FileNodeId.file(it)
-                    }
-                }.getOrNull() ?: fallback
-            ),
-            "Pictures" to (
-                runCatching {
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)?.absolutePath?.let {
-                        FileNodeId.file(it)
-                    }
-                }.getOrNull() ?: fallback
-            ),
-            "Music" to (
-                runCatching {
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)?.absolutePath?.let {
-                        FileNodeId.file(it)
-                    }
-                }.getOrNull() ?: fallback
-            ),
-        )
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        quickFolders.forEach { (name, id) ->
-            Card(
-                onClick = { onFolderClick(id) },
-                shape = RoundedCornerShape(12.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                    ),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null,
-                        tint = Color(0xFFF59E0B),
-                        modifier = Modifier.size(22.dp),
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = "›",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+    val folders =
+        remember(context) {
+            val fallback = FileNodeId.file(context.filesDir.absolutePath)
+            listOf(
+                Environment.DIRECTORY_DOWNLOADS,
+                Environment.DIRECTORY_DCIM,
+                Environment.DIRECTORY_DOCUMENTS,
+                Environment.DIRECTORY_PICTURES,
+                Environment.DIRECTORY_MUSIC,
+            ).map { type ->
+                val path =
+                    runCatching { Environment.getExternalStoragePublicDirectory(type)?.absolutePath }.getOrNull()
+                type to (path?.let(FileNodeId::file) ?: fallback)
             }
+        }
+    Column {
+        folders.forEach { (name, id) ->
+            AtomicFileRow(
+                name = name,
+                meta = "Shared storage",
+                icon = AtomicIcons.Files,
+                onClick = { onFolderClick(id) },
+            )
         }
     }
 }

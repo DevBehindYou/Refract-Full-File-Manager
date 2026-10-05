@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
@@ -17,10 +19,12 @@ import androidx.compose.ui.semantics.semantics
 import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconTile
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicBorder
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
 
 /** Empty state (spec §9.9): a surface module with one plain sentence and one next step. */
@@ -131,5 +135,37 @@ fun AtomicStatTile(
     ) {
         AtomicText(value, AtomicTextRole.DisplayPushed, color = if (featured) colors.accentText else colors.content)
         AtomicText(caption, AtomicTextRole.MonoLabel)
+    }
+}
+
+/**
+ * Category tile for the Home grid (canvas "Home"): icon tile, display label, mono meta line.
+ * [inverted] draws the ink icon tile used for locked destinations such as Private.
+ */
+@Composable
+fun AtomicCategoryTile(
+    label: String,
+    meta: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    inverted: Boolean = false,
+) {
+    val colors = Atomic.colors
+    Column(
+        modifier =
+            modifier
+                .background(colors.surfaceCard, AtomicShape.sm)
+                .border(AtomicBorder.structure, colors.borderHair, AtomicShape.sm)
+                .clickable(role = Role.Button, onClick = onClick)
+                .heightIn(min = AtomicSize.touchTarget)
+                .padding(AtomicSpacing.s12),
+        verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
+    ) {
+        AtomicIconTile(icon, inverted = inverted)
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s2)) {
+            AtomicText(label, AtomicTextRole.DisplayCard, maxLines = 1)
+            AtomicText(meta, AtomicTextRole.MonoLabel, maxLines = 1)
+        }
     }
 }

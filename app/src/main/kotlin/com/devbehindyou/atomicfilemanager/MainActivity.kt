@@ -442,6 +442,8 @@ fun AtomicAppContent() {
             settingsRepository = settingsRepository,
             onClearScanCache = phoneIndex::invalidate,
             onNotify = ::notify,
+            onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
+            privateLocked = settings.requireAuthForHidden,
         )
     }
 
@@ -537,6 +539,8 @@ private fun MainScreenContent(
     settingsRepository: SettingsRepository,
     onClearScanCache: () -> Unit,
     onNotify: (String) -> Unit,
+    onOpenStorageDetails: () -> Unit,
+    privateLocked: Boolean,
 ) {
     when (currentTab) {
         NavigationTab.HOME -> {
@@ -548,6 +552,8 @@ private fun MainScreenContent(
                 onOpenPrivateFiles = onOpenPrivateFiles,
                 onNavigateToFolder = onFolderSelected,
                 onRequestStorageAccess = onRequestStorageAccess,
+                onOpenStorageDetails = onOpenStorageDetails,
+                privateLocked = privateLocked,
             )
         }
         NavigationTab.BROWSE -> {
