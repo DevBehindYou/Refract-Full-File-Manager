@@ -136,7 +136,8 @@ fun FileListItem(
                     .heightIn(min = AtomicSize.touchTarget)
                     .then(frame)
                     .combinedClickable(
-                        onClick = { if (isSelectionMode) onToggleSelect() else onClick() },
+                        // The caller's onClick toggles in selection mode; long-press may select a range.
+                        onClick = onClick,
                         onLongClick = onToggleSelect,
                     ).semantics {
                         contentDescription =

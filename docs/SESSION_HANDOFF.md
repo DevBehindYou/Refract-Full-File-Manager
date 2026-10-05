@@ -269,3 +269,11 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - **Tests:** `PasswordCipherTest` (JVM: round trip incl. non-ASCII, random IV, tamper, wrong key, legacy reader) passed in a scratch project; `NetworkStorageTest` now injects a software key (Robolectric has no Keystore) and adds encrypted-at-rest, legacy migration and no-plain-text-on-failure tests (CI).
 - **Phone check to do:** an existing FTP/WebDAV server saved by an older build still connects (its password migrates on first connect); add a server, then `adb shell run-as com.devbehindyou.atomicfilemanager cat shared_prefs/atomic_network_credentials.xml` shows only `v2:` values.
 - **Not done:** wiping saved passwords when the Keystore key is invalidated (the user re-enters them; they read as null today), and the vault's key handling (2.5).
+
+## Update — 5 October 2026 (selection power; Phase 1.3)
+
+- **Range select:** with a selection open, long-press another row to select everything between it and the last row touched (either direction, adds to the selection). The first long-press, or one on the same row, toggles as before. `FileListItem` now passes taps straight to the caller (Files already toggles in selection mode), and long-press goes to `BrowseViewModel.longPressSelect`.
+- **Selection header:** new More button (`select_more_button`) opens a sheet with Select all, **Invert selection** and **Select same type** (folders, or the same extension ignoring case; files without an extension match by MIME type). Rules live in `ui/screens/SelectionRules.kt` (pure; `SelectionRulesTest`).
+- **Copy path:** File info has a Copy path button (`copy_path_button`, shows "Path copied"). Exact bytes were already shown.
+- **Sort per folder (FR-3.3):** choosing a sort remembers it for that folder (`FolderSortMemory` in domain, `FolderSortPreferences` in SharedPreferences `atomic_folder_sort`, capped at 500 folders). Opening a folder applies its remembered order; folders without one keep the current order.
+- **Phone check to do:** long-press a file, long-press another five rows down: all six selected; More → Invert, Same type; File info → Copy path and paste somewhere; sort Downloads by size, leave, come back.

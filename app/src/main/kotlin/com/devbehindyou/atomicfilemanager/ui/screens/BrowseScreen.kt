@@ -141,6 +141,7 @@ fun BrowseScreen(
                         deleteFileUseCase = app.container.deleteFileUseCase,
                         operationQueue = app.container.operationQueue,
                         transferBubbleRepository = app.container.transferBubbleRepository,
+                        folderSorts = app.container.folderSortMemory,
                     ),
                 )["browse:${initialFolderId.raw}", BrowseViewModel::class.java]
             }
@@ -176,6 +177,7 @@ fun BrowseScreen(
                 deleteFileUseCase = app.container.deleteFileUseCase,
                 operationQueue = app.container.operationQueue,
                 transferBubbleRepository = app.container.transferBubbleRepository,
+                folderSorts = app.container.folderSortMemory,
             )
         }
     val secondaryUiState by secondaryViewModel.uiState.collectAsState()
@@ -321,6 +323,8 @@ fun BrowseScreen(
                                 }
                         },
                         onShowNewFolderDialog = { showNewFolderDialog = true },
+                        onInvertSelection = { viewModel.invertSelection() },
+                        onSelectSameType = { viewModel.selectSameType() },
                     ),
             )
             OperationBanner(uiState.activeOperation, onOpen = onOpenOperations)
@@ -542,6 +546,8 @@ private data class BrowseTopBarActions(
     val onShowHiddenScreen: () -> Unit,
     val onToggleDualPaneMode: () -> Unit,
     val onShowNewFolderDialog: () -> Unit,
+    val onInvertSelection: () -> Unit = {},
+    val onSelectSameType: () -> Unit = {},
 )
 
 @Composable
@@ -611,6 +617,25 @@ private fun SelectionHeader(
     onShowAddToBubbleMenu: (Boolean) -> Unit,
     actions: BrowseTopBarActions,
 ) {
+    var showSelectMenu by remember { mutableStateOf(false) }
+    if (showSelectMenu) {
+        AtomicSheet(label = "Select", onDismiss = { showSelectMenu = false }) {
+            AtomicText("Tip: long-press a second file to select everything between.", AtomicTextRole.BodySecondary)
+            listOf(
+                "Select all" to actions.onSelectAll,
+                "Invert selection" to actions.onInvertSelection,
+                "Select same type" to actions.onSelectSameType,
+            ).forEach { (label, action) ->
+                AtomicSettingsRow(
+                    title = label,
+                    onClick = {
+                        showSelectMenu = false
+                        action()
+                    },
+                )
+            }
+        }
+    }
     val selectedBytes =
         remember(uiState.rawItems, uiState.selectedIds) {
             uiState.rawItems.filter { it.id in uiState.selectedIds && !it.isDirectory }.sumOf { it.size }
@@ -635,6 +660,12 @@ private fun SelectionHeader(
                 onClick = actions.onSelectAll,
                 variant = AtomicButtonVariant.Text,
                 modifier = Modifier.testTag("select_all_button"),
+            )
+            AtomicIconButton(
+                AtomicIcons.More,
+                "More ways to select",
+                onClick = { showSelectMenu = true },
+                modifier = Modifier.testTag("select_more_button"),
             )
             AtomicButton("Cancel", onClick = actions.onClearSelection, variant = AtomicButtonVariant.Text)
         }
@@ -1237,7 +1268,7 @@ private fun FileListContent(
                             isSelectionMode = isSelectionMode,
                             isSelected = isSelected,
                             onToggleSelect = {
-                                viewModel.toggleSelection(node.id)
+                                viewModel.longPressSelect(node.id)
                             },
                             onClick = {
                                 if (isSelectionMode) {

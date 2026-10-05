@@ -16,6 +16,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.OperationType
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
+import com.devbehindyou.atomicfilemanager.domain.repository.FolderSortMemory
 import com.devbehindyou.atomicfilemanager.domain.repository.TransferBubbleRepository
 import com.devbehindyou.atomicfilemanager.domain.usecase.CreateDirectoryUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.DeleteFileUseCase
@@ -70,7 +71,11 @@ class BrowseViewModel(
     private val deleteFileUseCase: DeleteFileUseCase,
     private val operationQueue: OperationQueue,
     private val transferBubbleRepository: TransferBubbleRepository,
+    private val folderSorts: FolderSortMemory? = null,
 ) : ViewModel() {
+    /** The last row the user selected or unselected; a long-press selects the range from here. */
+    private var selectionAnchor: FileNodeId? = null
+
     private val folderHistory = mutableListOf<FileNodeId>()
     private val _uiState = MutableStateFlow(BrowseUiState(currentFolderId = initialFolderId))
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
@@ -94,6 +99,12 @@ class BrowseViewModel(
         isRefresh: Boolean = false,
     ) {
         listingJob?.cancel()
+        selectionAnchor = null
+        val rememberedSort =
+            folderSorts?.get(folderId.raw)?.let { name -> SortOption.entries.firstOrNull { it.name == name } }
+        if (rememberedSort != null && rememberedSort != _uiState.value.sortOption) {
+            _uiState.update { it.copy(sortOption = rememberedSort) }
+        }
         listingJob =
             viewModelScope.launch {
                 _uiState.update {
@@ -331,16 +342,38 @@ class BrowseViewModel(
         refilter()
     }
 
+    /** Applies [option] and remembers it for the current folder (FR-3.3). */
     fun setSortOption(option: SortOption) {
         _uiState.update { it.copy(sortOption = option) }
+        folderSorts?.set(_uiState.value.currentFolderId.raw, option.name)
         refilter()
     }
 
     fun toggleSelection(nodeId: FileNodeId) {
+        selectionAnchor = nodeId
+        _uiState.update { state -> state.copy(selectedIds = SelectionRules.toggle(state.selectedIds, nodeId)) }
+    }
+
+    /** Long-press: starts a selection, or with one open selects the range from the last touched row. */
+    fun longPressSelect(nodeId: FileNodeId) {
+        val anchor = selectionAnchor
+        selectionAnchor = nodeId
         _uiState.update { state ->
-            val updated = state.selectedIds.toMutableSet()
-            if (updated.contains(nodeId)) updated.remove(nodeId) else updated.add(nodeId)
-            state.copy(selectedIds = updated)
+            state.copy(selectedIds = SelectionRules.longPress(state.filteredItems, state.selectedIds, anchor, nodeId))
+        }
+    }
+
+    fun invertSelection() {
+        _uiState.update {
+                state ->
+            state.copy(selectedIds = SelectionRules.invert(state.filteredItems, state.selectedIds))
+        }
+    }
+
+    fun selectSameType() {
+        _uiState.update {
+                state ->
+            state.copy(selectedIds = SelectionRules.sameType(state.filteredItems, state.selectedIds))
         }
     }
 
@@ -351,6 +384,7 @@ class BrowseViewModel(
     }
 
     fun clearSelection() {
+        selectionAnchor = null
         _uiState.update { it.copy(selectedIds = emptySet()) }
     }
 
@@ -642,6 +676,7 @@ class BrowseViewModel(
             deleteFileUseCase: DeleteFileUseCase,
             operationQueue: OperationQueue,
             transferBubbleRepository: TransferBubbleRepository,
+            folderSorts: FolderSortMemory? = null,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -655,6 +690,7 @@ class BrowseViewModel(
                         deleteFileUseCase = deleteFileUseCase,
                         operationQueue = operationQueue,
                         transferBubbleRepository = transferBubbleRepository,
+                        folderSorts = folderSorts,
                     ) as T
                 }
             }

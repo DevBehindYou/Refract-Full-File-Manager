@@ -25,6 +25,7 @@ import com.devbehindyou.atomicfilemanager.data.preview.ImagePreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.MediaPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.PdfPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.recents.RecentMediaSource
+import com.devbehindyou.atomicfilemanager.data.repository.FolderSortPreferences
 import com.devbehindyou.atomicfilemanager.data.repository.HiddenFilesRepositoryImpl
 import com.devbehindyou.atomicfilemanager.data.repository.SharedPreferencesSettingsRepository
 import com.devbehindyou.atomicfilemanager.data.repository.TransferBubbleRepositoryImpl
@@ -33,6 +34,7 @@ import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.repository.BackendType
 import com.devbehindyou.atomicfilemanager.domain.repository.FavouritesRepository
+import com.devbehindyou.atomicfilemanager.domain.repository.FolderSortMemory
 import com.devbehindyou.atomicfilemanager.domain.repository.HiddenFilesRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.RecentsRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
@@ -99,6 +101,9 @@ interface AppContainer {
     /** Starred files and folders, and recently opened files (ALL_IN_ONE_PLAN.md 1.2). */
     val favouritesRepository: FavouritesRepository
     val recentsRepository: RecentsRepository
+
+    /** Sort order chosen per folder in Files (FR-3.3). */
+    val folderSortMemory: FolderSortMemory
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
@@ -129,6 +134,8 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val trashStore: TrashStore by lazy { RoomTrashStore(database.trashEntries()) }
+
+    override val folderSortMemory: FolderSortMemory by lazy { FolderSortPreferences(application) }
 
     override val favouritesRepository: FavouritesRepository by lazy { RoomFavouritesRepository(database.favourites()) }
 
