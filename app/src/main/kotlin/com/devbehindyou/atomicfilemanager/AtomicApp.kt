@@ -1,6 +1,8 @@
 package com.devbehindyou.atomicfilemanager
 
 import android.app.Application
+import android.content.pm.ApplicationInfo
+import android.os.StrictMode
 import com.devbehindyou.atomicfilemanager.data.backend.FileSystemBackend
 import com.devbehindyou.atomicfilemanager.data.backend.MediaStoreBackend
 import com.devbehindyou.atomicfilemanager.data.backend.SafBackend
@@ -33,6 +35,9 @@ import com.devbehindyou.atomicfilemanager.domain.usecase.InspectArchiveUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.ReadFileContentUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.RenameFileUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.StorageAnalyzerUseCase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 interface AppContainer {
     val storageBackendSelector: StorageBackendSelector
@@ -59,18 +64,22 @@ interface AppContainer {
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
+    /** Lives as long as the process; used for start-up loads that must not block the main thread. */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     override val hiddenFilesRepository: HiddenFilesRepository by lazy {
         val helper = HiddenFilesDatabaseHelper(application)
         HiddenFilesRepositoryImpl(
             application,
             helper,
             hiddenFolderProvider = { settingsRepository.settings.value.hiddenFolder },
+            loadScope = appScope,
         )
     }
 
     override val transferBubbleRepository: TransferBubbleRepository by lazy {
         val helper = TransferBubbleDatabaseHelper(application)
-        TransferBubbleRepositoryImpl(helper)
+        TransferBubbleRepositoryImpl(helper, loadScope = appScope)
     }
 
     override val networkCredentialsStore by lazy {
@@ -184,6 +193,31 @@ class AtomicApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) enableStrictMode()
         container = DefaultAppContainer(this)
+    }
+
+    /**
+     * Debug builds log disk and network access on the main thread and leaked closeables
+     * (ALL_IN_ONE_PLAN.md §16.1). Log only: a crash here would hide the real problem in tests.
+     */
+    private fun enableStrictMode() {
+        StrictMode.setThreadPolicy(
+            StrictMode.ThreadPolicy
+                .Builder()
+                .detectDiskReads()
+                .detectDiskWrites()
+                .detectNetwork()
+                .penaltyLog()
+                .build(),
+        )
+        StrictMode.setVmPolicy(
+            StrictMode.VmPolicy
+                .Builder()
+                .detectLeakedClosableObjects()
+                .detectLeakedSqlLiteObjects()
+                .penaltyLog()
+                .build(),
+        )
     }
 }

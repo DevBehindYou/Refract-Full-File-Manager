@@ -198,3 +198,11 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - **U5 Files, part 3 (preview):** `FilePreviewPane`/`FilePreviewDialog` use an Atomic header (name as stored, mono size and ISO date, close/share/open-with), a shared Atomic loading/error state whose messages say what probably went wrong, Atomic PDF paging, a mono text viewer with a Wrap chip, archive entries as Atomic rows, and a fact sheet with a "Calculate checksums" button for other types (a checksum failure is now shown instead of ignored). Viewer logic is unchanged. Audio, video and Markdown viewers and Quick Peek still carry Material pieces.
 - **Overlays and lock:** drag badges, Quick Peek and the transfer bubble rail use the Atomic card language (hard shadow, ink border, Atomic text/badge; bubbles fill with the accent when targeted and announce name and count). The AuthGate lock screen is Atomic. Every filled Material icon in `ui/` is gone; `AtomicIcons` gained Forward, Rewind10, Forward10, Code, Sort, Network. CI run 19 (through storage analysis) was fully green; run 20 covers the rest.
 
+## Update — 5 October 2026 (Phase 0 first sprint, step 1)
+
+- CI runs 19 and 20 were fully green (static analysis, unit tests and APKs, emulator) after the U5 screens.
+- **H1:** `MainActivity` enumerates volumes on `Dispatchers.IO` (`loadVolumes`); a newer refresh cancels an older one.
+- **H2:** `HiddenFilesRepositoryImpl` and `TransferBubbleRepositoryImpl` take an optional `loadScope`; the app container passes a process-wide scope, so their first SQLite read no longer runs on the main thread at start-up. Refreshes are serialized, so a slow first load can't overwrite newer data. Tests that construct repositories without a scope keep the synchronous load. New unit test for the deferred load.
+- **StrictMode** in debuggable builds logs main-thread disk/network access and leaked closeables (log only, no crash).
+- Room with KSP is still to come (needs a KSP version matching Kotlin 2.2.10, which can only be verified in CI).
+

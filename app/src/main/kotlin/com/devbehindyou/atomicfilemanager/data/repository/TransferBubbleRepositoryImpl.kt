@@ -5,26 +5,39 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.domain.repository.TransferBubbleRepository
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class TransferBubbleRepositoryImpl(
     private val dbHelper: TransferBubbleDatabaseHelper,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    /**
+     * When set, the first database read runs on [ioDispatcher] in this scope instead of on the
+     * constructing thread (the main thread at start-up, ALL_IN_ONE_PLAN.md §16.2 H2). Tests leave
+     * it null and get the old synchronous load.
+     */
+    loadScope: CoroutineScope? = null,
 ) : TransferBubbleRepository {
     private val _bubbles = MutableStateFlow<List<TransferBubble>>(emptyList())
     override val bubbles: StateFlow<List<TransferBubble>> = _bubbles.asStateFlow()
 
+    private val refreshLock = Any()
+
     init {
-        refresh()
+        if (loadScope == null) refresh() else loadScope.launch(ioDispatcher) { refresh() }
     }
 
+    /** Reads and publishes under one lock, so whichever refresh runs last also read last. */
     private fun refresh() {
-        _bubbles.value = dbHelper.getAllBubbles()
+        synchronized(refreshLock) {
+            _bubbles.value = dbHelper.getAllBubbles()
+        }
     }
 
     override suspend fun createBubble(name: String?): Result<TransferBubble> =

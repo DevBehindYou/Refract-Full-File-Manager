@@ -1,6 +1,7 @@
 package com.devbehindyou.atomicfilemanager
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -81,7 +82,10 @@ import com.devbehindyou.atomicfilemanager.ui.screens.SettingsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class NavigationTab(val title: String) {
     HOME("Home"),
@@ -201,28 +205,18 @@ fun AtomicAppContent() {
         }.getOrDefault(false)
     }
 
+    // Volume enumeration calls StatFs and lists mount points, so it runs on IO
+    // (ALL_IN_ONE_PLAN.md §16.2 H1). A newer refresh cancels an older one.
+    val volumeJob = remember { mutableStateOf<Job?>(null) }
+
     fun refreshVolumes() {
-        hasStorageAccess = checkAccess()
-        val enumerated = StorageVolumes.enumerate(context)
-        volumes =
-            if (enumerated.isNotEmpty()) {
-                enumerated
-            } else {
-                val totalBytes = runCatching { context.filesDir.totalSpace }.getOrDefault(0L).coerceAtLeast(1L)
-                val freeBytes = runCatching { context.filesDir.freeSpace }.getOrDefault(0L)
-                listOf(
-                    StorageVolumeInfo(
-                        id = "primary",
-                        label = "Internal Shared Storage",
-                        type = StorageType.INTERNAL_SHARED,
-                        totalBytes = totalBytes,
-                        freeBytes = freeBytes,
-                        isRemovable = false,
-                        isMounted = true,
-                        rootNodeId = null,
-                        requiresGrant = !hasStorageAccess,
-                    ),
-                )
+        volumeJob.value?.cancel()
+        volumeJob.value =
+            scope.launch {
+                val access = checkAccess()
+                val loaded = withContext(Dispatchers.IO) { loadVolumes(context, access) }
+                hasStorageAccess = access
+                volumes = loaded
             }
     }
 
@@ -590,4 +584,28 @@ private fun MainScreenContent(
             )
         }
     }
+}
+
+/** Mounted volumes, or a single internal entry built from the app's own folder when none are listed. */
+private fun loadVolumes(
+    context: Context,
+    hasStorageAccess: Boolean,
+): List<StorageVolumeInfo> {
+    val enumerated = StorageVolumes.enumerate(context)
+    if (enumerated.isNotEmpty()) return enumerated
+    val totalBytes = runCatching { context.filesDir.totalSpace }.getOrDefault(0L).coerceAtLeast(1L)
+    val freeBytes = runCatching { context.filesDir.freeSpace }.getOrDefault(0L)
+    return listOf(
+        StorageVolumeInfo(
+            id = "primary",
+            label = "Internal Shared Storage",
+            type = StorageType.INTERNAL_SHARED,
+            totalBytes = totalBytes,
+            freeBytes = freeBytes,
+            isRemovable = false,
+            isMounted = true,
+            rootNodeId = null,
+            requiresGrant = !hasStorageAccess,
+        ),
+    )
 }

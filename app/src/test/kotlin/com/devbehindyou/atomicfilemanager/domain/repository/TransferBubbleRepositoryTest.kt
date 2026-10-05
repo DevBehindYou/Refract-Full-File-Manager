@@ -10,7 +10,9 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -174,5 +176,18 @@ class TransferBubbleRepositoryTest {
             assertEquals(1, updatedB2.itemCount)
             assertEquals("resume.pdf", updatedB1.items[0].displayNameSnapshot)
             assertEquals("resume.pdf", updatedB2.items[0].displayNameSnapshot)
+        }
+
+    @Test
+    fun `with a load scope the first read waits for the dispatcher instead of running in the constructor`() =
+        runTest(testDispatcher) {
+            repository.createBubble("Saved").getOrThrow()
+            val loader = StandardTestDispatcher(testScheduler)
+
+            val reopened = TransferBubbleRepositoryImpl(dbHelper, loader, loadScope = this)
+
+            assertTrue(reopened.bubbles.value.isEmpty())
+            advanceUntilIdle()
+            assertEquals(listOf("Saved"), reopened.bubbles.value.map { it.displayName })
         }
 }

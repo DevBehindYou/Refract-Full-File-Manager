@@ -12,11 +12,13 @@ import com.devbehindyou.atomicfilemanager.domain.model.JournalState
 import com.devbehindyou.atomicfilemanager.domain.repository.HiddenFilesRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
@@ -31,16 +33,27 @@ class HiddenFilesRepositoryImpl(
     /** Folder (relative to a storage root) for hidden gallery files; `null` keeps them next to the original. */
     private val hiddenFolderProvider: () -> String? = { null },
     private val volumeRootResolver: (File) -> File? = ::volumeRootOf,
+    /**
+     * When set, the first database read runs on [ioDispatcher] in this scope instead of on the
+     * constructing thread (the main thread at start-up, ALL_IN_ONE_PLAN.md §16.2 H2). Tests leave
+     * it null and get the old synchronous load.
+     */
+    loadScope: CoroutineScope? = null,
 ) : HiddenFilesRepository {
     private val _hiddenItems = MutableStateFlow<List<HiddenItem>>(emptyList())
     override val hiddenItems: StateFlow<List<HiddenItem>> = _hiddenItems.asStateFlow()
 
+    private val refreshLock = Any()
+
     init {
-        refresh()
+        if (loadScope == null) refresh() else loadScope.launch(ioDispatcher) { refresh() }
     }
 
+    /** Reads and publishes under one lock, so whichever refresh runs last also read last. */
     private fun refresh() {
-        _hiddenItems.value = dbHelper.getAllHiddenItems()
+        synchronized(refreshLock) {
+            _hiddenItems.value = dbHelper.getAllHiddenItems()
+        }
     }
 
     /**
