@@ -15,12 +15,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -161,6 +165,47 @@ fun AtomicToggleCard(
             AtomicText(description, AtomicTextRole.BodySecondary)
         }
         AtomicSwitch(checked = checked, onCheckedChange = null, enabled = enabled)
+    }
+}
+
+/**
+ * One option in a single-choice list (hiding method, sort order): same card language as
+ * [AtomicToggleCard], 2 dp accent border and a filled marker when selected, radio semantics.
+ */
+@Composable
+fun AtomicChoiceCard(
+    title: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+) {
+    val colors = Atomic.colors
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(colors.surfaceInset, AtomicShape.sm)
+                .border(
+                    if (selected) AtomicBorder.selected else AtomicBorder.structure,
+                    if (selected) colors.accent else colors.borderHair,
+                    AtomicShape.sm,
+                ).selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+                .padding(AtomicSpacing.s16),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
+    ) {
+        Box(
+            Modifier
+                .size(AtomicSize.iconSmall)
+                .border(AtomicBorder.selected, if (selected) colors.accent else colors.borderStrong, CircleShape)
+                .padding(AtomicSpacing.s4)
+                .background(if (selected) colors.accent else Color.Transparent, CircleShape),
+        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s4)) {
+            AtomicText(title, AtomicTextRole.Name)
+            if (description != null) AtomicText(description, AtomicTextRole.BodySecondary)
+        }
     }
 }
 

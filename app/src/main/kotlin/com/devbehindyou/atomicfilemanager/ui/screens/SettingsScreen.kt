@@ -1,41 +1,41 @@
 package com.devbehindyou.atomicfilemanager.ui.screens
 
 import android.os.Build
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChipRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextField
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AccentSource
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicChoiceCard
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSectionLabel
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicToggleCard
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicDangerAction
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicDangerZone
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicInfoSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.domain.model.DEFAULT_HIDDEN_FOLDER
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
@@ -70,26 +70,35 @@ private fun hideModeChoices(hiddenFolder: String) =
 
 private val themeChoices =
     listOf(
-        ThemeMode.SYSTEM to "Follow system",
+        ThemeMode.SYSTEM to "System",
         ThemeMode.LIGHT to "Light",
         ThemeMode.DARK to "Dark",
     )
 
+private enum class SettingsSheet { HIDE_METHOD, HIDDEN_FOLDER, ABOUT }
+
+/**
+ * Settings (ATOMIC_UI_PLAN.md §7.9, canvas "Settings"): sections under mono labels, toggle cards
+ * for on/off choices, rows with an accent arrow for anything that opens a sheet, and a danger
+ * zone at the end. [onNotify] shows feedback in the app snackbar.
+ */
 @Composable
 fun SettingsScreen(
     settingsRepository: SettingsRepository,
     hasStorageAccess: Boolean,
     onRequestStorageAccess: () -> Unit,
     onClearScanCache: () -> Unit,
+    onNotify: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val settings by settingsRepository.settings.collectAsState()
-    var showFolderDialog by remember { mutableStateOf(false) }
+    var sheet by rememberSaveable { mutableStateOf<SettingsSheet?>(null) }
     val context = LocalContext.current
     val version =
         remember(context) {
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
         }
+    val hideChoices = hideModeChoices(settings.hiddenFolder)
 
     // Changing the lock needs a successful unlock first, so someone holding an unlocked phone
     // cannot switch it off. Without any screen lock the lock cannot be enabled at all.
@@ -98,9 +107,7 @@ fun SettingsScreen(
         val available = canAuthenticate(context)
         when {
             activity == null -> Unit
-            !available && enabled ->
-                Toast.makeText(context, "Set up a screen lock, fingerprint or face unlock first", Toast.LENGTH_LONG)
-                    .show()
+            !available && enabled -> onNotify("Set up a screen lock, fingerprint or face unlock first.")
             !available -> settingsRepository.update { it.copy(requireAuthForHidden = false) }
             else ->
                 authenticate(activity, if (enabled) "Turn on the lock" else "Turn off the lock") { ok ->
@@ -109,250 +116,183 @@ fun SettingsScreen(
         }
     }
 
-    if (showFolderDialog) {
-        HiddenFolderDialog(
-            current = settings.hiddenFolder,
-            onDismiss = { showFolderDialog = false },
-            onSave = { folder ->
-                settingsRepository.update { it.copy(hiddenFolder = folder) }
-                showFolderDialog = false
-            },
-        )
-    }
-
     Column(
         modifier =
             modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 8.dp)
+                .padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s16)
                 .testTag("settings_screen"),
+        verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s24),
     ) {
-        SectionHeader("Appearance")
-        themeChoices.forEach { (mode, label) ->
-            ChoiceRow(
-                title = label,
-                description = null,
-                selected = settings.themeMode == mode,
-                onSelect = { settingsRepository.update { it.copy(themeMode = mode) } },
-            )
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val accent = Atomic.accent
-            SwitchRow(
-                title = "Wallpaper colours",
-                description =
-                    when {
-                        !settings.dynamicColor -> "Use your wallpaper colour as the accent instead of Signal Blue."
-                        accent.source == AccentSource.WALLPAPER_REJECTED ->
-                            "Your wallpaper colour can't be read clearly here, so Signal Blue is used."
-                        else -> "Using your wallpaper colour as the accent."
-                    },
-                checked = settings.dynamicColor,
-                onCheckedChange = { on -> settingsRepository.update { it.copy(dynamicColor = on) } },
-            )
-        }
-        SectionDivider()
-
-        SectionHeader("Browsing")
-        SwitchRow(
-            title = "Show hidden files",
-            description = "Show files and folders whose names start with a dot.",
-            checked = settings.showHiddenFiles,
-            onCheckedChange = { on -> settingsRepository.update { it.copy(showHiddenFiles = on) } },
-        )
-        SectionDivider()
-
-        SectionHeader("File hiding")
-        Text(
-            "Default method",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
-        hideModeChoices(settings.hiddenFolder).forEach { choice ->
-            ChoiceRow(
-                title = choice.title,
-                description = choice.description,
-                selected = settings.defaultHideMode == choice.mode,
-                onSelect = { settingsRepository.update { it.copy(defaultHideMode = choice.mode) } },
-            )
-        }
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text("Hidden folder", style = MaterialTheme.typography.labelLarge)
-            Text(
-                "${settings.hiddenFolder} on each storage. Hide from Gallery puts files here. " +
-                    "Fast Obscure keeps files where they are, and Private Storage uses the app's own folder.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedButton(
-                onClick = { showFolderDialog = true },
-                modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Change folder") }
-        }
-        SectionDivider()
-
-        SectionHeader("Security")
-        SwitchRow(
-            title = "Lock hidden and private files",
-            description = "Ask for your fingerprint, face or screen lock before opening them.",
-            checked = settings.requireAuthForHidden,
-            onCheckedChange = ::setAuthRequired,
-        )
-        SectionDivider()
-
-        SectionHeader("Storage")
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text("All files access", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                if (hasStorageAccess) {
-                    "Granted"
-                } else {
-                    "Not granted. Atomic File Manager cannot browse shared storage without it."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (hasStorageAccess) {
-                    OutlinedButton(onClick = onRequestStorageAccess) { Text("Manage access") }
-                } else {
-                    Button(onClick = onRequestStorageAccess) { Text("Grant access") }
+        SettingsSection("Appearance") {
+            AtomicChipRow {
+                themeChoices.forEach { (mode, label) ->
+                    AtomicChip(
+                        label = label,
+                        selected = settings.themeMode == mode,
+                        onSelectedChange = { settingsRepository.update { it.copy(themeMode = mode) } },
+                    )
                 }
-                OutlinedButton(
-                    onClick = {
-                        onClearScanCache()
-                        Toast.makeText(context, "File scan cache cleared", Toast.LENGTH_SHORT).show()
-                    },
-                ) { Text("Clear scan cache") }
             }
-        }
-        SectionDivider()
-
-        SectionHeader("About")
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text("Atomic File Manager", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                "Version ${version ?: "unknown"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
-}
-
-@Composable
-private fun SectionDivider() {
-    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-}
-
-@Composable
-private fun ChoiceRow(
-    title: String,
-    description: String?,
-    selected: Boolean,
-    onSelect: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = null)
-        Column(modifier = Modifier.padding(start = 16.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            if (description != null) {
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val accent = Atomic.accent
+                AtomicToggleCard(
+                    title = "Wallpaper colours",
+                    description =
+                        when {
+                            !settings.dynamicColor ->
+                                "Use your wallpaper colour as the accent. Signal Blue is used if it's too pale to read."
+                            accent.source == AccentSource.WALLPAPER_REJECTED ->
+                                "Your wallpaper colour can't be read clearly here, so Signal Blue is used."
+                            else -> "Using your wallpaper colour as the accent."
+                        },
+                    checked = settings.dynamicColor,
+                    onCheckedChange = { on -> settingsRepository.update { it.copy(dynamicColor = on) } },
                 )
             }
         }
-    }
-}
 
-@Composable
-private fun SwitchRow(
-    title: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .toggleable(value = checked, onValueChange = onCheckedChange, role = Role.Switch)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        SettingsSection("Files") {
+            AtomicToggleCard(
+                title = "Show hidden files",
+                description = "Names that start with a dot appear faded.",
+                checked = settings.showHiddenFiles,
+                onCheckedChange = { on -> settingsRepository.update { it.copy(showHiddenFiles = on) } },
             )
         }
-        Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 16.dp))
+
+        SettingsSection("Hiding & privacy") {
+            AtomicSettingsRow(
+                title = "Default hiding method",
+                // Every HideMode plus "ask" (null) has a choice, so this always finds one.
+                value = hideChoices.first { it.mode == settings.defaultHideMode }.title,
+                onClick = { sheet = SettingsSheet.HIDE_METHOD },
+            )
+            AtomicSettingsRow(
+                title = "Hidden folder",
+                value = settings.hiddenFolder,
+                onClick = { sheet = SettingsSheet.HIDDEN_FOLDER },
+            )
+            AtomicToggleCard(
+                title = "Lock private files",
+                description = "Ask for your fingerprint, face or screen lock before hidden or private files open.",
+                checked = settings.requireAuthForHidden,
+                onCheckedChange = ::setAuthRequired,
+            )
+        }
+
+        SettingsSection("Storage access") {
+            AtomicSettingsRow(
+                title = "All files access",
+                value =
+                    if (hasStorageAccess) {
+                        "Granted"
+                    } else {
+                        "Not granted. Shared storage can't be browsed without it."
+                    },
+                onClick = onRequestStorageAccess,
+            )
+            AtomicSettingsRow(
+                title = "About & licences",
+                value = "Version ${version ?: "unknown"}",
+                onClick = { sheet = SettingsSheet.ABOUT },
+            )
+        }
+
+        AtomicDangerZone(
+            warning = "These run immediately and can't be undone.",
+            actions =
+                listOf(
+                    AtomicDangerAction("Clear scan cache", onExecute = {
+                        onClearScanCache()
+                        onNotify("File scan cache cleared.")
+                    }),
+                ),
+        )
+    }
+
+    when (sheet) {
+        SettingsSheet.HIDE_METHOD ->
+            AtomicSheet(label = "Default hiding method", onDismiss = { sheet = null }) {
+                hideChoices.forEach { choice ->
+                    AtomicChoiceCard(
+                        title = choice.title,
+                        description = choice.description,
+                        selected = settings.defaultHideMode == choice.mode,
+                        onSelect = {
+                            settingsRepository.update { it.copy(defaultHideMode = choice.mode) }
+                            sheet = null
+                        },
+                    )
+                }
+            }
+        SettingsSheet.HIDDEN_FOLDER ->
+            HiddenFolderSheet(
+                current = settings.hiddenFolder,
+                onDismiss = { sheet = null },
+                onSave = { folder ->
+                    settingsRepository.update { it.copy(hiddenFolder = folder) }
+                    sheet = null
+                },
+            )
+        SettingsSheet.ABOUT ->
+            AtomicInfoSheet(
+                label = "About & licences",
+                headline = "Atomic File Manager",
+                body =
+                    "Version ${version ?: "unknown"}. Offline-first and private: no account, no ads, no tracking. " +
+                        "Fonts: Bebas Neue, Hanken Grotesk and JetBrains Mono, under the SIL Open Font " +
+                        "License 1.1. Icons: Material Icons, Apache License 2.0.",
+                onDismiss = { sheet = null },
+            )
+        null -> Unit
     }
 }
 
 @Composable
-private fun HiddenFolderDialog(
+private fun SettingsSection(
+    label: String,
+    content: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
+        AtomicSectionLabel(label)
+        content()
+    }
+}
+
+@Composable
+private fun HiddenFolderSheet(
     current: String,
     onDismiss: () -> Unit,
     onSave: (String) -> Unit,
 ) {
-    var text by remember { mutableStateOf(current) }
+    var text by rememberSaveable { mutableStateOf(current) }
     val normalized = normalizeHiddenFolder(text)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Hidden folder") },
-        text = {
-            Column {
-                Text(
-                    "A folder inside each storage, for example Atomic File Manager/Hidden. " +
-                        "It is created when you hide a file.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    singleLine = true,
-                    isError = normalized == null,
-                    supportingText = {
-                        if (normalized == null) Text("Enter a folder name without .. or a drive letter.")
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { normalized?.let(onSave) }, enabled = normalized != null) { Text("Save") }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = { text = DEFAULT_HIDDEN_FOLDER }) { Text("Reset") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        },
-    )
+    AtomicSheet(label = "Hidden folder", onDismiss = onDismiss) {
+        AtomicText(
+            "A folder inside each storage, for example $DEFAULT_HIDDEN_FOLDER. It is created when you hide a file.",
+            AtomicTextRole.Body,
+        )
+        AtomicTextField(
+            value = text,
+            onValueChange = { text = it },
+            label = "Folder",
+            errorText = if (normalized == null) "Enter a folder name without \"..\" or a drive letter." else null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton(
+            "Save",
+            onClick = { normalized?.let(onSave) },
+            enabled = normalized != null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton(
+            "Reset to default",
+            onClick = { text = DEFAULT_HIDDEN_FOLDER },
+            variant = AtomicButtonVariant.Ghost,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton("Cancel", onClick = onDismiss, variant = AtomicButtonVariant.Text)
+    }
 }

@@ -441,6 +441,7 @@ fun AtomicAppContent() {
             onOpenStorageIntelligence = { push(AtomicRoute.Analysis(it.raw)) },
             settingsRepository = settingsRepository,
             onClearScanCache = phoneIndex::invalidate,
+            onNotify = ::notify,
         )
     }
 
@@ -535,6 +536,7 @@ private fun MainScreenContent(
     onOpenStorageIntelligence: (FileNodeId) -> Unit,
     settingsRepository: SettingsRepository,
     onClearScanCache: () -> Unit,
+    onNotify: (String) -> Unit,
 ) {
     when (currentTab) {
         NavigationTab.HOME -> {
@@ -569,6 +571,7 @@ private fun MainScreenContent(
                 hasStorageAccess = hasStorageAccess,
                 onRequestStorageAccess = onRequestStorageAccess,
                 onClearScanCache = onClearScanCache,
+                onNotify = onNotify,
             )
         }
     }
