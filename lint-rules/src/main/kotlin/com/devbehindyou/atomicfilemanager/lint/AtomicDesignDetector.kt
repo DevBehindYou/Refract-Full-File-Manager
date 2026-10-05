@@ -9,6 +9,7 @@ import com.android.tools.lint.detector.api.JavaContext
 import com.android.tools.lint.detector.api.Scope
 import com.android.tools.lint.detector.api.Severity
 import com.android.tools.lint.detector.api.SourceCodeScanner
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UElement
@@ -90,12 +91,10 @@ class AtomicDesignDetector :
     override fun createUastHandler(context: JavaContext): UElementHandler =
         object : UElementHandler() {
             override fun visitQualifiedReferenceExpression(node: UQualifiedReferenceExpression) {
-                val selector = node.selector.asSourceString()
-                val receiver = node.receiver.asSourceString()
-                val filled = selector == "Filled" || selector == "Default"
-                // Matches both `Icons` and its fully qualified form.
-                val iconsRoot =
-                    receiver == "Icons" || receiver.endsWith(".Icons") || receiver.endsWith("Icons.AutoMirrored")
+                // Resolve so aliased (`import ...Icons as X`) and qualified forms are both caught.
+                val resolved = node.resolve() as? PsiClass
+                val filled = resolved?.name == "Filled" || resolved?.name == "Default"
+                val iconsRoot = resolved?.containingClass?.qualifiedName in ICON_ROOTS
                 if (filled && iconsRoot && !isExempt(context, node)) {
                     report(context, node, NO_FILLED_ICONS, "Filled icon. Use `AtomicIcons` (outlined only).")
                 }
@@ -111,6 +110,8 @@ class AtomicDesignDetector :
 
     companion object {
         private const val COMPOSE_GRAPHICS = "androidx.compose.ui.graphics"
+        private val ICON_ROOTS =
+            setOf("androidx.compose.material.icons.Icons", "androidx.compose.material.icons.Icons.AutoMirrored")
         private val BOUNCY_RATIOS =
             listOf("DampingRatioLowBouncy", "DampingRatioMediumBouncy", "DampingRatioHighBouncy")
 

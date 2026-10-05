@@ -4,6 +4,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
@@ -11,7 +12,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicTypography
-import java.util.Locale
 
 /** Atomic type roles (ATOMIC_UI_PLAN.md §4.2). */
 enum class AtomicTextRole(
@@ -74,7 +74,9 @@ fun AtomicText(
             role.secondary -> colors.contentSecondary
             else -> colors.content
         }
-    val shown = if (role.uppercase) text.uppercase(Locale.getDefault()) else text
+    // Observed through the configuration so a locale change re-renders the label.
+    val locale = LocalConfiguration.current.locales[0]
+    val shown = if (role.uppercase) text.uppercase(locale) else text
     val semantics = if (role.uppercase) Modifier.clearAndSetSemantics { contentDescription = text } else Modifier
     Text(
         text = shown,
