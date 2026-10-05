@@ -287,3 +287,11 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - **Not done:** updating the index after the app's own operations (they appear after the next rebuild), MediaStore generation checks, charging/idle rebuilds, scope chips (this folder / one volume), size and date filters.
 - **Tests:** `RoomSearchIndexTest` (depth, hidden skipped, rebuild drops deleted rows, staleness, blank query), `SearchTest` (escaping, chips), migration test now 1 → 4 incl. a LIKE escape check. Scratch JVM suite 171 passing; ktlint/detekt clean.
 - **Phone check to do:** first open of Search builds the index (eyebrow counts up); search part of a name; chips; open folder button; take a photo and Rebuild → it's found; time a search on the phone.
+
+## Update — 5 October 2026 (state at the end of this session)
+
+- **CI:** every commit on `claude/trusting-dirac-v1jq95` up to `11d6352` (search) passed static analysis, unit tests + APKs and the emulator job (runs 37347004772, 37349374483, 37379062610, 37379980779, 37380917630). Nothing in Phases 0.1, 0.4, 1.1–1.4 has been checked on a phone; each update above lists the phone checks.
+- **Room schemas:** `app/schemas/.../1.json`–`4.json` are all committed. They were rebuilt from the CI log because artifact downloads are blocked in the cloud session; `AtomicDatabaseMigrationTest` validates the migration SQL against what Room expects. For a version 5, read the `Print Room schemas` step in the unit-test job log after the first CI run.
+- **Branch:** this work sits on top of `claude/project-analysis-handover-kcmy17` (the Atomic redesign) and is ahead of `main` by everything since 20 September. No pull request has been opened.
+- **Next by the plan:** 1.5 better viewers (Media3, Coil 3 thumbnails; new dependencies), 0.5 release hygiene (R8 with keep rules, benchmark module, baseline profile), then Phase 2 (owner decisions in `ALL_IN_ONE_PLAN.md` §10 still open for Phase 3–4).
+
