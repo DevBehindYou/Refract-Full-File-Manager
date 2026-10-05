@@ -124,6 +124,10 @@ jobs:
 
       # Room writes its schema here during compilation; it is committed so migrations can be
       # tested against the real history (data/database/room/AtomicDatabase.kt).
+      # Also printed, so the schema can be read from the log where artifact downloads are blocked.
+      - name: Print Room schemas
+        run: find app/schemas -name '*.json' -print -exec cat {} \; || true
+
       - name: Upload Room schemas
         uses: actions/upload-artifact@v4
         with:
