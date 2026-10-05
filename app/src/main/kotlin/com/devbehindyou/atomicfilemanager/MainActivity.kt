@@ -78,6 +78,7 @@ import com.devbehindyou.atomicfilemanager.ui.screens.BrowseScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.CategoryScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HiddenFilesScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HomeScreen
+import com.devbehindyou.atomicfilemanager.ui.screens.OperationsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.SettingsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
@@ -346,6 +347,14 @@ fun AtomicAppContent() {
             }
             return
         }
+        AtomicRoute.Operations -> {
+            OperationsScreen(
+                queue = app.container.operationQueue,
+                journal = app.container.operationJournal,
+                onBack = ::pop,
+            )
+            return
+        }
         is AtomicRoute.Category -> {
             val collection = FileCollection.entries.firstOrNull { it.name == route.collection }
             if (collection != null) {
@@ -440,6 +449,7 @@ fun AtomicAppContent() {
                     onClearScanCache = phoneIndex::invalidate,
                     onNotify = ::notify,
                     onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
+                    onOpenOperations = { push(AtomicRoute.Operations) },
                 ),
         )
     }
@@ -531,6 +541,7 @@ private class ShellCallbacks(
     val onClearScanCache: () -> Unit,
     val onNotify: (String) -> Unit,
     val onOpenStorageDetails: () -> Unit,
+    val onOpenOperations: () -> Unit,
 )
 
 @Composable
@@ -572,6 +583,7 @@ private fun MainScreenContent(
                 onBrowseVolume = callbacks.onBrowseVolume,
                 onBrowseFolder = callbacks.onFolderSelected,
                 onOpenStorageIntelligence = callbacks.onOpenStorageIntelligence,
+                onOpenOperations = callbacks.onOpenOperations,
             )
         }
         NavigationTab.SETTINGS -> {

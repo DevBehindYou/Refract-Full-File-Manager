@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -37,6 +38,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicEmptyState
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFileRow
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSectionLabel
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicStatTile
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicToggleCard
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
@@ -65,6 +67,7 @@ fun StorageScreen(
     onBrowseFolder: (FileNodeId) -> Unit = {},
     onOpenStorageIntelligence: ((FileNodeId) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onOpenOperations: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as? AtomicApp
@@ -123,6 +126,17 @@ fun StorageScreen(
                 modifier = Modifier.fillMaxWidth().testTag("open_storage_intelligence_button"),
             )
             AtomicText("App cache · ${FileUtils.formatBytes(cacheSize)}", AtomicTextRole.MonoMeta)
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
+            AtomicSectionLabel("Tools")
+            val running = app?.container?.operationQueue?.active?.collectAsState()?.value
+            AtomicSettingsRow(
+                title = "Operations",
+                value = if (running == null) "History, resume and retry" else "1 running",
+                onClick = onOpenOperations,
+                modifier = Modifier.testTag("open_operations"),
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {

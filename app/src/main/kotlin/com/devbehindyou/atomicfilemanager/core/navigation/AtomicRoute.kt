@@ -12,6 +12,11 @@ sealed interface AtomicRoute {
         override fun encode() = PRIVATE
     }
 
+    /** Running, waiting and past file operations. */
+    data object Operations : AtomicRoute {
+        override fun encode() = OPERATIONS
+    }
+
     /** A category collection; [collection] is a `FileCollection` name. */
     data class Category(
         val collection: String,
@@ -28,6 +33,7 @@ sealed interface AtomicRoute {
 
     companion object {
         private const val PRIVATE = "private"
+        private const val OPERATIONS = "operations"
         private const val CATEGORY = "category"
         private const val ANALYSIS = "analysis"
         private const val SEPARATOR = ':'
@@ -35,6 +41,7 @@ sealed interface AtomicRoute {
         /** Returns null for anything it does not recognise, so a stale bundle never crashes. */
         fun decode(value: String): AtomicRoute? {
             if (value == PRIVATE) return PrivateFiles
+            if (value == OPERATIONS) return Operations
             val kind = value.substringBefore(SEPARATOR, missingDelimiterValue = "")
             val argument = value.substringAfter(SEPARATOR, missingDelimiterValue = "")
             if (argument.isEmpty()) return null

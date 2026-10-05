@@ -48,6 +48,7 @@ class RouteStackTest {
                 .push(AtomicRoute.Analysis("saf:content://tree/primary:Download"))
                 .push(AtomicRoute.Category("VIDEOS"))
                 .push(AtomicRoute.PrivateFiles)
+                .push(AtomicRoute.Operations)
 
         assertEquals(stack, RouteStack.decode(stack.encode()))
     }
