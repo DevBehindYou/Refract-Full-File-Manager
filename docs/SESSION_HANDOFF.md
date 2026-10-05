@@ -261,3 +261,11 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - **Tests:** `ShortcutsTest` (merge rule), `ShortcutTextTest`, migration test additions. Scratch JVM suite 161 passing; ktlint/detekt clean.
 - **Phone check to do:** star a folder and a file in Files → both on Home; delete the starred file → "Missing"; remove it. Open a few previews → Home > Recent; take a photo → it appears as "Added …". Restart: both survive.
 - **Not done:** a Favourites drawer in Files, "Locate" for a missing favourite, selection mode in the Recent list.
+
+## Update — 5 October 2026 (Keystore-backed credentials; Phase 0.4)
+
+- `data/backend/network/PasswordCipher.kt`: `AesGcmPasswordCipher` (AES-256-GCM, random 12-byte IV per value, 128-bit tag) stores `v2:` + Base64(IV ‖ ciphertext ‖ tag). Production uses a key created in the **Android Keystore** (alias `atomic_network_credentials_v2`), which never leaves secure hardware where the phone has it. Tampered or truncated values read as null, not garbage. No new dependency (Tink was considered; not needed until the vault in 2.5).
+- `NetworkCredentialsStore(context, cipher = AesGcmPasswordCipher.androidKeystore())`: the **plain-text fallback is gone**. `savePassword`/`saveServer` return false and store nothing when encryption fails; the Storage screen then says the server was saved without its password. Values from before 0.4 (old fixed-key AES-CBC, or the old plain-text fallback) are read once by `LegacyPasswordReader` and immediately re-encrypted in the new format.
+- **Tests:** `PasswordCipherTest` (JVM: round trip incl. non-ASCII, random IV, tamper, wrong key, legacy reader) passed in a scratch project; `NetworkStorageTest` now injects a software key (Robolectric has no Keystore) and adds encrypted-at-rest, legacy migration and no-plain-text-on-failure tests (CI).
+- **Phone check to do:** an existing FTP/WebDAV server saved by an older build still connects (its password migrates on first connect); add a server, then `adb shell run-as com.devbehindyou.atomicfilemanager cat shared_prefs/atomic_network_credentials.xml` shows only `v2:` values.
+- **Not done:** wiping saved passwords when the Keystore key is invalidated (the user re-enters them; they read as null today), and the vault's key handling (2.5).

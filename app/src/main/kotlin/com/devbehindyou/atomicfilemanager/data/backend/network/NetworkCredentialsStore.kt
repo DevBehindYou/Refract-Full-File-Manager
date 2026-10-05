@@ -2,33 +2,25 @@ package com.devbehindyou.atomicfilemanager.data.backend.network
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Base64
 import com.devbehindyou.atomicfilemanager.domain.model.NetworkProtocol
 import com.devbehindyou.atomicfilemanager.domain.model.NetworkServerConfig
 import org.json.JSONArray
 import org.json.JSONObject
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 /**
- * Manages persistence of saved network locations and encrypted credential storage.
+ * Saved network servers and their passwords. Passwords are encrypted with [cipher] (AES-GCM with
+ * a key in the Android Keystore, ALL_IN_ONE_PLAN.md 0.4) and never stored in plain text. Values
+ * from before 0.4 are re-encrypted the first time they are read.
  */
-class NetworkCredentialsStore(private val context: Context) {
+class NetworkCredentialsStore(
+    private val context: Context,
+    private val cipher: PasswordCipher = AesGcmPasswordCipher.androidKeystore(),
+) {
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    private val secretKey: SecretKeySpec by lazy {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val seed = "${context.packageName}.refract.credentials.v1"
-        val keyBytes = digest.digest(seed.toByteArray(StandardCharsets.UTF_8))
-        SecretKeySpec(keyBytes, "AES")
-    }
-
-    private val ivSpec = IvParameterSpec(ByteArray(16) { (it * 7).toByte() })
+    private val legacy by lazy { LegacyPasswordReader(context.packageName) }
 
     fun getAllServers(): List<NetworkServerConfig> {
         val jsonStr = prefs.getString(KEY_SERVERS, null) ?: return emptyList()
@@ -62,10 +54,11 @@ class NetworkCredentialsStore(private val context: Context) {
         return getAllServers().firstOrNull { it.id == id }
     }
 
+    /** Returns false when the password could not be stored (the server itself is saved). */
     fun saveServer(
         config: NetworkServerConfig,
         password: String?,
-    ) {
+    ): Boolean {
         val servers = getAllServers().filter { it.id != config.id }.toMutableList()
         servers.add(config)
 
@@ -87,9 +80,7 @@ class NetworkCredentialsStore(private val context: Context) {
 
         prefs.edit().putString(KEY_SERVERS, jsonArray.toString()).apply()
 
-        if (password != null) {
-            savePassword(config.id, password)
-        }
+        return password == null || savePassword(config.id, password)
     }
 
     fun deleteServer(id: String) {
@@ -115,39 +106,38 @@ class NetworkCredentialsStore(private val context: Context) {
             .apply()
     }
 
+    /**
+     * Encrypts and stores [pass]. Returns false, and stores nothing, if it can't be encrypted;
+     * the old plain-text fallback is gone. Any previous password for the server is removed then too.
+     */
     fun savePassword(
         serverId: String,
         pass: String,
-    ) {
-        try {
-            val cipher = Cipher.getInstance(AES_TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec)
-            val encrypted = cipher.doFinal(pass.toByteArray(StandardCharsets.UTF_8))
-            val encoded = Base64.encodeToString(encrypted, Base64.NO_WRAP)
-            prefs.edit().putString(KEY_PASS_PREFIX + serverId, encoded).apply()
-        } catch (_: Exception) {
-            // Fallback plain storage if encryption fails on legacy runtime
-            prefs.edit().putString(KEY_PASS_PREFIX + serverId, pass).apply()
-        }
+    ): Boolean {
+        val sealed =
+            try {
+                cipher.encrypt(pass)
+            } catch (_: Exception) {
+                prefs.edit().remove(KEY_PASS_PREFIX + serverId).apply()
+                return false
+            }
+        prefs.edit().putString(KEY_PASS_PREFIX + serverId, sealed).apply()
+        return true
     }
 
+    /** The password, or null when none is saved or it can't be decrypted (for example tampered). */
     fun getPassword(serverId: String): String? {
-        val raw = prefs.getString(KEY_PASS_PREFIX + serverId, null) ?: return null
-        return try {
-            val decoded = Base64.decode(raw, Base64.NO_WRAP)
-            val cipher = Cipher.getInstance(AES_TRANSFORMATION)
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
-            val decrypted = cipher.doFinal(decoded)
-            String(decrypted, StandardCharsets.UTF_8)
-        } catch (_: Exception) {
-            raw
-        }
+        val stored = prefs.getString(KEY_PASS_PREFIX + serverId, null) ?: return null
+        if (cipher.isCurrent(stored)) return cipher.decrypt(stored)
+        // Written before 0.4: read it the old way once and store it encrypted properly.
+        val password = legacy.read(stored)
+        if (!savePassword(serverId, password)) prefs.edit().remove(KEY_PASS_PREFIX + serverId).apply()
+        return password
     }
 
     companion object {
         private const val PREFS_NAME = "atomic_network_credentials"
         private const val KEY_SERVERS = "saved_servers"
         private const val KEY_PASS_PREFIX = "server_pass_"
-        private const val AES_TRANSFORMATION = "AES/CBC/PKCS5Padding"
     }
 }

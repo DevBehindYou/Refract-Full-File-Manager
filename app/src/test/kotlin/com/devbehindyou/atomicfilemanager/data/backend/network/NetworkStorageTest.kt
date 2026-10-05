@@ -16,10 +16,67 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
 
 @RunWith(RobolectricTestRunner::class)
 class NetworkStorageTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    // Robolectric has no Android Keystore; the same AES-GCM format runs with a software key.
+    private val cipher = AesGcmPasswordCipher { softwareKey }
+
+    private val prefs get() = context.getSharedPreferences("atomic_network_credentials", Context.MODE_PRIVATE)
+
+    @Test
+    fun `passwords are stored encrypted, never as the plain text`() {
+        val store = NetworkCredentialsStore(context, cipher)
+        assertTrue(store.savePassword("s", "hunter2"))
+
+        val stored = prefs.getString("server_pass_s", null).orEmpty()
+        assertTrue(stored.startsWith("v2:"))
+        assertFalse(stored.contains("hunter2"))
+        assertEquals("hunter2", store.getPassword("s"))
+    }
+
+    @Test
+    fun `passwords saved before 0_4 are read once and re-encrypted`() {
+        val legacy = LegacyPasswordReader(context.packageName)
+        prefs.edit()
+            .putString("server_pass_old", legacy.writeForTest("from-cbc"))
+            .putString("server_pass_plain", "was-plain-text")
+            .commit()
+        val store = NetworkCredentialsStore(context, cipher)
+
+        assertEquals("from-cbc", store.getPassword("old"))
+        assertEquals("was-plain-text", store.getPassword("plain"))
+        assertTrue(prefs.getString("server_pass_old", null).orEmpty().startsWith("v2:"))
+        assertTrue(prefs.getString("server_pass_plain", null).orEmpty().startsWith("v2:"))
+        assertEquals("from-cbc", store.getPassword("old"))
+    }
+
+    @Test
+    fun `when encryption fails nothing is stored in plain text`() {
+        val broken =
+            object : PasswordCipher {
+                override fun encrypt(plain: String): String = error("no keystore")
+
+                override fun decrypt(stored: String): String? = null
+
+                override fun isCurrent(stored: String) = stored.startsWith("v2:")
+            }
+        val store = NetworkCredentialsStore(context, broken)
+        val server =
+            NetworkServerConfig(id = "x", name = "NAS", protocol = NetworkProtocol.FTP, host = "nas", port = 21)
+
+        assertFalse(store.saveServer(server, "secret"))
+        assertNull(prefs.getString("server_pass_x", null))
+        assertEquals(listOf("x"), store.getAllServers().map { it.id })
+    }
+
+    private companion object {
+        val softwareKey: SecretKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+    }
 
     @Test
     fun `NetworkServerConfig creates correct root FileNodeId for each protocol`() {
@@ -81,7 +138,7 @@ class NetworkStorageTest {
 
     @Test
     fun `NetworkCredentialsStore saves, retrieves, updates and deletes servers and passwords`() {
-        val store = NetworkCredentialsStore(context)
+        val store = NetworkCredentialsStore(context, cipher)
 
         // Clear existing
         store.getAllServers().forEach { store.deleteServer(it.id) }
@@ -141,7 +198,7 @@ class NetworkStorageTest {
     @Test
     fun `FtpBackend validates handled schemes and resolves root node`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
             val ftpBackend = FtpBackend(store)
 
             assertTrue(ftpBackend.canHandle(FileNodeId.ftp("srv1", "/")))
@@ -159,7 +216,7 @@ class NetworkStorageTest {
     @Test
     fun `WebDavBackend validates handled schemes and resolves root node`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
             val webdavBackend = WebDavBackend(store)
 
             assertTrue(webdavBackend.canHandle(FileNodeId.webdav("srv1", "/")))
@@ -176,7 +233,7 @@ class NetworkStorageTest {
     @Test
     fun `SftpBackend and SmbBackend handle their respective schemes`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
             val sftp = SftpBackend(store)
             val smb = SmbBackend(store)
 
@@ -190,7 +247,7 @@ class NetworkStorageTest {
     @Test
     fun `FtpBackend returns StorageUnavailable for non-existent server in credentials store`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
             val ftpBackend = FtpBackend(store)
 
             val badId = FileNodeId.ftp("ghost-server", "/data")
@@ -208,7 +265,7 @@ class NetworkStorageTest {
     @Test
     fun `WebDavBackend returns failure for non-existent server in credentials store`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
             val webdavBackend = WebDavBackend(store)
 
             val badId = FileNodeId.webdav("ghost-dav", "/files")
@@ -222,7 +279,7 @@ class NetworkStorageTest {
     @Test
     fun `SftpBackend and SmbBackend return failure for non-existent server`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
             val sftp = SftpBackend(store)
             val smb = SmbBackend(store)
 
@@ -247,7 +304,7 @@ class NetworkStorageTest {
     @Test
     fun `unimplemented protocol backends never report a successful write`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
 
             for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
                 val parent =
@@ -278,7 +335,7 @@ class NetworkStorageTest {
     @Test
     fun `unimplemented protocol backends never report a successful delete or rename`() =
         runTest {
-            val store = NetworkCredentialsStore(context)
+            val store = NetworkCredentialsStore(context, cipher)
 
             for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
                 val target =
@@ -301,7 +358,7 @@ class NetworkStorageTest {
 
     @Test
     fun `unimplemented protocol backends advertise no write capabilities`() {
-        val store = NetworkCredentialsStore(context)
+        val store = NetworkCredentialsStore(context, cipher)
 
         for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
             val caps = backend.capabilities

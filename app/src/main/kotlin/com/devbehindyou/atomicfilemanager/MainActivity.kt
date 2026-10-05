@@ -728,6 +728,7 @@ private fun MainScreenContent(
                 onOpenStorageIntelligence = callbacks.onOpenStorageIntelligence,
                 onOpenOperations = callbacks.onOpenOperations,
                 onOpenTrash = callbacks.onOpenTrash,
+                onNotify = callbacks.onNotify,
             )
         }
         NavigationTab.SETTINGS -> {

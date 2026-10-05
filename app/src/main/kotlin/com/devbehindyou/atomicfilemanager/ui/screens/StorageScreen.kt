@@ -69,6 +69,7 @@ fun StorageScreen(
     modifier: Modifier = Modifier,
     onOpenOperations: () -> Unit = {},
     onOpenTrash: () -> Unit = {},
+    onNotify: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as? AtomicApp
@@ -195,7 +196,9 @@ fun StorageScreen(
         AddNetworkServerDialog(
             onDismiss = { showAddServerDialog = false },
             onSave = { config, password ->
-                credentialsStore.saveServer(config, password)
+                if (!credentialsStore.saveServer(config, password)) {
+                    onNotify("Server saved without its password: it couldn't be encrypted on this phone.")
+                }
                 refreshServers()
                 showAddServerDialog = false
             },
