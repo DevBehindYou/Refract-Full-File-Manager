@@ -133,7 +133,7 @@ fun BrowseScreen(
                         createDirectoryUseCase = app.container.createDirectoryUseCase,
                         renameFileUseCase = app.container.renameFileUseCase,
                         deleteFileUseCase = app.container.deleteFileUseCase,
-                        fileOperationsEngine = app.container.fileOperationsEngine,
+                        operationQueue = app.container.operationQueue,
                         transferBubbleRepository = app.container.transferBubbleRepository,
                     ),
                 )["browse:${initialFolderId.raw}", BrowseViewModel::class.java]
@@ -168,7 +168,7 @@ fun BrowseScreen(
                 createDirectoryUseCase = app.container.createDirectoryUseCase,
                 renameFileUseCase = app.container.renameFileUseCase,
                 deleteFileUseCase = app.container.deleteFileUseCase,
-                fileOperationsEngine = app.container.fileOperationsEngine,
+                operationQueue = app.container.operationQueue,
                 transferBubbleRepository = app.container.transferBubbleRepository,
             )
         }

@@ -16,6 +16,7 @@ import com.devbehindyou.atomicfilemanager.data.database.HiddenFilesDatabaseHelpe
 import com.devbehindyou.atomicfilemanager.data.database.TransferBubbleDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.database.room.AtomicDatabase
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
+import com.devbehindyou.atomicfilemanager.data.operations.OperationQueue
 import com.devbehindyou.atomicfilemanager.data.preview.ImagePreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.MediaPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.PdfPreviewHelper
@@ -67,6 +68,9 @@ interface AppContainer {
 
     /** Durable record of every file operation (ALL_IN_ONE_PLAN.md Phase 0.1). */
     val operationJournal: OperationJournalDao
+
+    /** The one place file operations run, one at a time, journaled. */
+    val operationQueue: OperationQueue
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
@@ -81,6 +85,10 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val operationJournal: OperationJournalDao get() = database.operationJournal()
+
+    override val operationQueue: OperationQueue by lazy {
+        OperationQueue(engine = fileOperationsEngine::execute, journal = operationJournal, scope = appScope)
+    }
 
     override val hiddenFilesRepository: HiddenFilesRepository by lazy {
         val helper = HiddenFilesDatabaseHelper(application)

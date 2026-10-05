@@ -243,7 +243,9 @@ fun StorageIntelligenceScreen(
                             options = OperationOptions(),
                             createdAt = System.currentTimeMillis(),
                         )
-                    app.container.fileOperationsEngine.execute(op)
+                    // Runs through the queue and waits, so the rescan sees the result. (Calling the
+                    // engine directly only built a cold Flow that nobody collected: nothing was deleted.)
+                    app.container.operationQueue.runAndAwait(op)
                     showConfirmDelete = false
                     selected = emptySet()
                     startScan()

@@ -3,6 +3,7 @@ package com.devbehindyou.atomicfilemanager.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.devbehindyou.atomicfilemanager.data.operations.OperationQueue
 import com.devbehindyou.atomicfilemanager.domain.model.CollisionPolicy
 import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
@@ -18,7 +19,6 @@ import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.domain.repository.TransferBubbleRepository
 import com.devbehindyou.atomicfilemanager.domain.usecase.CreateDirectoryUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.DeleteFileUseCase
-import com.devbehindyou.atomicfilemanager.domain.usecase.FileOperationsEngine
 import com.devbehindyou.atomicfilemanager.domain.usecase.GetDirectoryListingUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.GetNodeUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.RenameFileUseCase
@@ -68,7 +68,7 @@ class BrowseViewModel(
     private val createDirectoryUseCase: CreateDirectoryUseCase,
     private val renameFileUseCase: RenameFileUseCase,
     private val deleteFileUseCase: DeleteFileUseCase,
-    private val fileOperationsEngine: FileOperationsEngine,
+    private val operationQueue: OperationQueue,
     private val transferBubbleRepository: TransferBubbleRepository,
 ) : ViewModel() {
     private val folderHistory = mutableListOf<FileNodeId>()
@@ -77,12 +77,16 @@ class BrowseViewModel(
     val bubbles: StateFlow<List<TransferBubble>> = transferBubbleRepository.bubbles
 
     private var listingJob: Job? = null
-    private var operationJob: Job? = null
     private var filterJob: Job? = null
     private var appliedOpenRequest: Int? = null
 
     init {
         loadDirectory(initialFolderId)
+        // Operations run in the app-wide queue, so they outlive this screen and never cancel each other.
+        viewModelScope.launch {
+            operationQueue.active.collect { snapshot -> _uiState.update { it.copy(activeOperation = snapshot) } }
+        }
+        viewModelScope.launch { operationQueue.finished.collect { refresh() } }
     }
 
     fun loadDirectory(
@@ -481,18 +485,7 @@ class BrowseViewModel(
     }
 
     private fun runOperation(operation: FileOperation) {
-        operationJob?.cancel()
-        operationJob =
-            viewModelScope.launch {
-                fileOperationsEngine.execute(operation).collect { snapshot ->
-                    _uiState.update { it.copy(activeOperation = snapshot) }
-                    if (snapshot.status is OperationStatus.Completed ||
-                        snapshot.status is OperationStatus.PartiallyCompleted
-                    ) {
-                        refresh()
-                    }
-                }
-            }
+        operationQueue.enqueue(operation)
     }
 
     fun executeDrop(decision: DropDecision) {
@@ -592,17 +585,17 @@ class BrowseViewModel(
                 options = OperationOptions(collisionPolicy = CollisionPolicy.ASK),
                 createdAt = System.currentTimeMillis(),
             )
-        runOperation(operation)
-        if (isMove || clearAfter) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            val result = operationQueue.runAndAwait(operation)
+            // Empty the bubble only when every item made it; otherwise its list is the record of what's left.
+            if ((isMove || clearAfter) && result.status is OperationStatus.Completed) {
                 transferBubbleRepository.clearBubble(bubble.id)
             }
         }
     }
 
     fun cancelActiveOperation() {
-        operationJob?.cancel()
-        _uiState.update { it.copy(activeOperation = null) }
+        operationQueue.active.value?.let { operationQueue.cancel(it.operation.id) }
     }
 
     fun dismissError() {
@@ -643,7 +636,7 @@ class BrowseViewModel(
             createDirectoryUseCase: CreateDirectoryUseCase,
             renameFileUseCase: RenameFileUseCase,
             deleteFileUseCase: DeleteFileUseCase,
-            fileOperationsEngine: FileOperationsEngine,
+            operationQueue: OperationQueue,
             transferBubbleRepository: TransferBubbleRepository,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
@@ -656,7 +649,7 @@ class BrowseViewModel(
                         createDirectoryUseCase = createDirectoryUseCase,
                         renameFileUseCase = renameFileUseCase,
                         deleteFileUseCase = deleteFileUseCase,
-                        fileOperationsEngine = fileOperationsEngine,
+                        operationQueue = operationQueue,
                         transferBubbleRepository = transferBubbleRepository,
                     ) as T
                 }
