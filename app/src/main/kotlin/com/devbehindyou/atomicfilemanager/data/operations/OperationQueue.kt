@@ -3,6 +3,9 @@ package com.devbehindyou.atomicfilemanager.data.operations
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalState
 import com.devbehindyou.atomicfilemanager.data.database.room.toJournalEntry
+import com.devbehindyou.atomicfilemanager.domain.model.Conflict
+import com.devbehindyou.atomicfilemanager.domain.model.ConflictDecision
+import com.devbehindyou.atomicfilemanager.domain.model.ConflictResolver
 import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileOperation
 import com.devbehindyou.atomicfilemanager.domain.model.OperationId
@@ -27,14 +30,20 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
+/** A name clash the running operation is waiting on; answer it with [OperationQueue.resolveConflict]. */
+class PendingConflict(val operation: FileOperation, val conflict: Conflict)
+
 /**
  * One app-wide queue for file operations (ALL_IN_ONE_PLAN.md Phase 0.1). Operations run one at a
  * time in the order they were asked for, so starting a second operation no longer cancels the
  * first. Every operation is written to the journal before it runs and after every progress step,
  * so a crash leaves a record the next start can offer to resume.
+ *
+ * Operations that [ask][com.devbehindyou.atomicfilemanager.domain.model.CollisionPolicy.ASK] about
+ * name clashes wait in [pendingConflict] until the user answers; the queue waits with them.
  */
 class OperationQueue(
-    private val engine: (FileOperation) -> Flow<OperationSnapshot>,
+    private val engine: (FileOperation, ConflictResolver) -> Flow<OperationSnapshot>,
     private val journal: OperationJournalDao?,
     private val scope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -60,6 +69,28 @@ class OperationQueue(
 
     /** The last snapshot of each operation as it ends (completed, partial, failed or cancelled). */
     val finished: SharedFlow<OperationSnapshot> = _finished.asSharedFlow()
+
+    private val _pendingConflict = MutableStateFlow<PendingConflict?>(null)
+
+    /** The conflict the running operation is waiting on, or null. */
+    val pendingConflict: StateFlow<PendingConflict?> = _pendingConflict.asStateFlow()
+
+    @Volatile
+    private var conflictAnswer: CompletableDeferred<ConflictDecision>? = null
+
+    private val conflictResolver =
+        ConflictResolver { operation, conflict ->
+            val answer = CompletableDeferred<ConflictDecision>()
+            conflictAnswer = answer
+            _pendingConflict.value = PendingConflict(operation, conflict)
+            try {
+                // No timeout: an unanswered conflict waits, it never guesses (screens/OPERATIONS.md §6).
+                answer.await()
+            } finally {
+                conflictAnswer = null
+                _pendingConflict.value = null
+            }
+        }
 
     @Volatile
     private var activeJob: Job? = null
@@ -101,6 +132,14 @@ class OperationQueue(
         return done.await()
     }
 
+    /** Answers [pending] if it is still the open conflict; a stale answer is ignored. */
+    fun resolveConflict(
+        pending: PendingConflict,
+        decision: ConflictDecision,
+    ) {
+        if (_pendingConflict.value === pending) conflictAnswer?.complete(decision)
+    }
+
     /** Stops the operation if it is running, or drops it if it is still waiting. */
     fun cancel(id: OperationId) {
         cancelled += id.raw
@@ -119,7 +158,7 @@ class OperationQueue(
             val job =
                 launch {
                     try {
-                        engine(operation).collect { snapshot ->
+                        engine(operation, conflictResolver).collect { snapshot ->
                             last = snapshot
                             _active.value = snapshot
                             record(snapshot)

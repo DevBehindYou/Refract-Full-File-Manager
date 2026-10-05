@@ -3,6 +3,11 @@ package com.devbehindyou.atomicfilemanager.data.operations
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalEntity
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalState
+import com.devbehindyou.atomicfilemanager.domain.model.AccessFlags
+import com.devbehindyou.atomicfilemanager.domain.model.Conflict
+import com.devbehindyou.atomicfilemanager.domain.model.ConflictChoice
+import com.devbehindyou.atomicfilemanager.domain.model.ConflictDecision
+import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileOperation
 import com.devbehindyou.atomicfilemanager.domain.model.OperationId
@@ -12,6 +17,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.OperationSummary
 import com.devbehindyou.atomicfilemanager.domain.model.OperationType
+import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -86,7 +92,7 @@ class OperationQueueTest {
         failing: Set<String> = emptySet(),
     ): OperationQueue =
         OperationQueue(
-            engine = { operation ->
+            engine = { operation, _ ->
                 flow {
                     started += operation.id.raw
                     emit(OperationSnapshot(operation, OperationStatus.Running(progress(1))))
@@ -172,5 +178,89 @@ class OperationQueueTest {
         runTest {
             val queue = queue(mutableListOf(), journal = null)
             assertTrue(queue.runAndAwait(op("a")).status is OperationStatus.Completed)
+        }
+
+    private fun node(name: String) =
+        FileNode(
+            id = FileNodeId.file("/s/$name"),
+            name = name,
+            displayName = name,
+            mimeType = null,
+            size = 1L,
+            modifiedAt = 0L,
+            isDirectory = false,
+            isHidden = false,
+            parentId = null,
+            storageType = StorageType.INTERNAL_SHARED,
+            access = AccessFlags.FULL,
+            childCount = null,
+            extras = null,
+        )
+
+    /** An engine that hits one name clash and completes with whatever it was told. */
+    private fun TestScope.askingQueue(answers: MutableList<ConflictDecision>): OperationQueue =
+        OperationQueue(
+            engine = { operation, resolver ->
+                flow {
+                    val conflict = Conflict(node("a.txt"), node("a.txt"))
+                    emit(OperationSnapshot(operation, OperationStatus.AwaitingInput(conflict)))
+                    answers += resolver.resolve(operation, conflict)
+                    emit(OperationSnapshot(operation, OperationStatus.Completed(done)))
+                }
+            },
+            journal = FakeJournal(),
+            scope = backgroundScope,
+            clock = { testScheduler.currentTime },
+        )
+
+    @Test
+    fun `a name clash waits for an answer and then carries on`() =
+        runTest {
+            val answers = mutableListOf<ConflictDecision>()
+            val queue = askingQueue(answers)
+
+            val result = async { queue.runAndAwait(op("a")) }
+            runCurrent()
+            val pending = queue.pendingConflict.value
+            assertEquals("a", pending?.operation?.id?.raw)
+            assertTrue(queue.active.value?.status is OperationStatus.AwaitingInput)
+            assertTrue(answers.isEmpty())
+
+            queue.resolveConflict(checkNotNull(pending), ConflictDecision(ConflictChoice.SKIP, applyToAll = true))
+
+            assertTrue(result.await().status is OperationStatus.Completed)
+            assertEquals(listOf(ConflictDecision(ConflictChoice.SKIP, applyToAll = true)), answers)
+            assertNull(queue.pendingConflict.value)
+        }
+
+    @Test
+    fun `a stale answer is ignored`() =
+        runTest {
+            val answers = mutableListOf<ConflictDecision>()
+            val queue = askingQueue(answers)
+
+            val result = async { queue.runAndAwait(op("a")) }
+            runCurrent()
+            val stale = PendingConflict(op("a"), Conflict(node("a.txt"), node("a.txt")))
+            queue.resolveConflict(stale, ConflictDecision(ConflictChoice.REPLACE))
+            runCurrent()
+
+            assertTrue(answers.isEmpty())
+            assertTrue(queue.pendingConflict.value != null)
+            queue.cancel(OperationId("a"))
+            result.await()
+        }
+
+    @Test
+    fun `cancelling while waiting for an answer clears the question`() =
+        runTest {
+            val queue = askingQueue(mutableListOf())
+
+            val result = async { queue.runAndAwait(op("a")) }
+            runCurrent()
+            queue.cancel(OperationId("a"))
+
+            assertEquals(OperationStatus.Cancelled, result.await().status)
+            assertNull(queue.pendingConflict.value)
         }
 }

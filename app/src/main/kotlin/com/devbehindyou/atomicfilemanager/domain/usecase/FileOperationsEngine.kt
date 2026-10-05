@@ -1,6 +1,9 @@
 package com.devbehindyou.atomicfilemanager.domain.usecase
 
 import com.devbehindyou.atomicfilemanager.domain.model.CollisionPolicy
+import com.devbehindyou.atomicfilemanager.domain.model.Conflict
+import com.devbehindyou.atomicfilemanager.domain.model.ConflictChoice
+import com.devbehindyou.atomicfilemanager.domain.model.ConflictResolver
 import com.devbehindyou.atomicfilemanager.domain.model.FailedItem
 import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
@@ -20,6 +23,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -39,8 +43,14 @@ class FileOperationsEngine
 
         /**
          * Executes [operation] and emits [OperationSnapshot] progress updates.
+         *
+         * With [CollisionPolicy.ASK], each name clash emits [OperationStatus.AwaitingInput] and
+         * waits for [conflictResolver]. Without a resolver ASK keeps both, as it always has.
          */
-        fun execute(operation: FileOperation): Flow<OperationSnapshot> =
+        fun execute(
+            operation: FileOperation,
+            conflictResolver: ConflictResolver? = null,
+        ): Flow<OperationSnapshot> =
             flow {
                 emit(OperationSnapshot(operation, OperationStatus.Queued))
 
@@ -65,6 +75,38 @@ class FileOperationsEngine
                 var lastProgressTime = System.currentTimeMillis()
                 var bytesSinceLastSpeedCheck = 0L
                 var currentSpeed = 0L
+
+                // "Apply to all remaining" from an earlier conflict in this operation.
+                var rememberedChoice: ConflictChoice? = null
+
+                suspend fun decideCollision(
+                    source: FileNode,
+                    destParent: FileNodeId,
+                    destBackend: StorageBackend,
+                ): CollisionPolicy {
+                    val policy = operation.options.collisionPolicy
+                    if (policy != CollisionPolicy.ASK) return policy
+                    val resolver = conflictResolver ?: return CollisionPolicy.RENAME_AUTO
+                    val existing = findChild(destBackend, destParent, source.name)
+                    // Pasting a file into its own folder duplicates it; there is nothing to ask.
+                    if (existing == null || existing.id == source.id) return CollisionPolicy.RENAME_AUTO
+                    val remembered = rememberedChoice
+                    if (remembered != null && (remembered != ConflictChoice.REPLACE || !source.isDirectory)) {
+                        return remembered.toPolicy()
+                    }
+                    val conflict = Conflict(source, existing)
+                    emit(OperationSnapshot(operation, OperationStatus.AwaitingInput(conflict)))
+                    val decision = resolver.resolve(operation, conflict)
+                    // Replacing a folder would need a merge, which does not exist yet; keep both instead.
+                    val choice =
+                        if (decision.choice == ConflictChoice.REPLACE && source.isDirectory) {
+                            ConflictChoice.KEEP_BOTH
+                        } else {
+                            decision.choice
+                        }
+                    if (decision.applyToAll) rememberedChoice = decision.choice
+                    return choice.toPolicy()
+                }
 
                 suspend fun emitProgress(currentName: String?) {
                     val now = System.currentTimeMillis()
@@ -154,6 +196,9 @@ class FileOperationsEngine
                                             bytesSinceLastSpeedCheck += copied
                                         },
                                         emitProgress = { name -> emitProgress(name) },
+                                        resolveCollision = { node, parent, target ->
+                                            decideCollision(node, parent, target)
+                                        },
                                     )
 
                                 when (copyResult) {
@@ -311,6 +356,9 @@ class FileOperationsEngine
                                                 bytesSinceLastSpeedCheck += copied
                                             },
                                             emitProgress = { name -> emitProgress(name) },
+                                            resolveCollision = { node, parent, target ->
+                                                decideCollision(node, parent, target)
+                                            },
                                         )
                                     when (copyResult) {
                                         is ItemResult.Success -> {
@@ -384,6 +432,7 @@ class FileOperationsEngine
             collisionPolicy: CollisionPolicy,
             onBytesCopied: (Long) -> Unit,
             emitProgress: suspend (String) -> Unit,
+            resolveCollision: suspend (FileNode, FileNodeId, StorageBackend) -> CollisionPolicy,
             visited: MutableSet<FileNodeId> = mutableSetOf(),
         ): ItemResult {
             coroutineContext.ensureActive()
@@ -423,13 +472,14 @@ class FileOperationsEngine
                 return ItemResult.Failure(FileError.AccessDenied("Destination is read-only"))
             }
 
-            // Resolving destination name based on collision policy
+            // Resolving destination name based on collision policy (ASK asks here, only on a real clash)
             val exists = destBackend.exists(destParentId, sourceNode.name)
+            val policy = if (exists) resolveCollision(sourceNode, destParentId, destBackend) else collisionPolicy
             val targetName =
                 when {
                     !exists -> sourceNode.name
-                    collisionPolicy == CollisionPolicy.SKIP -> return ItemResult.Skipped
-                    collisionPolicy == CollisionPolicy.OVERWRITE -> sourceNode.name
+                    policy == CollisionPolicy.SKIP -> return ItemResult.Skipped
+                    policy == CollisionPolicy.OVERWRITE -> sourceNode.name
                     else -> resolveUniqueName(destBackend, destParentId, sourceNode.name)
                 }
 
@@ -461,6 +511,7 @@ class FileOperationsEngine
                                             collisionPolicy = collisionPolicy,
                                             onBytesCopied = onBytesCopied,
                                             emitProgress = emitProgress,
+                                            resolveCollision = resolveCollision,
                                             visited = visited,
                                         )
                                     if (childRes !is ItemResult.Success) {
@@ -499,6 +550,26 @@ class FileOperationsEngine
                 emitProgress,
             )
         }
+
+        /** The child of [parent] called [name], or null; only read when a clash was found. */
+        private suspend fun findChild(
+            backend: StorageBackend,
+            parent: FileNodeId,
+            name: String,
+        ): FileNode? {
+            var found: FileNode? = null
+            backend.listChildren(parent).takeWhile { found == null }.collect { chunk ->
+                if (chunk is FileResult.Success) found = chunk.value.firstOrNull { it.name == name }
+            }
+            return found
+        }
+
+        private fun ConflictChoice.toPolicy(): CollisionPolicy =
+            when (this) {
+                ConflictChoice.REPLACE -> CollisionPolicy.OVERWRITE
+                ConflictChoice.KEEP_BOTH -> CollisionPolicy.KEEP_BOTH
+                ConflictChoice.SKIP -> CollisionPolicy.SKIP
+            }
 
         private suspend fun resolveUniqueName(
             backend: StorageBackend,

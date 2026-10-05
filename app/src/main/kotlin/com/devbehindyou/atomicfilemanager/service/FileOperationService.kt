@@ -84,7 +84,12 @@ class FileOperationService : Service() {
                 if (active == null) {
                     if (waiting == 0) stopForegroundService()
                 } else {
-                    updateProgress(titleFor(active.operation.type, waiting), progressOf(active.status))
+                    val status = active.status
+                    if (status is OperationStatus.AwaitingInput) {
+                        showActionNeeded(status.conflict.source.name)
+                    } else {
+                        updateProgress(titleFor(active.operation.type, waiting), progressOf(status))
+                    }
                 }
             }
         }
@@ -102,6 +107,22 @@ class FileOperationService : Service() {
                 progress?.currentName ?: "Working…"
             }
         val notification = buildNotification(title, text, progress)
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
+    /** A name clash waits for the user; tapping the notification opens the app, which shows the choice. */
+    private fun showActionNeeded(name: String) {
+        val notification =
+            NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_warning)
+                .setContentTitle("Action needed")
+                .setContentText("“$name” already exists. Open to choose what to do.")
+                .setOngoing(true)
+                .setContentIntent(openAppIntent())
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancelIntent())
+                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .build()
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
@@ -135,35 +156,14 @@ class FileOperationService : Service() {
         text: String,
         progress: OperationProgress?,
     ): Notification {
-        val cancelIntent =
-            Intent(this, FileOperationService::class.java).apply {
-                action = ACTION_CANCEL
-            }
-        val cancelPendingIntent =
-            PendingIntent.getService(
-                this,
-                1,
-                cancelIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-
-        val openAppIntent = Intent(this, MainActivity::class.java)
-        val openAppPendingIntent =
-            PendingIntent.getActivity(
-                this,
-                0,
-                openAppIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-
         val builder =
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setOngoing(true)
-                .setContentIntent(openAppPendingIntent)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancelPendingIntent)
+                .setContentIntent(openAppIntent())
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancelIntent())
                 .setCategory(NotificationCompat.CATEGORY_PROGRESS)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
 
@@ -175,6 +175,22 @@ class FileOperationService : Service() {
 
         return builder.build()
     }
+
+    private fun cancelIntent(): PendingIntent =
+        PendingIntent.getService(
+            this,
+            1,
+            Intent(this, FileOperationService::class.java).apply { action = ACTION_CANCEL },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun openAppIntent(): PendingIntent =
+        PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     companion object {
         const val CHANNEL_ID = "atomic_file_operations"

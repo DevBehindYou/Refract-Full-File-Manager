@@ -46,4 +46,9 @@ class OperationTextTest {
         assertNull(OperationText.action(OperationJournalState.COMPLETED))
         assertNull(OperationText.action(OperationJournalState.CANCELLED))
     }
+
+    @Test
+    fun `a waiting operation says it needs a decision`() {
+        assertEquals("Copy 2 items · waiting for your decision", OperationText.waitingTitle(copy))
+    }
 }

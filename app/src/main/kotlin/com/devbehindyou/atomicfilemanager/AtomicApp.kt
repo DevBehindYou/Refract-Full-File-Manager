@@ -91,8 +91,11 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     override val operationJournal: OperationJournalDao get() = database.operationJournal()
 
     override val operationQueue: OperationQueue by lazy {
-        OperationQueue(engine = fileOperationsEngine::execute, journal = operationJournal, scope = appScope).also {
-                queue ->
+        OperationQueue(
+            engine = { operation, resolver -> fileOperationsEngine.execute(operation, resolver) },
+            journal = operationJournal,
+            scope = appScope,
+        ).also { queue ->
             // Show the progress notification whenever the queue goes from idle to busy.
             appScope.launch {
                 queue.active

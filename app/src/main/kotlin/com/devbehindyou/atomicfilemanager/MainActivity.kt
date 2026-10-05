@@ -65,6 +65,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicShee
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSnackbarHost
 import com.devbehindyou.atomicfilemanager.core.navigation.AtomicRoute
 import com.devbehindyou.atomicfilemanager.core.navigation.RouteStack
+import com.devbehindyou.atomicfilemanager.data.operations.PendingConflict
 import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
 import com.devbehindyou.atomicfilemanager.domain.model.FileCategory
 import com.devbehindyou.atomicfilemanager.domain.model.FileCollection
@@ -74,6 +75,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import com.devbehindyou.atomicfilemanager.domain.model.StorageVolumeInfo
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
+import com.devbehindyou.atomicfilemanager.ui.components.ConflictSheet
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.CategoryScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HiddenFilesScreen
@@ -330,6 +332,19 @@ fun AtomicAppContent() {
         }
     }
 
+    // A name clash in a running operation can come up on any screen, so the sheet lives here.
+    val operationQueue = app.container.operationQueue
+    val pendingConflict by operationQueue.pendingConflict.collectAsState()
+    var hiddenConflict by remember { mutableStateOf<PendingConflict?>(null) }
+    pendingConflict?.takeIf { it !== hiddenConflict }?.let { pending ->
+        ConflictSheet(
+            pending = pending,
+            onDecide = { operationQueue.resolveConflict(pending, it) },
+            onCancelOperation = { operationQueue.cancel(pending.operation.id) },
+            onDismiss = { hiddenConflict = pending },
+        )
+    }
+
     BackHandler(enabled = !routes.isEmpty) { pop() }
     when (val route = routes.top) {
         AtomicRoute.PrivateFiles -> {
@@ -349,9 +364,10 @@ fun AtomicAppContent() {
         }
         AtomicRoute.Operations -> {
             OperationsScreen(
-                queue = app.container.operationQueue,
+                queue = operationQueue,
                 journal = app.container.operationJournal,
                 onBack = ::pop,
+                onShowConflict = { hiddenConflict = null },
             )
             return
         }

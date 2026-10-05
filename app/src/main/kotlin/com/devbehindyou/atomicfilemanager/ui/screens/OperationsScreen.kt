@@ -50,6 +50,7 @@ fun OperationsScreen(
     journal: OperationJournalDao,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onShowConflict: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     val active by queue.active.collectAsState()
@@ -75,8 +76,19 @@ fun OperationsScreen(
         ) {
             item { AtomicSectionLabel("Running", trailingText = "Keeps going if you leave") }
             val running = active
+            val awaiting = running?.status as? OperationStatus.AwaitingInput
             if (running == null) {
                 item { AtomicEmptyState(message = "Nothing is running.") }
+            } else if (awaiting != null) {
+                item {
+                    AtomicActivityRow(
+                        title = OperationText.waitingTitle(running.operation),
+                        timestamp = "“${awaiting.conflict.source.name}” is already there",
+                        actionLabel = "Decide",
+                        onAction = onShowConflict,
+                        modifier = Modifier.testTag("operation_waiting_for_decision"),
+                    )
+                }
             } else {
                 item { RunningCard(running, onCancel = { queue.cancel(running.operation.id) }) }
             }
@@ -158,6 +170,9 @@ internal object OperationText {
         }
 
     fun items(count: Int): String = if (count == 1) "1 item" else "$count items"
+
+    fun waitingTitle(operation: FileOperation): String =
+        "${verb(operation.type)} ${items(operation.sources.size)} · waiting for your decision"
 
     fun route(operation: FileOperation): String {
         val from = operation.sources.first().raw.substringAfter(':').substringBeforeLast('/').ifEmpty { "/" }

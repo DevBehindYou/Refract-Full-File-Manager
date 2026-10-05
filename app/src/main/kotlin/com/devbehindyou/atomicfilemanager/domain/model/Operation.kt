@@ -82,6 +82,23 @@ data class OperationSummary(
 /** Shown as a dialog with both files' name/size/date side by side (FILE_OPERATIONS.md §5). */
 data class Conflict(val source: FileNode, val existingDestination: FileNode)
 
+/** What the user chose for one [Conflict]. Replace is never offered for folders (no merge yet). */
+enum class ConflictChoice { REPLACE, KEEP_BOTH, SKIP }
+
+/** [applyToAll] reuses [choice] for every later conflict in the same operation. */
+data class ConflictDecision(val choice: ConflictChoice, val applyToAll: Boolean = false)
+
+/**
+ * Answers a [Conflict] for an operation whose policy is [CollisionPolicy.ASK]. Suspends until the
+ * user decides; the operation waits and never guesses (screens/OPERATIONS.md §6).
+ */
+fun interface ConflictResolver {
+    suspend fun resolve(
+        operation: FileOperation,
+        conflict: Conflict,
+    ): ConflictDecision
+}
+
 /** The mutable state of a [FileOperation] as it runs. */
 sealed interface OperationStatus {
     data object Queued : OperationStatus
