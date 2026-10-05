@@ -4,14 +4,14 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,10 +23,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconTile
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 
 /** Fingerprint or face unlock, falling back to the screen lock (PIN, pattern or password). */
 private const val AUTHENTICATORS =
@@ -107,35 +114,43 @@ fun AuthGate(
         content()
     } else {
         Column(
-            modifier = Modifier.fillMaxSize().padding(32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Atomic.colors.background)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(AtomicSpacing.s24),
+            verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s16, Alignment.CenterVertically),
         ) {
+            AtomicIconTile(AtomicIcons.Lock, inverted = true)
+            AtomicText(title, AtomicTextRole.DisplayTitle)
             when {
-                !available || activity == null -> {
-                    Text(
-                        "Set up a screen lock, fingerprint or face unlock to open protected files. " +
-                            "You can also turn the lock off in Settings.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
+                !available || activity == null ->
+                    AtomicText(
+                        "Set up a screen lock, fingerprint or face unlock to open protected files, " +
+                            "or turn the lock off in Settings.",
+                        AtomicTextRole.Body,
                     )
-                }
                 failed -> {
-                    Text(
-                        "Authentication is required to open this screen.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                    )
-                    Button(
+                    AtomicText("Unlock to continue. Nothing was opened.", AtomicTextRole.Body)
+                    AtomicButton(
+                        "Try again",
                         onClick = {
                             failed = false
                             attempt++
                         },
-                    ) { Text("Try again") }
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-                else -> Text("Waiting for authentication…", style = MaterialTheme.typography.bodyLarge)
+                else -> AtomicLoading("Waiting for unlock…")
             }
-            OutlinedButton(onClick = onDenied) { Text("Go back") }
+            AtomicButton(
+                "Go back",
+                onClick = onDenied,
+                variant = AtomicButtonVariant.Ghost,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
