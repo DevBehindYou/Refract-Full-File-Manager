@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.devbehindyou.atomicfilemanager.AppContainer
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.data.preview.PreparedMedia
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
@@ -68,7 +68,7 @@ fun VideoPreviewContent(
         contentAlignment = Alignment.Center,
     ) {
         when {
-            isLoading -> CircularProgressIndicator(color = Color.White)
+            isLoading -> AtomicLoading("Loading video…")
             errorMessage != null -> Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
             preparedMedia != null -> VideoPlayerView(media = preparedMedia!!)
         }

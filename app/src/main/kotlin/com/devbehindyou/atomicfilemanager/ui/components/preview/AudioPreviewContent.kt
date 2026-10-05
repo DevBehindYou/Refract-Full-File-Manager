@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -43,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.devbehindyou.atomicfilemanager.AppContainer
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
 import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.data.preview.PreparedMedia
@@ -77,7 +77,7 @@ fun AudioPreviewContent(
 
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when {
-            isLoading -> CircularProgressIndicator()
+            isLoading -> AtomicLoading("Loading audio…")
             errorMessage != null -> Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error)
             preparedMedia != null -> AudioPlayerView(node = node, media = preparedMedia!!)
         }

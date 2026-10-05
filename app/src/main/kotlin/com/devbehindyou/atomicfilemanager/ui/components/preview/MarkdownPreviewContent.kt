@@ -13,17 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,7 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devbehindyou.atomicfilemanager.AppContainer
-import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextContent
@@ -73,7 +69,7 @@ fun MarkdownPreviewContent(
 
     if (isLoading) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            AtomicLoading("Loading preview…")
         }
         return
     }
@@ -126,30 +122,8 @@ private fun MarkdownHeaderBar(
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = isRendered,
-                    onClick = { onToggleMode(true) },
-                    label = { Text("Rendered", style = MaterialTheme.typography.labelSmall) },
-                    leadingIcon = {
-                        Icon(
-                            AtomicIcons.Visible,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                        )
-                    },
-                )
-                FilterChip(
-                    selected = !isRendered,
-                    onClick = { onToggleMode(false) },
-                    label = { Text("Raw", style = MaterialTheme.typography.labelSmall) },
-                    leadingIcon = {
-                        Icon(
-                            AtomicIcons.Code,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                        )
-                    },
-                )
+                AtomicChip(label = "Rendered", selected = isRendered, onSelectedChange = { onToggleMode(true) })
+                AtomicChip(label = "Raw", selected = !isRendered, onSelectedChange = { onToggleMode(false) })
             }
         }
     }
@@ -306,18 +280,7 @@ private fun RawMarkdownView(
                     .padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            IconButton(onClick = { wrapLines = !wrapLines }, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    AtomicIcons.WrapText,
-                    contentDescription = "Toggle wrap",
-                    tint =
-                        if (wrapLines) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                )
-            }
+            AtomicChip(label = "Wrap", selected = wrapLines, onSelectedChange = { wrapLines = it })
         }
 
         Row(modifier = contentModifier.padding(8.dp)) {
