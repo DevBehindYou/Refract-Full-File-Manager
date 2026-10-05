@@ -1,49 +1,47 @@
 package com.devbehindyou.atomicfilemanager.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicEmptyState
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFileRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicPushedHeader
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSectionLabel
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicWarningBox
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSnackbarHost
 import com.devbehindyou.atomicfilemanager.domain.model.HiddenItem
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
 import com.devbehindyou.atomicfilemanager.domain.model.originalParent
@@ -52,7 +50,30 @@ import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val HideMode.tabLabel: String
+    get() =
+        when (this) {
+            HideMode.FAST_OBSCURE -> "Obscured"
+            HideMode.GALLERY -> "Gallery"
+            HideMode.PRIVATE_STORAGE -> "Private"
+        }
+
+private val HideMode.explanation: String
+    get() =
+        when (this) {
+            HideMode.FAST_OBSCURE ->
+                "Files stay in their folder with a masked name and header, so other apps don't recognise them."
+            HideMode.GALLERY -> "Files sit in your hidden folder, where photo apps don't look."
+            HideMode.PRIVATE_STORAGE ->
+                "Files live inside the app's own folder. Other apps can't see them. They are deleted if " +
+                    "Atomic File Manager is uninstalled, so restore them first."
+        }
+
+/**
+ * Private & hidden (ATOMIC_UI_PLAN.md §7.6, canvas "Private & hidden"): one chip per hiding
+ * method, what that method means, the files with Restore, and a reminder that none of this is
+ * encryption. Deleting a hidden file asks first.
+ */
 @Composable
 fun HiddenFilesScreen(
     repository: HiddenFilesRepository,
@@ -62,15 +83,8 @@ fun HiddenFilesScreen(
     privateOnly: Boolean = false,
 ) {
     val hiddenItems by repository.hiddenItems.collectAsState()
-    var selectedTab by remember {
-        mutableIntStateOf(
-            when (initialMode) {
-                HideMode.FAST_OBSCURE -> 0
-                HideMode.GALLERY -> 1
-                HideMode.PRIVATE_STORAGE -> 2
-            },
-        )
-    }
+    var currentMode by rememberSaveable { mutableStateOf(initialMode) }
+    var itemToDelete by remember { mutableStateOf<HiddenItem?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -90,183 +104,142 @@ fun HiddenFilesScreen(
 
     suspend fun restoreAndReport(items: List<HiddenItem>) {
         val failures = items.mapNotNull { item -> restore(item).exceptionOrNull()?.let { item to it } }
-        val first = failures.firstOrNull() ?: return
-        val reason = first.second.message ?: "unknown error"
+        val first = failures.firstOrNull()
         val message =
-            if (failures.size == 1) {
-                "Could not restore ${first.first.originalName}: $reason"
-            } else {
-                "Could not restore ${failures.size} of ${items.size} files. First error: $reason"
+            when {
+                first == null && items.size == 1 -> "Restored ${items.first().originalName}."
+                first == null -> "Restored ${items.size} files."
+                failures.size == 1 ->
+                    "Couldn't restore ${first.first.originalName}: ${first.second.message ?: "unknown error"}"
+                else ->
+                    "Couldn't restore ${failures.size} of ${items.size} files. First error: " +
+                        (first.second.message ?: "unknown error")
             }
         snackbarHostState.showSnackbar(message)
     }
 
-    val tabs =
-        listOf(
-            "Fast Obscured" to HideMode.FAST_OBSCURE,
-            "Hidden Gallery" to HideMode.GALLERY,
-            "Private Storage" to HideMode.PRIVATE_STORAGE,
-        )
+    val mode = if (privateOnly) HideMode.PRIVATE_STORAGE else currentMode
+    val currentItems = hiddenItems.filter { it.mode == mode }
 
-    val currentMode = tabs[selectedTab].second
-    val currentItems = hiddenItems.filter { it.mode == currentMode }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (privateOnly) "Private files" else "Hidden Files") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (currentItems.isNotEmpty()) {
-                        OutlinedButton(
-                            onClick = { scope.launch { restoreAndReport(currentItems) } },
-                            modifier = Modifier.padding(end = 8.dp),
+    Box(modifier.fillMaxSize().background(Atomic.colors.background)) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            AtomicPushedHeader(
+                onBack = onNavigateBack,
+                title = if (privateOnly) "Private files" else "Private & hidden",
+            )
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(AtomicSpacing.s16),
+                verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
+            ) {
+                if (!privateOnly) {
+                    item {
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
                         ) {
-                            Text("Unhide All")
+                            HideMode.entries.forEach { option ->
+                                AtomicChip(
+                                    label = option.tabLabel,
+                                    selected = mode == option,
+                                    onSelectedChange = { currentMode = option },
+                                )
+                            }
                         }
                     }
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier,
-    ) { paddingValues ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-        ) {
-            if (!privateOnly) {
-                PrimaryScrollableTabRow(selectedTabIndex = selectedTab) {
-                    tabs.forEachIndexed { index, (title, _) ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = { Text(title, maxLines = 1) },
-                        )
-                    }
                 }
-            }
-
-            if (currentItems.isEmpty()) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector =
-                                when (currentMode) {
-                                    HideMode.FAST_OBSCURE -> Icons.Default.VisibilityOff
-                                    HideMode.GALLERY -> Icons.Default.Visibility
-                                    HideMode.PRIVATE_STORAGE -> Icons.Default.Lock
-                                },
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 16.dp),
-                        )
-                        Text(
-                            text =
-                                if (privateOnly) {
-                                    "No private files yet. Use Hide > Private storage on a file to move it here."
+                item { AtomicText(mode.explanation, AtomicTextRole.BodySecondary) }
+                if (currentItems.isEmpty()) {
+                    item {
+                        AtomicEmptyState(
+                            message =
+                                if (mode == HideMode.PRIVATE_STORAGE) {
+                                    "No private files yet."
                                 } else {
-                                    "No files in ${tabs[selectedTab].first}"
+                                    "Nothing ${mode.tabLabel.lowercase()} yet."
                                 },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            detail = "Open a file's actions in Files and choose Hide.",
                         )
                     }
-                }
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                } else {
+                    item {
+                        AtomicSectionLabel(
+                            "${currentItems.size} files · ${FileUtils.formatBytes(currentItems.sumOf { it.size })}",
+                            actionLabel = "Restore all",
+                            onAction = { scope.launch { restoreAndReport(currentItems) } },
+                        )
+                    }
                     items(currentItems, key = { it.id }) { item ->
                         HiddenItemRow(
                             item = item,
-                            onUnhide = { scope.launch { restoreAndReport(listOf(item)) } },
-                            onDelete = {
-                                scope.launch {
-                                    val error = repository.deleteHiddenItem(item).exceptionOrNull()
-                                    if (error != null) {
-                                        val reason = error.message ?: "unknown error"
-                                        snackbarHostState.showSnackbar("Could not delete ${item.originalName}: $reason")
-                                    }
-                                }
-                            },
+                            onRestore = { scope.launch { restoreAndReport(listOf(item)) } },
+                            onDelete = { itemToDelete = item },
                         )
-                        HorizontalDivider()
                     }
+                }
+                item {
+                    AtomicWarningBox(
+                        title = "Not encryption",
+                        body =
+                            "Hiding keeps files out of other apps' sight. " +
+                                "The encrypted Vault comes in a later update.",
+                    )
                 }
             }
         }
+        AtomicSnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+    }
+
+    itemToDelete?.let { item ->
+        AtomicConfirmSheet(
+            label = "Delete",
+            headline = "Delete for good?",
+            body = "\"${item.originalName}\" (${FileUtils.formatBytes(
+                item.size,
+            )}) is deleted, not restored. This can't be undone.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = {
+                itemToDelete = null
+                scope.launch {
+                    val error = repository.deleteHiddenItem(item).exceptionOrNull()
+                    snackbarHostState.showSnackbar(
+                        if (error == null) {
+                            "Deleted ${item.originalName}."
+                        } else {
+                            "Couldn't delete ${item.originalName}: ${error.message ?: "unknown error"}"
+                        },
+                    )
+                }
+            },
+            onDismiss = { itemToDelete = null },
+        )
     }
 }
 
 @Composable
 private fun HiddenItemRow(
     item: HiddenItem,
-    onUnhide: () -> Unit,
+    onRestore: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = Icons.Default.Description,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.originalName,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "Original: ${item.originalLocation}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "${FileUtils.formatBytes(item.size)} • ${FileUtils.formatDate(item.hiddenAt)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline,
-            )
-        }
-
-        Row {
-            IconButton(onClick = onUnhide) {
-                Icon(
-                    imageVector = Icons.Default.Restore,
-                    contentDescription = "Unhide file",
-                    tint = MaterialTheme.colorScheme.primary,
+    val from = item.originalLocation.substringBeforeLast('/').ifEmpty { "/" }
+    AtomicFileRow(
+        name = item.originalName,
+        meta = "From $from · ${FileUtils.formatBytes(item.size)} · ${FileUtils.formatDate(item.hiddenAt)}",
+        icon = if (item.mode == HideMode.PRIVATE_STORAGE) AtomicIcons.Lock else AtomicIcons.Hidden,
+        // Restoring moves files, so it only happens from the explicit Restore button.
+        onClick = {},
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AtomicButton("Restore", onClick = onRestore, variant = AtomicButtonVariant.Text)
+                AtomicIconButton(
+                    AtomicIcons.Trash,
+                    "Delete ${item.originalName} for good",
+                    onClick = onDelete,
+                    variant = AtomicIconButtonVariant.Destructive,
                 )
             }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete permanently",
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
+        },
+    )
 }
