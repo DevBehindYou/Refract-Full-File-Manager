@@ -1,65 +1,52 @@
 package com.devbehindyou.atomicfilemanager.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.devbehindyou.atomicfilemanager.AtomicApp
-import com.devbehindyou.atomicfilemanager.domain.model.DuplicateGroup
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicDivider
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicEmptyState
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFileRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicPushedHeader
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSectionLabel
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicStatTile
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicWarningBox
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileOperation
@@ -68,14 +55,32 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationOptions
 import com.devbehindyou.atomicfilemanager.domain.model.OperationType
 import com.devbehindyou.atomicfilemanager.domain.model.StorageAnalysisCategory
 import com.devbehindyou.atomicfilemanager.domain.model.StorageAnalysisResult
+import com.devbehindyou.atomicfilemanager.ui.components.iconFor
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import kotlinx.coroutines.launch
 
+private val StorageAnalysisCategory.label: String
+    get() =
+        when (this) {
+            StorageAnalysisCategory.LARGE_FILES -> "Large files"
+            StorageAnalysisCategory.DUPLICATE_FILES -> "Duplicates"
+            StorageAnalysisCategory.EMPTY_FOLDERS -> "Empty folders"
+            StorageAnalysisCategory.TEMP_AND_CACHE -> "Temp & cache"
+        }
+
+private fun StorageAnalysisCategory.emptyMessage(): String =
+    when (this) {
+        StorageAnalysisCategory.LARGE_FILES -> "No files over 50 MB."
+        StorageAnalysisCategory.DUPLICATE_FILES -> "No duplicate files found."
+        StorageAnalysisCategory.EMPTY_FOLDERS -> "No empty folders found."
+        StorageAnalysisCategory.TEMP_AND_CACHE -> "No temporary or cache files found."
+    }
+
 /**
- * Storage Intelligence Hub providing deep analysis of large files, duplicates,
- * empty directories, and temporary cache files with one-touch transactional cleanup.
+ * Storage analysis (ATOMIC_UI_PLAN.md §7.4, canvas "Analysis"): what could be freed, four
+ * categories as chips, selectable rows, and a confirm sheet that names the count and size before
+ * anything is deleted. Nothing is selected by default.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun StorageIntelligenceScreen(
     rootId: FileNodeId,
@@ -88,13 +93,11 @@ fun StorageIntelligenceScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var isScanning by remember { mutableStateOf(false) }
-    var scannedFilesCount by remember { mutableStateOf(0) }
-    var currentCategory by remember { mutableStateOf(StorageAnalysisCategory.LARGE_FILES) }
+    var scannedFilesCount by remember { mutableIntStateOf(0) }
+    var currentCategory by rememberSaveable { mutableStateOf(StorageAnalysisCategory.LARGE_FILES) }
     var analysisResult by remember { mutableStateOf(StorageAnalysisResult()) }
-
-    // Selected file IDs for deletion
-    val selectedIds = remember { mutableStateMapOf<String, Boolean>() }
-    var showConfirmDeleteDialog by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf(emptySet<String>()) }
+    var showConfirmDelete by remember { mutableStateOf(false) }
 
     fun startScan() {
         isScanning = true
@@ -110,601 +113,232 @@ fun StorageIntelligenceScreen(
         }
     }
 
-    LaunchedEffect(rootId) {
-        startScan()
+    LaunchedEffect(rootId) { startScan() }
+
+    val toggle: (FileNode) -> Unit = { node ->
+        selected = if (node.id.raw in selected) selected - node.id.raw else selected + node.id.raw
     }
+    val selectedNodes = StorageCleanupSelection.selectedNodes(analysisResult, currentCategory, selected)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Storage Intelligence", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { if (!isScanning) startScan() },
-                        enabled = !isScanning,
-                    ) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Rescan Storage")
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            val selectedCount = selectedIds.count { it.value }
-            if (selectedCount > 0) {
-                Surface(tonalElevation = 3.dp) {
-                    FlowRow(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = "$selectedCount item(s) selected",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { selectedIds.clear() }) {
-                                Text("Clear")
-                            }
-                            Button(
-                                onClick = { showConfirmDeleteDialog = true },
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.error,
-                                    ),
-                            ) {
-                                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Delete")
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        modifier = modifier.fillMaxSize(),
-    ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp),
+    Column(
+        modifier
+            .fillMaxSize()
+            .background(Atomic.colors.background)
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+    ) {
+        AtomicPushedHeader(
+            onBack = onNavigateBack,
+            title = "Analysis",
+            actions = {
+                AtomicIconButton(
+                    AtomicIcons.Refresh,
+                    "Rescan storage",
+                    onClick = { if (!isScanning) startScan() },
+                    enabled = !isScanning,
+                )
+            },
+        )
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(AtomicSpacing.s16),
+            verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
         ) {
-            if (analysisResult.isPartial) {
-                Text("Partial scan: some locations could not be read or exceeded the depth limit.")
-            }
-            // Live scanning summary card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    FlowRow(
+            item {
+                if (isScanning) {
+                    AtomicLoading("Scanning · $scannedFilesCount files")
+                } else {
+                    AtomicStatTile(
+                        value = FileUtils.formatBytes(analysisResult.totalPotentialSavingsBytes),
+                        caption = "You could free · ${analysisResult.scannedFilesCount} files scanned",
+                        featured = true,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.Storage,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp),
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (isScanning) "Analyzing storage..." else "Analysis Complete",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        if (isScanning) {
-                            Text(
-                                text = "$scannedFilesCount files",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-
-                    if (isScanning) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    } else {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val potentialReclaim = FileUtils.formatBytes(analysisResult.totalPotentialSavingsBytes)
-                        Text(
-                            text = "Potential reclaimable space: $potentialReclaim",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-            }
-
-            // Category filter chips stay readable and scroll to all four categories.
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                StorageAnalysisCategory.entries.forEach { category ->
-                    val badgeCount =
-                        when (category) {
-                            StorageAnalysisCategory.LARGE_FILES -> analysisResult.largeFiles.size
-                            StorageAnalysisCategory.DUPLICATE_FILES -> analysisResult.duplicateGroups.size
-                            StorageAnalysisCategory.EMPTY_FOLDERS -> analysisResult.emptyFolders.size
-                            StorageAnalysisCategory.TEMP_AND_CACHE -> analysisResult.tempCacheFiles.size
-                        }
-                    FilterChip(
-                        selected = currentCategory == category,
-                        onClick = {
-                            currentCategory = category
-                            selectedIds.clear()
-                        },
-                        label = { Text("${category.displayName} ($badgeCount)", maxLines = 1) },
                     )
                 }
             }
-
-            // Do not report empty results before the scan finishes.
+            if (analysisResult.isPartial && !isScanning) {
+                item {
+                    AtomicWarningBox(
+                        title = "Partial scan",
+                        body = "Some folders couldn't be read or were too deep. Results may be incomplete.",
+                    )
+                }
+            }
+            item {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
+                ) {
+                    StorageAnalysisCategory.entries.forEach { category ->
+                        AtomicChip(
+                            label = "${category.label} ${StorageCleanupSelection.count(analysisResult, category)}",
+                            selected = currentCategory == category,
+                            onSelectedChange = {
+                                currentCategory = category
+                                selected = emptySet()
+                            },
+                        )
+                    }
+                }
+            }
             if (isScanning) {
-                EmptyStateMessage("Scanning files… Results will appear when the scan finishes.")
+                item { AtomicEmptyState(message = "Results appear when the scan finishes.") }
             } else {
-                when (currentCategory) {
-                    StorageAnalysisCategory.LARGE_FILES -> {
-                        LargeFilesList(
-                            files = analysisResult.largeFiles,
-                            selectedIds = selectedIds,
-                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                            onSelectAll = {
-                                val allSelected = analysisResult.largeFiles.all { selectedIds[it.id.raw] == true }
-                                if (allSelected) {
-                                    selectedIds.clear()
-                                } else {
-                                    analysisResult.largeFiles.forEach { selectedIds[it.id.raw] = true }
-                                }
-                            },
-                            onOpenFile = onOpenFile,
-                        )
-                    }
-                    StorageAnalysisCategory.DUPLICATE_FILES -> {
-                        DuplicateGroupsList(
-                            groups = analysisResult.duplicateGroups,
-                            selectedIds = selectedIds,
-                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                            onKeepOnlyOnePerGroup = {
-                                selectedIds.clear()
-                                for (group in analysisResult.duplicateGroups) {
-                                    // Keep first, select the rest for deletion
-                                    group.items.drop(1).forEach { selectedIds[it.id.raw] = true }
-                                }
-                            },
-                            onOpenFile = onOpenFile,
-                        )
-                    }
-                    StorageAnalysisCategory.EMPTY_FOLDERS -> {
-                        EmptyFoldersList(
-                            folders = analysisResult.emptyFolders,
-                            selectedIds = selectedIds,
-                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                            onSelectAll = {
-                                val allSelected = analysisResult.emptyFolders.all { selectedIds[it.id.raw] == true }
-                                if (allSelected) {
-                                    selectedIds.clear()
-                                } else {
-                                    analysisResult.emptyFolders.forEach { selectedIds[it.id.raw] = true }
-                                }
-                            },
-                        )
-                    }
-                    StorageAnalysisCategory.TEMP_AND_CACHE -> {
-                        TempFilesList(
-                            files = analysisResult.tempCacheFiles,
-                            selectedIds = selectedIds,
-                            onToggleSelect = { id -> selectedIds[id.raw] = !(selectedIds[id.raw] ?: false) },
-                            onSelectAll = {
-                                val allSelected = analysisResult.tempCacheFiles.all { selectedIds[it.id.raw] == true }
-                                if (allSelected) {
-                                    selectedIds.clear()
-                                } else {
-                                    analysisResult.tempCacheFiles.forEach { selectedIds[it.id.raw] = true }
-                                }
-                            },
-                        )
-                    }
+                categoryItems(
+                    result = analysisResult,
+                    category = currentCategory,
+                    selected = selected,
+                    onToggle = toggle,
+                    onSelectionChange = { selected = it },
+                    onOpenFile = onOpenFile,
+                )
+            }
+        }
+
+        if (selectedNodes.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().background(Atomic.colors.background)) {
+                AtomicDivider(strong = true)
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s10),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
+                ) {
+                    AtomicText(
+                        "${selectedNodes.size} selected · ${FileUtils.formatBytes(
+                            StorageCleanupSelection.bytes(selectedNodes),
+                        )}",
+                        AtomicTextRole.MonoLabel,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AtomicButton("Clear", onClick = { selected = emptySet() }, variant = AtomicButtonVariant.Text)
+                    AtomicButton(
+                        "Delete",
+                        onClick = { showConfirmDelete = true },
+                        variant = AtomicButtonVariant.Destructive,
+                    )
                 }
             }
         }
     }
 
-    if (showConfirmDeleteDialog) {
-        val targetIds = selectedIds.filter { it.value }.keys.map { FileNodeId.file(it) }
-        AlertDialog(
-            onDismissRequest = { showConfirmDeleteDialog = false },
-            title = { Text("Delete ${targetIds.size} item(s)?") },
-            text = { Text("Are you sure you want to delete these files permanently? This action cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            val op =
-                                FileOperation(
-                                    id = OperationId.random(),
-                                    type = OperationType.DELETE,
-                                    sources = targetIds,
-                                    destination = null,
-                                    options = OperationOptions(),
-                                    createdAt = System.currentTimeMillis(),
-                                )
-                            app.container.fileOperationsEngine.execute(op)
-                            showConfirmDeleteDialog = false
-                            selectedIds.clear()
-                            startScan()
-                        }
-                    },
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+    if (showConfirmDelete) {
+        val targets = selectedNodes
+        AtomicConfirmSheet(
+            label = "Cleanup",
+            headline = "Delete ${targets.size} items?",
+            body =
+                "${FileUtils.formatBytes(StorageCleanupSelection.bytes(targets))} will be freed. " +
+                    "The files are deleted, not moved to a trash. This can't be undone.",
+            confirmLabel = "Delete ${targets.size}",
+            destructive = true,
+            onConfirm = {
+                coroutineScope.launch {
+                    val op =
+                        FileOperation(
+                            id = OperationId.random(),
+                            type = OperationType.DELETE,
+                            // Ids come straight from the scanned nodes; they are already full FileNodeIds.
+                            sources = targets.map { it.id },
+                            destination = null,
+                            options = OperationOptions(),
+                            createdAt = System.currentTimeMillis(),
+                        )
+                    app.container.fileOperationsEngine.execute(op)
+                    showConfirmDelete = false
+                    selected = emptySet()
+                    startScan()
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showConfirmDeleteDialog = false }) {
-                    Text("Cancel")
-                }
-            },
+            onDismiss = { showConfirmDelete = false },
         )
     }
 }
 
-@Composable
-private fun LargeFilesList(
-    files: List<FileNode>,
-    selectedIds: Map<String, Boolean>,
-    onToggleSelect: (FileNodeId) -> Unit,
-    onSelectAll: () -> Unit,
+private fun LazyListScope.categoryItems(
+    result: StorageAnalysisResult,
+    category: StorageAnalysisCategory,
+    selected: Set<String>,
+    onToggle: (FileNode) -> Unit,
+    onSelectionChange: (Set<String>) -> Unit,
     onOpenFile: ((FileNode) -> Unit)?,
 ) {
-    if (files.isEmpty()) {
-        EmptyStateMessage("No large files found matching threshold (>50 MB).")
+    val nodes = StorageCleanupSelection.nodesIn(result, category)
+    if (nodes.isEmpty()) {
+        item { AtomicEmptyState(message = category.emptyMessage()) }
         return
     }
-
-    Column {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(onClick = onSelectAll) {
-                Text("Select All")
-            }
-        }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(files, key = { it.id.raw }) { file ->
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { if (onOpenFile != null) onOpenFile(file) else onToggleSelect(file.id) }
-                                .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = selectedIds[file.id.raw] == true,
-                            onCheckedChange = { onToggleSelect(file.id) },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = file.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = "${FileUtils.formatBytes(file.size)} â€¢ ${file.id.raw}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun DuplicateGroupsList(
-    groups: List<DuplicateGroup>,
-    selectedIds: Map<String, Boolean>,
-    onToggleSelect: (FileNodeId) -> Unit,
-    onKeepOnlyOnePerGroup: () -> Unit,
-    onOpenFile: ((FileNode) -> Unit)?,
-) {
-    if (groups.isEmpty()) {
-        EmptyStateMessage("No duplicate files found across storage.")
-        return
-    }
-
-    Column {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = "${groups.size} duplicate group(s)",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    if (category == StorageAnalysisCategory.DUPLICATE_FILES) {
+        item {
+            AtomicSectionLabel(
+                "${result.duplicateGroups.size} groups",
+                actionLabel = "Keep one of each",
+                onAction = { onSelectionChange(StorageCleanupSelection.allButFirstCopy(result.duplicateGroups)) },
             )
-            TextButton(onClick = onKeepOnlyOnePerGroup) {
-                Text("Select All Duplicates (Keep 1)")
+        }
+        result.duplicateGroups.forEach { group ->
+            item(key = "group:${group.sha256}") {
+                AtomicText(
+                    "${FileUtils.formatBytes(group.sizeBytes)} each · ${group.items.size} copies",
+                    AtomicTextRole.MonoLabel,
+                    color = Atomic.colors.accentText,
+                    modifier = Modifier.padding(top = AtomicSpacing.s8),
+                )
+            }
+            items(group.items, key = { "dup:${group.sha256}:${it.id.raw}" }) { node ->
+                val first = node == group.items.first()
+                CleanupRow(
+                    node,
+                    selected,
+                    onToggle,
+                    onOpenFile,
+                    note = if (first) "Original · kept by Keep one" else null,
+                )
             }
         }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(groups, key = { it.sha256 }) { group ->
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = "Size: ${FileUtils.formatBytes(group.sizeBytes)} each",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = "${group.items.size} copies",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        group.items.forEachIndexed { index, item ->
-                            val isSelected = selectedIds[item.id.raw] == true
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            if (onOpenFile != null) {
-                                                onOpenFile(
-                                                    item,
-                                                )
-                                            } else {
-                                                onToggleSelect(item.id)
-                                            }
-                                        }
-                                        .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { onToggleSelect(item.id) },
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = if (index == 0) "${item.name} (Original)" else item.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    Text(
-                                        text = item.id.raw,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyFoldersList(
-    folders: List<FileNode>,
-    selectedIds: Map<String, Boolean>,
-    onToggleSelect: (FileNodeId) -> Unit,
-    onSelectAll: () -> Unit,
-) {
-    if (folders.isEmpty()) {
-        EmptyStateMessage("No empty directories found.")
         return
     }
-
-    Column {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(onClick = onSelectAll) {
-                Text("Select All")
-            }
-        }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(folders, key = { it.id.raw }) { folder ->
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { onToggleSelect(folder.id) }
-                                .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = selectedIds[folder.id.raw] == true,
-                            onCheckedChange = { onToggleSelect(folder.id) },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            Icons.Filled.FolderOpen,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = folder.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            Text(
-                                text = folder.id.raw,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TempFilesList(
-    files: List<FileNode>,
-    selectedIds: Map<String, Boolean>,
-    onToggleSelect: (FileNodeId) -> Unit,
-    onSelectAll: () -> Unit,
-) {
-    if (files.isEmpty()) {
-        EmptyStateMessage("No temporary or cache files found.")
-        return
-    }
-
-    Column {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(onClick = onSelectAll) {
-                Text("Select All")
-            }
-        }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(files, key = { it.id.raw }) { file ->
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { onToggleSelect(file.id) }
-                                .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = selectedIds[file.id.raw] == true,
-                            onCheckedChange = { onToggleSelect(file.id) },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            Icons.Filled.CleaningServices,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = file.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = "${FileUtils.formatBytes(file.size)} â€¢ ${file.id.raw}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyStateMessage(message: String) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 40.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    item {
+        AtomicSectionLabel(
+            "${nodes.size} ${category.label.lowercase()}",
+            actionLabel = if (nodes.all { it.id.raw in selected }) "Select none" else "Select all",
+            onAction = { onSelectionChange(StorageCleanupSelection.toggleAll(selected, nodes)) },
         )
     }
+    items(nodes, key = { it.id.raw }) { node -> CleanupRow(node, selected, onToggle, onOpenFile, note = null) }
+}
+
+@Composable
+private fun CleanupRow(
+    node: FileNode,
+    selected: Set<String>,
+    onToggle: (FileNode) -> Unit,
+    onOpenFile: ((FileNode) -> Unit)?,
+    note: String?,
+) {
+    val path = node.id.raw.removePrefix(FileNodeId.Prefix.FILE.scheme)
+    AtomicFileRow(
+        name = node.name,
+        meta =
+            listOfNotNull(
+                if (node.isDirectory) null else FileUtils.formatBytes(node.size),
+                note,
+                path,
+            ).joinToString(" · "),
+        icon = iconFor(node),
+        onClick = { onToggle(node) },
+        selectionMode = true,
+        selected = node.id.raw in selected,
+        trailing =
+            if (onOpenFile != null) {
+                {
+                    AtomicIconButton(
+                        AtomicIcons.FolderOpen,
+                        "Show ${node.name} in Files",
+                        onClick = { onOpenFile(node) },
+                    )
+                }
+            } else {
+                null
+            },
+    )
 }

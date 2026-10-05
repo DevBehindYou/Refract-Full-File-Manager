@@ -97,10 +97,8 @@ fun AtomicFileRow(
                 AtomicText(name, AtomicTextRole.Name, maxLines = 2)
                 AtomicText(meta, AtomicTextRole.MonoMeta, maxLines = 1)
             }
-            when {
-                selectionMode -> AtomicCheckbox(checked = selected, onCheckedChange = null)
-                trailing != null -> trailing()
-            }
+            trailing?.invoke()
+            if (selectionMode) AtomicCheckbox(checked = selected, onCheckedChange = null)
         }
         if (!selected) AtomicDivider()
     }
