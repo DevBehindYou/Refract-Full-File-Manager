@@ -1,6 +1,7 @@
 plugins {
     id("atomic.android.application")
     alias(libs.plugins.androidJunit5)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
 }
@@ -77,6 +78,12 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Room (ALL_IN_ONE_PLAN.md Phase 0.2): the operation journal first, other tables move over later.
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+    testImplementation(libs.room.testing)
+
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -97,6 +104,11 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+}
+
+ksp {
+    // Exported schemas are committed so every migration can be tested against the real history.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 detekt {

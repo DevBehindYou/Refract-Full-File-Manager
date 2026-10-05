@@ -13,7 +13,8 @@
 # --- Core toolchain --------------------------------------------------------
 agp = "9.1.1" # Matched to Gradle 9.3.1 toolchain
 kotlin = "2.2.10" # [BEST-EFFORT] AGP 9.1's reported bundled default; AGP 9.3 may bundle a newer patch.
-ksp = "2.2.10-2.0.2" # [BEST-EFFORT] must track the `kotlin` version above (KSP2 versions as "<kotlinVersion>-<kspPatch>").
+ksp = "2.3.12" # KSP 2.3+ is versioned independently of Kotlin and is the line meant to work with AGP 9 built-in Kotlin. Confirmed on Maven Central and the Gradle plugin portal (5 Oct 2026); compatibility with this build is proven by CI, not locally.
+room = "2.7.2" # [BEST-EFFORT] Google Maven is not reachable from the build machine; 2.7.2 is a known published release.
 
 # --- Compose -----------------------------------------------------------
 # Pinned to the April '26 train (Compose 1.11.0) deliberately: the August '26 train
@@ -79,6 +80,11 @@ androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", ve
 
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
+
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }

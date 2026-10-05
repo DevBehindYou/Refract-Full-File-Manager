@@ -14,6 +14,8 @@ import com.devbehindyou.atomicfilemanager.data.backend.network.SmbBackend
 import com.devbehindyou.atomicfilemanager.data.backend.network.WebDavBackend
 import com.devbehindyou.atomicfilemanager.data.database.HiddenFilesDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.database.TransferBubbleDatabaseHelper
+import com.devbehindyou.atomicfilemanager.data.database.room.AtomicDatabase
+import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
 import com.devbehindyou.atomicfilemanager.data.preview.ImagePreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.MediaPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.PdfPreviewHelper
@@ -38,6 +40,7 @@ import com.devbehindyou.atomicfilemanager.domain.usecase.StorageAnalyzerUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 interface AppContainer {
     val storageBackendSelector: StorageBackendSelector
@@ -61,11 +64,23 @@ interface AppContainer {
 
     /** Process-wide so the phone-wide category scan survives Activity recreation (rotation). */
     val phoneFileIndex: PhoneFileIndex
+
+    /** Durable record of every file operation (ALL_IN_ONE_PLAN.md Phase 0.1). */
+    val operationJournal: OperationJournalDao
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
     /** Lives as long as the process; used for start-up loads that must not block the main thread. */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private val database by lazy {
+        AtomicDatabase.create(application).also { db ->
+            // A fresh process can't still be running anything the journal says is running.
+            appScope.launch(Dispatchers.IO) { db.operationJournal().markInterrupted(System.currentTimeMillis()) }
+        }
+    }
+
+    override val operationJournal: OperationJournalDao get() = database.operationJournal()
 
     override val hiddenFilesRepository: HiddenFilesRepository by lazy {
         val helper = HiddenFilesDatabaseHelper(application)
