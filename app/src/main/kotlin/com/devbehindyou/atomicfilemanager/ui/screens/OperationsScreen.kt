@@ -166,7 +166,8 @@ internal object OperationText {
             OperationType.EXTRACT -> "Extract"
             OperationType.COMPRESS -> "Compress"
             OperationType.HIDE_GALLERY, OperationType.FAST_OBSCURE, OperationType.MOVE_TO_PRIVATE -> "Hide"
-            OperationType.UNHIDE_GALLERY, OperationType.RESTORE_OBSCURE -> "Restore"
+            OperationType.UNHIDE_GALLERY, OperationType.RESTORE_OBSCURE, OperationType.RESTORE_FROM_TRASH -> "Restore"
+            OperationType.TRASH -> "Move to Trash"
         }
 
     fun items(count: Int): String = if (count == 1) "1 item" else "$count items"

@@ -31,4 +31,13 @@ data class AppSettings(
     val requireAuthForHidden: Boolean = false,
     val showHiddenFiles: Boolean = true,
     val hiddenFolder: String = DEFAULT_HIDDEN_FOLDER,
+    /** Delete moves to the Trash where the storage allows it; off means deletes are permanent. */
+    val useTrash: Boolean = true,
+    /** Days an item stays in the Trash before it is deleted for good. */
+    val trashRetentionDays: Int = DEFAULT_TRASH_RETENTION_DAYS,
 )
+
+const val DEFAULT_TRASH_RETENTION_DAYS = 30
+
+/** The choices offered in Settings (ALL_IN_ONE_PLAN.md 1.1). */
+val TRASH_RETENTION_CHOICES = listOf(7, 30, 60)

@@ -38,6 +38,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicInfo
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.domain.model.DEFAULT_HIDDEN_FOLDER
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
+import com.devbehindyou.atomicfilemanager.domain.model.TRASH_RETENTION_CHOICES
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
 import com.devbehindyou.atomicfilemanager.domain.model.normalizeHiddenFolder
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
@@ -160,6 +161,32 @@ fun SettingsScreen(
                 checked = settings.showHiddenFiles,
                 onCheckedChange = { on -> settingsRepository.update { it.copy(showHiddenFiles = on) } },
             )
+        }
+
+        SettingsSection("Trash") {
+            AtomicToggleCard(
+                title = "Use Trash",
+                description =
+                    if (settings.useTrash) {
+                        "Deleted files go to Trash and can be restored for ${settings.trashRetentionDays} days."
+                    } else {
+                        "Deletes are permanent. Each delete still asks first."
+                    },
+                checked = settings.useTrash,
+                onCheckedChange = { on -> settingsRepository.update { it.copy(useTrash = on) } },
+                modifier = Modifier.testTag("setting_use_trash"),
+            )
+            AtomicText("Keep deleted files for", AtomicTextRole.MonoMeta)
+            AtomicChipRow {
+                TRASH_RETENTION_CHOICES.forEach { days ->
+                    AtomicChip(
+                        label = "$days days",
+                        selected = settings.trashRetentionDays == days,
+                        onSelectedChange = { settingsRepository.update { it.copy(trashRetentionDays = days) } },
+                        enabled = settings.useTrash,
+                    )
+                }
+            }
         }
 
         SettingsSection("Hiding & privacy") {

@@ -28,7 +28,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -70,7 +72,13 @@ import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
 import com.devbehindyou.atomicfilemanager.domain.model.FileCategory
 import com.devbehindyou.atomicfilemanager.domain.model.FileCollection
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
+import com.devbehindyou.atomicfilemanager.domain.model.FileOperation
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
+import com.devbehindyou.atomicfilemanager.domain.model.OperationId
+import com.devbehindyou.atomicfilemanager.domain.model.OperationOptions
+import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
+import com.devbehindyou.atomicfilemanager.domain.model.OperationSummary
+import com.devbehindyou.atomicfilemanager.domain.model.OperationType
 import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import com.devbehindyou.atomicfilemanager.domain.model.StorageVolumeInfo
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
@@ -85,6 +93,8 @@ import com.devbehindyou.atomicfilemanager.ui.screens.OperationsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.SettingsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
+import com.devbehindyou.atomicfilemanager.ui.screens.TrashScreen
+import com.devbehindyou.atomicfilemanager.ui.screens.TrashText
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -401,6 +411,45 @@ fun AtomicAppContent(
         }
     }
 
+    // After a move to Trash: say what happened and offer Undo for 10 s (FR-4.14). Restores report too.
+    LaunchedEffect(operationQueue) {
+        operationQueue.finished.collect { snapshot ->
+            val summary = snapshot.status.summaryOrNull() ?: return@collect
+            val done = summary.succeeded.size
+            val failed = summary.failed.size
+            when (snapshot.operation.type) {
+                OperationType.TRASH ->
+                    if (done > 0) {
+                        scope.launch {
+                            val result =
+                                snackbarHostState.showSnackbar(
+                                    TrashText.moved(done, failed),
+                                    actionLabel = "Undo",
+                                    duration = SnackbarDuration.Long,
+                                )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                val entries = app.container.trashStore.byOperation(snapshot.operation.id.raw)
+                                if (entries.isNotEmpty()) {
+                                    operationQueue.enqueue(
+                                        FileOperation(
+                                            id = OperationId.random(),
+                                            type = OperationType.RESTORE_FROM_TRASH,
+                                            sources = entries.map { it.trashedId },
+                                            destination = null,
+                                            options = OperationOptions(),
+                                            createdAt = System.currentTimeMillis(),
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                OperationType.RESTORE_FROM_TRASH -> notify(TrashText.restored(done, failed))
+                else -> Unit
+            }
+        }
+    }
+
     // A tap on the operation notification opens Operations on top of whatever is showing.
     LaunchedEffect(openRequest) {
         if (openRequest == MainActivity.OPEN_OPERATIONS) {
@@ -424,6 +473,17 @@ fun AtomicAppContent(
                     privateOnly = true,
                 )
             }
+            return
+        }
+        AtomicRoute.Trash -> {
+            TrashScreen(
+                store = app.container.trashStore,
+                trashManager = app.container.trashManager,
+                queue = operationQueue,
+                retentionDays = settings.trashRetentionDays,
+                onBack = ::pop,
+                onNotify = ::notify,
+            )
             return
         }
         AtomicRoute.Operations -> {
@@ -530,6 +590,7 @@ fun AtomicAppContent(
                     onNotify = ::notify,
                     onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
                     onOpenOperations = { push(AtomicRoute.Operations) },
+                    onOpenTrash = { push(AtomicRoute.Trash) },
                 ),
         )
     }
@@ -622,6 +683,7 @@ private class ShellCallbacks(
     val onNotify: (String) -> Unit,
     val onOpenStorageDetails: () -> Unit,
     val onOpenOperations: () -> Unit,
+    val onOpenTrash: () -> Unit,
 )
 
 @Composable
@@ -665,6 +727,7 @@ private fun MainScreenContent(
                 onBrowseFolder = callbacks.onFolderSelected,
                 onOpenStorageIntelligence = callbacks.onOpenStorageIntelligence,
                 onOpenOperations = callbacks.onOpenOperations,
+                onOpenTrash = callbacks.onOpenTrash,
             )
         }
         NavigationTab.SETTINGS -> {
@@ -702,3 +765,12 @@ private fun loadVolumes(
         ),
     )
 }
+
+/** The summary of a finished operation, or null while it is still going or was cancelled. */
+private fun OperationStatus.summaryOrNull(): OperationSummary? =
+    when (this) {
+        is OperationStatus.Completed -> summary
+        is OperationStatus.PartiallyCompleted -> summary
+        is OperationStatus.Failed -> summary
+        else -> null
+    }

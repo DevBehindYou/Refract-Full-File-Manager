@@ -17,6 +17,11 @@ sealed interface AtomicRoute {
         override fun encode() = OPERATIONS
     }
 
+    /** What is in the Trash: restore, delete for good, empty. */
+    data object Trash : AtomicRoute {
+        override fun encode() = TRASH
+    }
+
     /** A category collection; [collection] is a `FileCollection` name. */
     data class Category(
         val collection: String,
@@ -34,6 +39,7 @@ sealed interface AtomicRoute {
     companion object {
         private const val PRIVATE = "private"
         private const val OPERATIONS = "operations"
+        private const val TRASH = "trash"
         private const val CATEGORY = "category"
         private const val ANALYSIS = "analysis"
         private const val SEPARATOR = ':'
@@ -42,6 +48,7 @@ sealed interface AtomicRoute {
         fun decode(value: String): AtomicRoute? {
             if (value == PRIVATE) return PrivateFiles
             if (value == OPERATIONS) return Operations
+            if (value == TRASH) return Trash
             val kind = value.substringBefore(SEPARATOR, missingDelimiterValue = "")
             val argument = value.substringAfter(SEPARATOR, missingDelimiterValue = "")
             if (argument.isEmpty()) return null

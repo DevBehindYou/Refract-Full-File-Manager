@@ -68,6 +68,7 @@ fun StorageScreen(
     onOpenStorageIntelligence: ((FileNodeId) -> Unit)? = null,
     modifier: Modifier = Modifier,
     onOpenOperations: () -> Unit = {},
+    onOpenTrash: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as? AtomicApp
@@ -136,6 +137,14 @@ fun StorageScreen(
                 value = if (running == null) "History, resume and retry" else "1 running",
                 onClick = onOpenOperations,
                 modifier = Modifier.testTag("open_operations"),
+            )
+            val trashFlow = remember(app) { app?.container?.trashStore?.observeAll() }
+            val trash = trashFlow?.collectAsState(initial = emptyList())?.value.orEmpty()
+            AtomicSettingsRow(
+                title = "Trash",
+                value = TrashText.summary(trash),
+                onClick = onOpenTrash,
+                modifier = Modifier.testTag("open_trash"),
             )
         }
 

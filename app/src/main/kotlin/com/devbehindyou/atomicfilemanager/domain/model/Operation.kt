@@ -21,6 +21,12 @@ enum class OperationType {
     FAST_OBSCURE,
     RESTORE_OBSCURE,
     MOVE_TO_PRIVATE,
+
+    /** Move to the app Trash (same-volume rename); see TrashManager. */
+    TRASH,
+
+    /** Sources are trashed item ids; each goes back to its original folder. */
+    RESTORE_FROM_TRASH,
 }
 
 enum class CollisionPolicy { ASK, OVERWRITE, KEEP_BOTH, SKIP, RENAME_AUTO }

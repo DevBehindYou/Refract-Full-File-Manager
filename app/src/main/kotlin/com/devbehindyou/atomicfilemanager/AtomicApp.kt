@@ -16,6 +16,7 @@ import com.devbehindyou.atomicfilemanager.data.database.HiddenFilesDatabaseHelpe
 import com.devbehindyou.atomicfilemanager.data.database.TransferBubbleDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.database.room.AtomicDatabase
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
+import com.devbehindyou.atomicfilemanager.data.database.room.RoomTrashStore
 import com.devbehindyou.atomicfilemanager.data.operations.OperationQueue
 import com.devbehindyou.atomicfilemanager.data.operations.OperationRecovery
 import com.devbehindyou.atomicfilemanager.data.preview.ImagePreviewHelper
@@ -24,12 +25,15 @@ import com.devbehindyou.atomicfilemanager.data.preview.PdfPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.repository.HiddenFilesRepositoryImpl
 import com.devbehindyou.atomicfilemanager.data.repository.SharedPreferencesSettingsRepository
 import com.devbehindyou.atomicfilemanager.data.repository.TransferBubbleRepositoryImpl
+import com.devbehindyou.atomicfilemanager.data.repository.volumeRootOf
 import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
+import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.repository.BackendType
 import com.devbehindyou.atomicfilemanager.domain.repository.HiddenFilesRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.StorageBackend
 import com.devbehindyou.atomicfilemanager.domain.repository.TransferBubbleRepository
+import com.devbehindyou.atomicfilemanager.domain.repository.TrashStore
 import com.devbehindyou.atomicfilemanager.domain.usecase.CreateDirectoryUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.DeleteFileUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileOperationsEngine
@@ -39,6 +43,7 @@ import com.devbehindyou.atomicfilemanager.domain.usecase.InspectArchiveUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.ReadFileContentUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.RenameFileUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.StorageAnalyzerUseCase
+import com.devbehindyou.atomicfilemanager.domain.usecase.TrashManager
 import com.devbehindyou.atomicfilemanager.service.FileOperationService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +53,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 interface AppContainer {
     val storageBackendSelector: StorageBackendSelector
@@ -80,6 +86,10 @@ interface AppContainer {
 
     /** Work a previous process left unfinished, offered once as "Resume or discard". */
     val operationRecovery: OperationRecovery
+
+    /** The app Trash (ALL_IN_ONE_PLAN.md 1.1): what is in it, restore and delete for good. */
+    val trashManager: TrashManager
+    val trashStore: TrashStore
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
@@ -105,6 +115,22 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
                     .distinctUntilChanged()
                     .filter { it }
                     .collect { FileOperationService.start(application) }
+            }
+        }
+    }
+
+    override val trashStore: TrashStore by lazy { RoomTrashStore(database.trashEntries()) }
+
+    override val trashManager: TrashManager by lazy {
+        TrashManager(
+            backendFor = { id -> storageBackendSelector.forNode(id) },
+            store = trashStore,
+            volumeRootOf = ::trashVolumeRoot,
+        ).also { trash ->
+            // Items past the retention period go for good, once per process, off the main thread.
+            appScope.launch(Dispatchers.IO) {
+                val days = settingsRepository.settings.value.trashRetentionDays
+                runCatching { trash.purgeDeletedBefore(System.currentTimeMillis() - days * DAY_MILLIS) }
             }
         }
     }
@@ -194,7 +220,10 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val fileOperationsEngine: FileOperationsEngine by lazy {
-        FileOperationsEngine { id -> storageBackendSelector.forNode(id) }
+        FileOperationsEngine(backendSelector = {
+                id ->
+            storageBackendSelector.forNode(id)
+        }, trashManager = trashManager)
     }
 
     override val inspectArchiveUseCase: InspectArchiveUseCase by lazy {
@@ -234,6 +263,16 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
         PhoneFileIndex(getDirectoryListingUseCase)
     }
 }
+
+private const val DAY_MILLIS = 24L * 60 * 60 * 1000
+
+/** Trash lives at the root of the volume a local file is on; other storage has no Trash. */
+private fun trashVolumeRoot(id: FileNodeId): FileNodeId? =
+    if (id.prefix == FileNodeId.Prefix.FILE) {
+        volumeRootOf(File(id.raw.removePrefix(FileNodeId.Prefix.FILE.scheme)))?.let { FileNodeId.file(it.absolutePath) }
+    } else {
+        null
+    }
 
 /**
  * Application class for Atomic File Manager.

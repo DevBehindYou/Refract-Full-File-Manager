@@ -88,7 +88,10 @@ class StorageAnalyzerUseCase
                             coroutineContext.ensureActive()
                             hadChildren = true
                             if (child.isDirectory) {
-                                if (depth < maxDepth) queue.add(child.id to depth + 1) else partial = true
+                                // The Trash and other app data are never cleanup suggestions (ALL_IN_ONE_PLAN.md 1.1).
+                                val appData = child.name == TrashManager.APP_FOLDER
+                                if (!appData && depth < maxDepth) queue.add(child.id to depth + 1)
+                                if (!appData && depth >= maxDepth) partial = true
                             } else if (files.putIfAbsent(child.id, child) == null && files.size % 50 == 0) {
                                 progress(
                                     StorageAnalysisProgress(

@@ -221,6 +221,8 @@ class FileOperationService : Service() {
                     OperationType.DELETE -> "Deleting"
                     OperationType.COMPRESS -> "Compressing"
                     OperationType.EXTRACT -> "Extracting"
+                    OperationType.TRASH -> "Moving to Trash"
+                    OperationType.RESTORE_FROM_TRASH -> "Restoring"
                     else -> "Working on files"
                 }
             return if (waiting > 0) "$verb · $waiting more waiting" else verb

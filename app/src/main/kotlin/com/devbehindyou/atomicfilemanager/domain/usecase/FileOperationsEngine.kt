@@ -34,6 +34,9 @@ import kotlin.coroutines.coroutineContext
 class FileOperationsEngine
     @Inject
     constructor(
+        /** Needed for [OperationType.TRASH] and [OperationType.RESTORE_FROM_TRASH]; both fail without it. */
+        private val trashManager: TrashManager? = null,
+        // Last, so `FileOperationsEngine { backend }` keeps working.
         private val backendSelector: (FileNodeId) -> StorageBackend,
     ) {
         companion object {
@@ -213,6 +216,48 @@ class FileOperationsEngine
                                     is ItemResult.Failure -> {
                                         failed.add(FailedItem(sourceId, sourceNode.name, copyResult.error))
                                     }
+                                }
+                            }
+                        }
+                        OperationType.TRASH -> {
+                            for (sourceId in operation.sources) {
+                                if (!coroutineContext.isActive) throw CancellationException()
+                                val node = (backendSelector(sourceId).getNode(sourceId) as? FileResult.Success)?.value
+                                val name = node?.name ?: sourceId.raw.substringAfterLast('/')
+                                emitProgress(name)
+                                val result =
+                                    when {
+                                        node == null -> FileResult.Failure(FileError.FileNotFound(name))
+                                        trashManager == null -> FileResult.Failure(FileError.InvalidDestination(name))
+                                        else -> trashManager.trash(node, operation.id.raw)
+                                    }
+                                when (result) {
+                                    is FileResult.Success -> {
+                                        succeeded.add(sourceId)
+                                        itemsDone++
+                                    }
+                                    is FileResult.Failure -> failed.add(FailedItem(sourceId, name, result.error))
+                                }
+                            }
+                        }
+                        OperationType.RESTORE_FROM_TRASH -> {
+                            for (sourceId in operation.sources) {
+                                if (!coroutineContext.isActive) throw CancellationException()
+                                val entry = trashManager?.entryFor(sourceId)
+                                val name = entry?.name ?: sourceId.raw.substringAfterLast('/')
+                                emitProgress(name)
+                                val result =
+                                    if (entry == null || trashManager == null) {
+                                        FileResult.Failure(FileError.FileNotFound(name))
+                                    } else {
+                                        trashManager.restore(entry)
+                                    }
+                                when (result) {
+                                    is FileResult.Success -> {
+                                        succeeded.add(sourceId)
+                                        itemsDone++
+                                    }
+                                    is FileResult.Failure -> failed.add(FailedItem(sourceId, name, result.error))
                                 }
                             }
                         }

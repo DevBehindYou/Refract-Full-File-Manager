@@ -375,12 +375,16 @@ class BrowseViewModel(
         }
     }
 
-    fun deleteNodes(nodeIds: List<FileNodeId>) {
+    /** [toTrash] moves them to the Trash (restorable); otherwise they are deleted for good. */
+    fun deleteNodes(
+        nodeIds: List<FileNodeId>,
+        toTrash: Boolean = false,
+    ) {
         viewModelScope.launch {
             val op =
                 FileOperation(
                     id = OperationId.random(),
-                    type = OperationType.DELETE,
+                    type = if (toTrash) OperationType.TRASH else OperationType.DELETE,
                     sources = nodeIds,
                     destination = null,
                     options = OperationOptions(),

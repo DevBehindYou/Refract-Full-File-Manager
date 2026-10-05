@@ -3,7 +3,9 @@ package com.devbehindyou.atomicfilemanager.data.repository
 import android.content.Context
 import com.devbehindyou.atomicfilemanager.domain.model.AppSettings
 import com.devbehindyou.atomicfilemanager.domain.model.DEFAULT_HIDDEN_FOLDER
+import com.devbehindyou.atomicfilemanager.domain.model.DEFAULT_TRASH_RETENTION_DAYS
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
+import com.devbehindyou.atomicfilemanager.domain.model.TRASH_RETENTION_CHOICES
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
 import com.devbehindyou.atomicfilemanager.domain.model.normalizeHiddenFolder
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
@@ -35,6 +37,10 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
             showHiddenFiles = prefs.getBoolean(KEY_SHOW_HIDDEN, true),
             hiddenFolder =
                 prefs.getString(KEY_HIDDEN_FOLDER, null)?.let(::normalizeHiddenFolder) ?: DEFAULT_HIDDEN_FOLDER,
+            useTrash = prefs.getBoolean(KEY_USE_TRASH, true),
+            trashRetentionDays =
+                prefs.getInt(KEY_TRASH_RETENTION, DEFAULT_TRASH_RETENTION_DAYS)
+                    .takeIf { it in TRASH_RETENTION_CHOICES } ?: DEFAULT_TRASH_RETENTION_DAYS,
         )
 
     private fun write(settings: AppSettings) {
@@ -45,6 +51,8 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
                 .putBoolean(KEY_REQUIRE_AUTH, settings.requireAuthForHidden)
                 .putBoolean(KEY_SHOW_HIDDEN, settings.showHiddenFiles)
                 .putString(KEY_HIDDEN_FOLDER, settings.hiddenFolder)
+                .putBoolean(KEY_USE_TRASH, settings.useTrash)
+                .putInt(KEY_TRASH_RETENTION, settings.trashRetentionDays)
         val hideMode = settings.defaultHideMode
         if (hideMode == null) {
             editor.remove(KEY_DEFAULT_HIDE_MODE)
@@ -65,5 +73,7 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
         const val KEY_REQUIRE_AUTH = "require_auth_for_hidden"
         const val KEY_SHOW_HIDDEN = "show_hidden_files"
         const val KEY_HIDDEN_FOLDER = "hidden_folder"
+        const val KEY_USE_TRASH = "use_trash"
+        const val KEY_TRASH_RETENTION = "trash_retention_days"
     }
 }

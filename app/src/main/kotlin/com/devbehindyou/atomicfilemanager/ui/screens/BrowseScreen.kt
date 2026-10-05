@@ -70,7 +70,6 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicPush
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicTitleRow
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicActionStrip
-import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicStripAction
 import com.devbehindyou.atomicfilemanager.domain.model.CollisionPolicy
@@ -81,6 +80,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
+import com.devbehindyou.atomicfilemanager.ui.components.DeleteSheet
 import com.devbehindyou.atomicfilemanager.ui.components.FileDetailsDialog
 import com.devbehindyou.atomicfilemanager.ui.components.FileListItem
 import com.devbehindyou.atomicfilemanager.ui.components.FilePreviewDialog
@@ -1019,16 +1019,10 @@ private fun BrowseDialogs(
     }
 
     state.nodeToDelete?.let { node ->
-        AtomicConfirmSheet(
-            label = "Delete",
-            headline = if (node.isDirectory) "Delete folder?" else "Delete file?",
-            body =
-                "\"${node.name}\" will be deleted" +
-                    (if (node.isDirectory) " with everything inside it" else "") + ". This can't be undone.",
-            confirmLabel = "Delete",
-            destructive = true,
-            onConfirm = {
-                viewModel.deleteNodes(listOf(node.id))
+        DeleteSheet(
+            nodes = listOf(node),
+            onConfirm = { toTrash ->
+                viewModel.deleteNodes(listOf(node.id), toTrash)
                 callbacks.onDismissDelete()
             },
             onDismiss = callbacks.onDismissDelete,
@@ -1044,18 +1038,14 @@ private fun BrowseDialogs(
     }
 
     if (state.confirmMultiDelete) {
-        val count = uiState.selectedIds.size
-        AtomicConfirmSheet(
-            label = "Delete",
-            headline = "Delete $count items?",
-            body =
-                "The $count selected items will be deleted, including everything inside selected folders. " +
-                    "This can't be undone.",
-            confirmLabel = "Delete $count",
-            destructive = true,
-            onConfirm = {
-                val ids = uiState.selectedIds.toList()
-                viewModel.deleteNodes(ids)
+        val selected =
+            remember(uiState.selectedIds, uiState.rawItems) {
+                uiState.rawItems.filter { it.id in uiState.selectedIds }
+            }
+        DeleteSheet(
+            nodes = selected,
+            onConfirm = { toTrash ->
+                viewModel.deleteNodes(selected.map { it.id }, toTrash)
                 viewModel.clearSelection()
                 callbacks.onDismissMultiDelete()
             },
