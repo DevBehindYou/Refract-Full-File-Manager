@@ -4,8 +4,12 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.devbehindyou.atomicfilemanager.domain.model.AccessFlags
+import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
+import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import com.devbehindyou.atomicfilemanager.domain.model.TrashEntry
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -17,8 +21,8 @@ import org.robolectric.annotation.Config
 
 /**
  * Builds a real version 1 database from the committed `app/schemas/.../1.json` statements, then
- * opens it with the current code. Room validates every table and index against version 2 after
- * the migration, so a mistake in MIGRATION_1_2's SQL fails here, not on a user's phone.
+ * opens it with the current code. Room validates every table and index against the current version
+ * after the migrations, so a mistake in any migration's SQL fails here, not on a user's phone.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -62,12 +66,12 @@ class AtomicDatabaseMigrationTest {
     }
 
     @Test
-    fun version1MigratesToVersion2AndKeepsTheJournal() =
+    fun version1MigratesToTheCurrentVersionAndKeepsTheJournal() =
         runBlocking {
             val database =
                 Room
                     .databaseBuilder(context, AtomicDatabase::class.java, name)
-                    .addMigrations(AtomicDatabase.MIGRATION_1_2)
+                    .addMigrations(AtomicDatabase.MIGRATION_1_2, AtomicDatabase.MIGRATION_2_3)
                     .allowMainThreadQueries()
                     .build()
             try {
@@ -91,6 +95,29 @@ class AtomicDatabaseMigrationTest {
                 assertEquals(entry, store.byTrashedId(entry.trashedId))
                 assertEquals(listOf(entry), store.byOperation("op"))
                 assertEquals(listOf(entry), store.deletedBefore(4_000L))
+
+                val favourites = RoomFavouritesRepository(database.favourites(), clock = { 5_000L })
+                val node =
+                    FileNode(
+                        id = FileNodeId.file("/storage/emulated/0/Docs"),
+                        name = "Docs",
+                        displayName = "Docs",
+                        mimeType = null,
+                        size = -1,
+                        modifiedAt = 0,
+                        isDirectory = true,
+                        isHidden = false,
+                        parentId = null,
+                        storageType = StorageType.INTERNAL_SHARED,
+                        access = AccessFlags.FULL,
+                        childCount = null,
+                        extras = null,
+                    )
+                favourites.add(node)
+                assertEquals(listOf("Docs"), favourites.observe().first().map { it.name })
+                val recents = RoomRecentsRepository(database.recentItems(), media = { _, _ -> emptyList() })
+                recents.recordOpened(node.copy(id = FileNodeId.file("/storage/emulated/0/a.pdf"), isDirectory = false))
+                assertEquals(1, recents.observeOpened(10).first().size)
             } finally {
                 database.close()
             }

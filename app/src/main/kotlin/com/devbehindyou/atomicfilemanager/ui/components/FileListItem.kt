@@ -59,6 +59,12 @@ fun iconFor(node: FileNode): ImageVector =
         else -> AtomicIcons.Document
     }
 
+/** Star state for a row's actions sheet; null hides the action. */
+class FavouriteToggle(
+    val isFavourite: Boolean,
+    val onToggle: () -> Unit,
+)
+
 /** Mono meta line: "42 items · 2026-10-02 21:44" for folders, "214.0 KB · 2026-10-04 08:11" for files. */
 fun metaFor(node: FileNode): String {
     val date = FileUtils.formatDate(node.modifiedAt)
@@ -92,6 +98,7 @@ fun FileListItem(
     onQuickPeek: (() -> Unit)? = null,
     onHide: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    favourite: FavouriteToggle? = null,
 ) {
     val colors = Atomic.colors
     var showActions by rememberSaveable(node.id.raw) { mutableStateOf(false) }
@@ -102,6 +109,9 @@ fun FileListItem(
             if (isZip && onExtract != null) "Extract" to onExtract else null,
             if (isMedia && onQuickPeek != null) "Quick preview" to onQuickPeek else null,
             if (onCompress != null) "Compress to ZIP" to onCompress else null,
+            favourite?.let {
+                (if (it.isFavourite) "Remove from favourites" else "Add to favourites") to it.onToggle
+            },
             if (onHide != null) "Hide" to onHide else null,
             "Details" to onShowDetails,
             "Rename" to onRename,

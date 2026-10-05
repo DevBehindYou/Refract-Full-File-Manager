@@ -16,12 +16,15 @@ import com.devbehindyou.atomicfilemanager.data.database.HiddenFilesDatabaseHelpe
 import com.devbehindyou.atomicfilemanager.data.database.TransferBubbleDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.database.room.AtomicDatabase
 import com.devbehindyou.atomicfilemanager.data.database.room.OperationJournalDao
+import com.devbehindyou.atomicfilemanager.data.database.room.RoomFavouritesRepository
+import com.devbehindyou.atomicfilemanager.data.database.room.RoomRecentsRepository
 import com.devbehindyou.atomicfilemanager.data.database.room.RoomTrashStore
 import com.devbehindyou.atomicfilemanager.data.operations.OperationQueue
 import com.devbehindyou.atomicfilemanager.data.operations.OperationRecovery
 import com.devbehindyou.atomicfilemanager.data.preview.ImagePreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.MediaPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.PdfPreviewHelper
+import com.devbehindyou.atomicfilemanager.data.recents.RecentMediaSource
 import com.devbehindyou.atomicfilemanager.data.repository.HiddenFilesRepositoryImpl
 import com.devbehindyou.atomicfilemanager.data.repository.SharedPreferencesSettingsRepository
 import com.devbehindyou.atomicfilemanager.data.repository.TransferBubbleRepositoryImpl
@@ -29,7 +32,9 @@ import com.devbehindyou.atomicfilemanager.data.repository.volumeRootOf
 import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.repository.BackendType
+import com.devbehindyou.atomicfilemanager.domain.repository.FavouritesRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.HiddenFilesRepository
+import com.devbehindyou.atomicfilemanager.domain.repository.RecentsRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.StorageBackend
 import com.devbehindyou.atomicfilemanager.domain.repository.TransferBubbleRepository
@@ -90,6 +95,10 @@ interface AppContainer {
     /** The app Trash (ALL_IN_ONE_PLAN.md 1.1): what is in it, restore and delete for good. */
     val trashManager: TrashManager
     val trashStore: TrashStore
+
+    /** Starred files and folders, and recently opened files (ALL_IN_ONE_PLAN.md 1.2). */
+    val favouritesRepository: FavouritesRepository
+    val recentsRepository: RecentsRepository
 }
 
 class DefaultAppContainer(private val application: Application) : AppContainer {
@@ -120,6 +129,13 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val trashStore: TrashStore by lazy { RoomTrashStore(database.trashEntries()) }
+
+    override val favouritesRepository: FavouritesRepository by lazy { RoomFavouritesRepository(database.favourites()) }
+
+    override val recentsRepository: RecentsRepository by lazy {
+        val media = RecentMediaSource(application)
+        RoomRecentsRepository(database.recentItems(), media = media::query)
+    }
 
     override val trashManager: TrashManager by lazy {
         TrashManager(

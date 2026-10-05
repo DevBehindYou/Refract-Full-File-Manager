@@ -120,6 +120,10 @@ fun FilePreviewPane(
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as? AtomicApp
+    // Every preview counts as "opened" for Home > Recent (ALL_IN_ONE_PLAN.md 1.2).
+    LaunchedEffect(node.id) {
+        runCatching { app?.container?.recentsRepository?.recordOpened(node) }
+    }
     val container = app?.container ?: return
     val colors = Atomic.colors
     val previewType = remember(node) { resolvePreviewType(node) }

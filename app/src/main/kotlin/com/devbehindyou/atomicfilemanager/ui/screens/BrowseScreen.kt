@@ -81,6 +81,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
 import com.devbehindyou.atomicfilemanager.ui.components.DeleteSheet
+import com.devbehindyou.atomicfilemanager.ui.components.FavouriteToggle
 import com.devbehindyou.atomicfilemanager.ui.components.FileDetailsDialog
 import com.devbehindyou.atomicfilemanager.ui.components.FileListItem
 import com.devbehindyou.atomicfilemanager.ui.components.FilePreviewDialog
@@ -1122,6 +1123,11 @@ private fun FileListContent(
     onNewFolder: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val favourites = (LocalContext.current.applicationContext as AtomicApp).container.favouritesRepository
+    val favouriteFlow = remember(favourites) { favourites.observe() }
+    val favouriteList by favouriteFlow.collectAsState(initial = emptyList())
+    val favouriteIds = remember(favouriteList) { favouriteList.mapTo(HashSet()) { it.id } }
+    val favouriteScope = rememberCoroutineScope()
     Column(modifier = modifier.fillMaxSize()) {
         if (uiState.breadcrumbs.isNotEmpty()) {
             BreadcrumbBar(
@@ -1257,6 +1263,18 @@ private fun FileListContent(
                                 Modifier
                                     .then(dragOrPeekMod)
                                     .then(dropMod),
+                            favourite =
+                                FavouriteToggle(node.id in favouriteIds) {
+                                    favouriteScope.launch {
+                                        if (node.id in favouriteIds) {
+                                            favourites.remove(
+                                                node.id,
+                                            )
+                                        } else {
+                                            favourites.add(node)
+                                        }
+                                    }
+                                },
                         )
                     }
                 }

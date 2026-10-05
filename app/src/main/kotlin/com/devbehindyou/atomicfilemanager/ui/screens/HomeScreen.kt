@@ -106,6 +106,8 @@ fun HomeScreen(
             )
         }
 
+        HomeShortcuts(onOpenFolder = onNavigateToFolder)
+
         Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s4)) {
             AtomicSectionLabel("Folders")
             QuickAccessFolders(onFolderClick = onNavigateToFolder)
