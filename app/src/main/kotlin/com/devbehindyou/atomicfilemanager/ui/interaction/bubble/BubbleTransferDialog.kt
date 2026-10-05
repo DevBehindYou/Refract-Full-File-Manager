@@ -1,37 +1,22 @@
 package com.devbehindyou.atomicfilemanager.ui.interaction.bubble
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DriveFileMove
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicToggleCard
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 
-@OptIn(ExperimentalLayoutApi::class)
+/** Move or copy everything staged in [bubble] into the current folder. Move always empties the bubble. */
 @Composable
 fun BubbleTransferDialog(
     bubble: TransferBubble,
@@ -40,75 +25,38 @@ fun BubbleTransferDialog(
     onCopy: (clearAfterTransfer: Boolean) -> Unit,
     onReviewFiles: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    var clearAfterCopy by remember { mutableStateOf(false) }
+    var clearAfterCopy by rememberSaveable { mutableStateOf(false) }
+    val items = if (bubble.itemCount == 1) "1 item" else "${bubble.itemCount} items"
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.DriveFileMove,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
-        title = {
-            Text(text = "Transfer from ${bubble.displayName}")
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text(
-                    text = "Transfer ${bubble.itemCount} item(s) to \"$targetDirectoryName\"?",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Checkbox(
-                        checked = clearAfterCopy,
-                        onCheckedChange = { clearAfterCopy = it },
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Clear bubble after transfer",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            FlowRow {
-                Button(
-                    // Move clears the transferred items from the bubble.
-                    onClick = { onMove(true) },
-                    modifier = Modifier.padding(end = 8.dp),
-                ) {
-                    Text("Move here")
-                }
-                Button(
-                    onClick = { onCopy(clearAfterCopy) },
-                ) {
-                    Text("Copy here")
-                }
-            }
-        },
-        dismissButton = {
-            FlowRow {
-                OutlinedButton(
-                    onClick = onReviewFiles,
-                    modifier = Modifier.padding(end = 8.dp),
-                ) {
-                    Text("Review")
-                }
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
-                }
-            }
-        },
-        modifier = modifier,
-    )
+    AtomicSheet(label = "Transfer from ${bubble.displayName}", onDismiss = onDismiss) {
+        AtomicText("Put $items into \"$targetDirectoryName\".", AtomicTextRole.Body)
+        AtomicToggleCard(
+            title = "Empty bubble after copy",
+            description = "Moving always empties it.",
+            checked = clearAfterCopy,
+            onCheckedChange = { clearAfterCopy = it },
+        )
+        // Move clears the transferred items from the bubble.
+        AtomicButton(
+            "Move here",
+            onClick = { onMove(true) },
+            leadingIcon = AtomicIcons.Move,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton(
+            "Copy here",
+            onClick = { onCopy(clearAfterCopy) },
+            variant = AtomicButtonVariant.Solid,
+            leadingIcon = AtomicIcons.Copy,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton(
+            "Review files",
+            onClick = onReviewFiles,
+            variant = AtomicButtonVariant.Ghost,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton("Cancel", onClick = onDismiss, variant = AtomicButtonVariant.Text)
+    }
 }

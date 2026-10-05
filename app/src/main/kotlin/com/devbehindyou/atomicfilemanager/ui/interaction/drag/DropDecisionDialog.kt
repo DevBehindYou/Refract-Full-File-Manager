@@ -1,28 +1,19 @@
 package com.devbehindyou.atomicfilemanager.ui.interaction.drag
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DriveFileMove
-import androidx.compose.material.icons.filled.AllInbox
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * Asks what a drop should do: copy or move into a folder, or stage into a transfer bubble.
+ * Dismissing the sheet cancels the drop; nothing happens until a button is pressed.
+ */
 @Composable
 fun DropDecisionDialog(
     payload: DragPayload,
@@ -31,108 +22,62 @@ fun DropDecisionDialog(
 ) {
     val itemCount = payload.selectionCount
     val targetName = target.displayName
+    val cancel = { onDecision(DropDecision.Cancel) }
 
     if (target.type == DropTargetType.TRANSFER_BUBBLE) {
         val bubbleId = target.destinationId.raw.removePrefix("atomic://bubble/")
-        AlertDialog(
-            onDismissRequest = { onDecision(DropDecision.Cancel) },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.AllInbox,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            },
-            title = {
-                Text(
-                    text = "Add to $targetName",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            text = {
-                Text(
-                    text =
-                        if (itemCount == 1) {
-                            "Stage \"${payload.items.first().displayName}\" into $targetName for later transfer?"
-                        } else {
-                            "Stage $itemCount items into $targetName for later transfer?"
-                        },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { onDecision(DropDecision.AddToBubble(payload, bubbleId)) },
-                ) {
-                    Text("Add to Bubble")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { onDecision(DropDecision.Cancel) },
-                ) {
-                    Text("Cancel")
-                }
-            },
-        )
+        AtomicSheet(label = "Add to $targetName", onDismiss = cancel) {
+            AtomicText(
+                if (itemCount == 1) {
+                    "Stage \"${payload.items.first().displayName}\" in $targetName to move or copy later."
+                } else {
+                    "Stage $itemCount items in $targetName to move or copy later."
+                },
+                AtomicTextRole.Body,
+            )
+            AtomicButton(
+                "Add to bubble",
+                onClick = { onDecision(DropDecision.AddToBubble(payload, bubbleId)) },
+                leadingIcon = AtomicIcons.Bubble,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            AtomicButton(
+                "Cancel",
+                onClick = cancel,
+                variant = AtomicButtonVariant.Ghost,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         return
     }
 
-    AlertDialog(
-        onDismissRequest = { onDecision(DropDecision.Cancel) },
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
-        title = {
-            Text(
-                text = if (itemCount == 1) "Transfer Item" else "Transfer $itemCount Items",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text =
-                        if (itemCount == 1) {
-                            "Choose action for \"${payload.items.first().name}\" to \"$targetName\":"
-                        } else {
-                            "Choose action for $itemCount items to \"$targetName\":"
-                        },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        },
-        confirmButton = {
-            FlowRow {
-                TextButton(
-                    onClick = { onDecision(DropDecision.Copy(payload, target.destinationId)) },
-                ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy here")
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                FilledTonalButton(
-                    onClick = { onDecision(DropDecision.Move(payload, target.destinationId)) },
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Move here")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = { onDecision(DropDecision.Cancel) },
-            ) {
-                Text("Cancel")
-            }
-        },
-    )
+    AtomicSheet(label = if (itemCount == 1) "Drop 1 item" else "Drop $itemCount items", onDismiss = cancel) {
+        AtomicText(
+            if (itemCount == 1) {
+                "Copy or move \"${payload.items.first().name}\" into \"$targetName\"?"
+            } else {
+                "Copy or move $itemCount items into \"$targetName\"?"
+            },
+            AtomicTextRole.Body,
+        )
+        AtomicButton(
+            "Move here",
+            onClick = { onDecision(DropDecision.Move(payload, target.destinationId)) },
+            leadingIcon = AtomicIcons.Move,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton(
+            "Copy here",
+            onClick = { onDecision(DropDecision.Copy(payload, target.destinationId)) },
+            variant = AtomicButtonVariant.Solid,
+            leadingIcon = AtomicIcons.Copy,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton(
+            "Cancel",
+            onClick = cancel,
+            variant = AtomicButtonVariant.Ghost,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }

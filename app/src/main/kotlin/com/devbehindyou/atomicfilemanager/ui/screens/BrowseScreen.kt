@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -179,7 +178,6 @@ fun BrowseScreen(
     var bubbleForDetails by remember { mutableStateOf<TransferBubble?>(null) }
     var bubbleForTransfer by remember { mutableStateOf<TransferBubble?>(null) }
     var showAddToBubbleMenu by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
 
     var nodeToHide by remember { mutableStateOf<FileNode?>(null) }
     var showHiddenScreen by remember { mutableStateOf(false) }
@@ -419,7 +417,6 @@ fun BrowseScreen(
             uiState = uiState,
             bubbles = bubbles,
             dragController = dragController,
-            sheetState = sheetState,
             state =
                 BrowseDialogState(
                     nodeToRename = nodeToRename,
@@ -939,7 +936,6 @@ private fun BrowseDialogs(
     uiState: BrowseUiState,
     bubbles: List<TransferBubble>,
     dragController: FileDragController,
-    sheetState: androidx.compose.material3.SheetState,
     state: BrowseDialogState,
     callbacks: BrowseDialogCallbacks,
 ) {
@@ -980,7 +976,6 @@ private fun BrowseDialogs(
         val currentBubble = bubbles.find { it.id == bubble.id } ?: bubble
         BubbleDetailsSheet(
             bubble = currentBubble,
-            sheetState = sheetState,
             onRemoveItem = { itemId -> viewModel.removeBubbleItem(currentBubble.id, itemId) },
             onClearBubble = { viewModel.clearBubble(currentBubble.id) },
             onDeleteBubble = {
