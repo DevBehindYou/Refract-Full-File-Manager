@@ -8,6 +8,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -19,14 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -45,12 +40,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicBadge
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicBorder
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicElevation
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
 import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.modifiers.hardShadow
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.interaction.drag.ActiveDropTarget
@@ -160,20 +164,12 @@ fun TransferBubbleRail(
             }
 
             if (bubbles.size < TransferBubble.MAX_BUBBLES) {
-                FloatingActionButton(
+                AtomicIconButton(
+                    AtomicIcons.Add,
+                    "Create transfer bubble",
                     onClick = onCreateBubble,
-                    shape = CircleShape,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp),
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        imageVector = AtomicIcons.Add,
-                        contentDescription = "Create Transfer Bubble",
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                    variant = AtomicIconButtonVariant.Toolbar,
+                )
             }
         }
     }
@@ -205,27 +201,21 @@ private fun BubbleItem(
         targetValue = if (isTarget) 1.15f else 1.0f,
         label = "bubbleScale",
     )
+    val colors = Atomic.colors
     val containerColor by animateColorAsState(
-        targetValue =
-            if (isTarget) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            },
+        targetValue = if (isTarget) colors.accent else colors.surfaceCard,
         label = "bubbleColor",
     )
 
-    val elevation = if (isTarget) 8.dp else 4.dp
-
-    Surface(
-        shape = CircleShape,
-        color = containerColor,
-        tonalElevation = elevation,
-        shadowElevation = elevation,
+    Box(
+        contentAlignment = Alignment.Center,
         modifier =
             modifier
                 .scale(scale)
-                .size(56.dp)
+                .size(BUBBLE_SIZE)
+                .hardShadow(AtomicElevation.level3, colors.shadow, CircleShape)
+                .background(containerColor, CircleShape)
+                .border(AtomicBorder.structure, colors.borderStrong, CircleShape)
                 .fileDropTarget(
                     controller = dragController,
                     target =
@@ -242,40 +232,23 @@ private fun BubbleItem(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLongClick()
                     },
-                ),
+                ).semantics { contentDescription = "${bubble.displayName}, ${bubble.itemCount} items" },
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(56.dp),
+        Icon(
+            imageVector = AtomicIcons.Bubble,
+            contentDescription = null,
+            tint = if (isTarget) colors.onAccent else colors.content,
+            modifier = Modifier.size(AtomicSize.icon),
+        )
+        AnimatedVisibility(
+            visible = bubble.itemCount > 0,
+            enter = scaleIn(),
+            exit = scaleOut(),
+            modifier = Modifier.align(Alignment.TopEnd),
         ) {
-            BadgedBox(
-                badge = {
-                    AnimatedVisibility(
-                        visible = bubble.itemCount > 0,
-                        enter = scaleIn(),
-                        exit = scaleOut(),
-                    ) {
-                        Badge(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ) {
-                            Text(text = "${bubble.itemCount}")
-                        }
-                    }
-                },
-            ) {
-                Icon(
-                    imageVector = AtomicIcons.Bubble,
-                    contentDescription = bubble.displayName,
-                    tint =
-                        if (isTarget) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            AtomicBadge(bubble.itemCount)
         }
     }
 }
+
+private val BUBBLE_SIZE = 56.dp

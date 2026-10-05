@@ -1,28 +1,32 @@
 package com.devbehindyou.atomicfilemanager.ui.interaction.drag
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Badge
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicBadge
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicBorder
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicElevation
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
 import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.modifiers.hardShadow
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import kotlin.math.roundToInt
 
@@ -50,39 +54,33 @@ fun DragFloatingPreview(
     }
 }
 
+/** Card look shared by the drag badges: white card, ink border, hard offset shadow. */
+@Composable
+private fun Modifier.dragCard(): Modifier {
+    val colors = Atomic.colors
+    return this
+        .hardShadow(AtomicElevation.level3, colors.shadow, AtomicShape.sm)
+        .background(colors.surfaceCard, AtomicShape.sm)
+        .border(AtomicBorder.structure, colors.borderStrong, AtomicShape.sm)
+}
+
 @Composable
 private fun SingleItemDragBadge(
     item: FileNode,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier =
-            modifier
-                .shadow(8.dp, shape = RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 6.dp,
+    Row(
+        modifier = modifier.dragCard().padding(horizontal = AtomicSpacing.s12, vertical = AtomicSpacing.s8),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = getIconForNode(item),
-                contentDescription = null,
-                tint = if (item.isDirectory) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = item.name,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+        Icon(
+            getIconForNode(item),
+            contentDescription = null,
+            tint = Atomic.colors.content,
+            modifier = Modifier.size(AtomicSize.iconSmall),
+        )
+        AtomicText(item.name, AtomicTextRole.Name, maxLines = 1, modifier = Modifier.widthIn(max = BADGE_NAME_WIDTH))
     }
 }
 
@@ -93,70 +91,46 @@ private fun MultiItemDragBadge(
     modifier: Modifier = Modifier,
 ) {
     val stackCount = minOf(3, items.size)
-
     Box(modifier = modifier) {
-        // Render stacked background card layers
+        // Stacked cards behind the top one, offset like the hard shadow.
         for (i in (stackCount - 1) downTo 1) {
-            Surface(
-                modifier =
-                    Modifier
-                        .offset(x = (i * 6).dp, y = (i * 6).dp)
-                        .size(width = 160.dp, height = 48.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = (4 - i).dp,
-            ) {}
-        }
-
-        // Top card
-        Surface(
-            modifier =
+            Box(
                 Modifier
-                    .shadow(10.dp, shape = RoundedCornerShape(12.dp)),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 6.dp,
+                    .offset(x = AtomicSpacing.s6 * i, y = AtomicSpacing.s6 * i)
+                    .size(width = STACK_WIDTH, height = STACK_HEIGHT)
+                    .dragCard(),
+            )
+        }
+        Row(
+            modifier = Modifier.dragCard().padding(horizontal = AtomicSpacing.s12, vertical = AtomicSpacing.s8),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = getIconForNode(items.first()),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = items.first().name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.width(100.dp),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Text(
-                        text = "$totalCount",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            Icon(
+                getIconForNode(items.first()),
+                contentDescription = null,
+                tint = Atomic.colors.content,
+                modifier = Modifier.size(AtomicSize.iconSmall),
+            )
+            AtomicText(
+                items.first().name,
+                AtomicTextRole.Name,
+                maxLines = 1,
+                modifier = Modifier.widthIn(max = MULTI_NAME_WIDTH),
+            )
+            AtomicBadge(totalCount)
         }
     }
 }
 
-private fun getIconForNode(node: FileNode): ImageVector {
-    return when {
+private fun getIconForNode(node: FileNode): ImageVector =
+    when {
         node.isDirectory -> AtomicIcons.Files
         node.mimeType?.startsWith("image/") == true -> AtomicIcons.Image
         else -> AtomicIcons.Document
     }
-}
+
+private val BADGE_NAME_WIDTH = 200.dp
+private val MULTI_NAME_WIDTH = 100.dp
+private val STACK_WIDTH = 160.dp
+private val STACK_HEIGHT = 44.dp
