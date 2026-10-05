@@ -38,9 +38,13 @@ import com.devbehindyou.atomicfilemanager.domain.usecase.InspectArchiveUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.ReadFileContentUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.RenameFileUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.StorageAnalyzerUseCase
+import com.devbehindyou.atomicfilemanager.service.FileOperationService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 interface AppContainer {
@@ -87,7 +91,17 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     override val operationJournal: OperationJournalDao get() = database.operationJournal()
 
     override val operationQueue: OperationQueue by lazy {
-        OperationQueue(engine = fileOperationsEngine::execute, journal = operationJournal, scope = appScope)
+        OperationQueue(engine = fileOperationsEngine::execute, journal = operationJournal, scope = appScope).also {
+                queue ->
+            // Show the progress notification whenever the queue goes from idle to busy.
+            appScope.launch {
+                queue.active
+                    .map { it != null }
+                    .distinctUntilChanged()
+                    .filter { it }
+                    .collect { FileOperationService.start(application) }
+            }
+        }
     }
 
     override val hiddenFilesRepository: HiddenFilesRepository by lazy {

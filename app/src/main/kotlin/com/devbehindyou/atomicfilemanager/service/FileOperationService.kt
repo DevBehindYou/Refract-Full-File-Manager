@@ -11,14 +11,21 @@ import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
+import com.devbehindyou.atomicfilemanager.AtomicApp
 import com.devbehindyou.atomicfilemanager.MainActivity
 import com.devbehindyou.atomicfilemanager.domain.model.OperationProgress
+import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
+import com.devbehindyou.atomicfilemanager.domain.model.OperationType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 class FileOperationService : Service() {
     inner class LocalBinder : Binder() {
@@ -32,6 +39,8 @@ class FileOperationService : Service() {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
+    private val queue get() = (application as AtomicApp).container.operationQueue
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -44,23 +53,41 @@ class FileOperationService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        if (intent?.action == ACTION_CANCEL) {
-            onCancelRequested?.invoke()
-            stopForegroundService()
-            return START_NOT_STICKY
-        }
-
-        val notification =
-            buildNotification(title = "File Operation in progress", text = "Initializing...", progress = null)
+        val notification = buildNotification(title = "Preparing file operation", text = "Starting…", progress = null)
         val serviceType =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             } else {
                 0
             }
+        // startForeground comes first on every start, as Android requires, even for a cancel tap.
         ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, serviceType)
-
+        observeQueueOnce()
+        if (intent?.action == ACTION_CANCEL) {
+            queue.active.value?.let { queue.cancel(it.operation.id) }
+        }
         return START_NOT_STICKY
+    }
+
+    private var observing = false
+
+    /**
+     * Mirrors the queue: shows the running operation and stops once nothing is running or waiting.
+     * Called only after startForeground, so a queue that is already idle can't stop the service first.
+     */
+    private fun observeQueueOnce() {
+        if (observing) return
+        observing = true
+        serviceScope.launch {
+            combine(queue.active, queue.queued) { active, waiting -> active to waiting.size }.collect {
+                    (active, waiting) ->
+                if (active == null) {
+                    if (waiting == 0) stopForegroundService()
+                } else {
+                    updateProgress(titleFor(active.operation.type, waiting), progressOf(active.status))
+                }
+            }
+        }
     }
 
     fun updateProgress(
@@ -70,9 +97,9 @@ class FileOperationService : Service() {
         val text =
             if (progress != null && progress.itemsTotal > 0) {
                 val name = progress.currentName ?: ""
-                "Processing ${progress.itemsDone + 1} of ${progress.itemsTotal} $name"
+                "${minOf(progress.itemsDone + 1, progress.itemsTotal)} of ${progress.itemsTotal} · $name"
             } else {
-                progress?.currentName ?: "Processing files..."
+                progress?.currentName ?: "Working…"
             }
         val notification = buildNotification(title, text, progress)
         notificationManager.notify(NOTIFICATION_ID, notification)
@@ -93,7 +120,7 @@ class FileOperationService : Service() {
             val channel =
                 NotificationChannel(
                     CHANNEL_ID,
-                    "File Operations",
+                    "File operations",
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
                     description = "Shows progress of background file operations"
@@ -154,6 +181,38 @@ class FileOperationService : Service() {
         const val NOTIFICATION_ID = 1001
         const val ACTION_CANCEL = "com.devbehindyou.atomicfilemanager.action.CANCEL_OPERATION"
 
-        var onCancelRequested: (() -> Unit)? = null
+        /** Starts the service; the caller must be in the foreground (the user just asked for an operation). */
+        fun start(context: Context) {
+            val intent = Intent(context, FileOperationService::class.java)
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: IllegalStateException) {
+                // Android 12+ refuses background starts; the operation still runs, just without the notification.
+                Log.w("FileOperationService", "Could not start the operation notification", e)
+            }
+        }
+
+        private fun titleFor(
+            type: OperationType,
+            waiting: Int,
+        ): String {
+            val verb =
+                when (type) {
+                    OperationType.COPY -> "Copying"
+                    OperationType.MOVE -> "Moving"
+                    OperationType.DELETE -> "Deleting"
+                    OperationType.COMPRESS -> "Compressing"
+                    OperationType.EXTRACT -> "Extracting"
+                    else -> "Working on files"
+                }
+            return if (waiting > 0) "$verb · $waiting more waiting" else verb
+        }
+
+        private fun progressOf(status: OperationStatus): OperationProgress? =
+            when (status) {
+                is OperationStatus.Running -> status.progress
+                is OperationStatus.Paused -> status.progress
+                else -> null
+            }
     }
 }
