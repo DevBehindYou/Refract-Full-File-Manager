@@ -216,7 +216,7 @@ private fun QuickAccessFolders(onFolderClick: (FileNodeId) -> Unit) {
             ).map { type ->
                 val path =
                     runCatching { Environment.getExternalStoragePublicDirectory(type)?.absolutePath }.getOrNull()
-                type to (path?.let(FileNodeId::file) ?: fallback)
+                type to (path?.let { FileNodeId.file(it) } ?: fallback)
             }
         }
     Column {
