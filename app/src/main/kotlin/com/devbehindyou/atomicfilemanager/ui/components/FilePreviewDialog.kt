@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +52,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButt
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextField
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
@@ -68,8 +70,10 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveEntryInfo
+import com.devbehindyou.atomicfilemanager.domain.usecase.ChecksumVerdict
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileChecksums
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextContent
+import com.devbehindyou.atomicfilemanager.domain.usecase.checkExpectedChecksum
 import com.devbehindyou.atomicfilemanager.ui.components.preview.AudioPreviewContent
 import com.devbehindyou.atomicfilemanager.ui.components.preview.MarkdownPreviewContent
 import com.devbehindyou.atomicfilemanager.ui.components.preview.VideoPreviewContent
@@ -548,6 +552,7 @@ private fun GenericFileContent(
             },
         )
         checksumError?.let { AtomicText(it, AtomicTextRole.BodySecondary, color = Atomic.colors.error) }
+        if (hashes != null) ExpectedChecksumField(hashes)
         if (hashes == null) {
             if (isCalculatingChecksums) {
                 AtomicLoading("Calculating checksums…")
@@ -638,3 +643,36 @@ internal fun apkFacts(apk: ApkInfo): List<AtomicFact> =
         AtomicFact("Built for", androidVersionName(apk.targetSdk)),
         AtomicFact("Permissions", if (apk.permissionCount == 1) "1 requested" else "${apk.permissionCount} requested"),
     )
+
+/** Paste a checksum from a download page and see whether this file matches (ALL_IN_ONE_PLAN.md 2.8). */
+@Composable
+private fun ExpectedChecksumField(hashes: FileChecksums) {
+    var expected by rememberSaveable { mutableStateOf("") }
+    val verdict = checkExpectedChecksum(expected, hashes)
+    AtomicTextField(
+        value = expected,
+        onValueChange = { expected = it },
+        label = "Expected checksum",
+        placeholder = "Paste an MD5 or SHA-256",
+        errorText = (verdict as? ChecksumVerdict.Mismatch)?.let { verdictText(it) },
+        modifier = Modifier.fillMaxWidth().testTag("expected_checksum"),
+    )
+    if (verdict !is ChecksumVerdict.Mismatch && verdict !is ChecksumVerdict.Empty) {
+        AtomicText(
+            verdictText(verdict),
+            AtomicTextRole.Body,
+            color = if (verdict is ChecksumVerdict.Match) Atomic.colors.accentText else Atomic.colors.contentSecondary,
+            modifier = Modifier.testTag("checksum_verdict"),
+        )
+    }
+}
+
+/** Wording for a [ChecksumVerdict]; pure so it is unit-tested. */
+internal fun verdictText(verdict: ChecksumVerdict): String =
+    when (verdict) {
+        is ChecksumVerdict.Match -> "Matches (${verdict.algorithm}). This is the file that was published."
+        is ChecksumVerdict.Mismatch -> "Doesn't match (${verdict.algorithm}). The file differs from the one published."
+        is ChecksumVerdict.Unsupported -> "That looks like ${verdict.algorithm}. Paste the MD5 or SHA-256 instead."
+        ChecksumVerdict.NotAHash -> "That isn't an MD5 or SHA-256 checksum."
+        ChecksumVerdict.Empty -> ""
+    }
