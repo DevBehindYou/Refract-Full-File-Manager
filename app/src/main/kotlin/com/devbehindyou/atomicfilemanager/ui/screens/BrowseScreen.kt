@@ -79,6 +79,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.HideMode
 import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
+import com.devbehindyou.atomicfilemanager.ui.components.BatchRenameSheet
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
 import com.devbehindyou.atomicfilemanager.ui.components.CompareSheet
 import com.devbehindyou.atomicfilemanager.ui.components.DeleteSheet
@@ -158,6 +159,7 @@ fun BrowseScreen(
     var nodeForPreview by remember { mutableStateOf<FileNode?>(null) }
     var nodeToDelete by remember { mutableStateOf<FileNode?>(null) }
     var confirmMultiDelete by remember { mutableStateOf(false) }
+    var batchRename by remember { mutableStateOf<List<FileNode>?>(null) }
     var comparePair by remember { mutableStateOf<Pair<FileNode, FileNode>?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -392,6 +394,7 @@ fun BrowseScreen(
                 onCutSelected = { viewModel.cutSelected() },
                 onCompressSelected = { viewModel.compressSelected() },
                 onDeleteSelected = { confirmMultiDelete = true },
+                onRenameSelected = { nodes -> batchRename = nodes },
                 onShowDetails = { node ->
                     nodeForDetails = node
                     viewModel.clearSelection()
@@ -401,6 +404,18 @@ fun BrowseScreen(
                 onCompare = { a, b -> comparePair = a to b },
             )
             comparePair?.let { (a, b) -> CompareSheet(first = a, second = b, onDismiss = { comparePair = null }) }
+        }
+
+        batchRename?.let { nodes ->
+            BatchRenameSheet(
+                nodes = nodes,
+                folderNames = uiState.rawItems.map { it.name },
+                onChanged = {
+                    viewModel.clearSelection()
+                    viewModel.refresh()
+                },
+                onDismiss = { batchRename = null },
+            )
         }
 
         // Floating drag preview follows pointer
@@ -778,6 +793,7 @@ private fun BrowseBottomBar(
     onDeleteSelected: () -> Unit,
     onShowDetails: (FileNode) -> Unit,
     onClearClipboard: () -> Unit,
+    onRenameSelected: (List<FileNode>) -> Unit = {},
     onPaste: () -> Unit,
     onCompare: (FileNode, FileNode) -> Unit = { _, _ -> },
 ) {
@@ -798,6 +814,14 @@ private fun BrowseBottomBar(
                     AtomicStripAction("Move", AtomicIcons.Move, onCutSelected),
                     AtomicStripAction("Zip", AtomicIcons.Archive, onCompressSelected),
                     AtomicStripAction("Delete", AtomicIcons.Trash, onDeleteSelected, destructive = true),
+                    if (uiState.selectedIds.size > 1) {
+                        // In listing order, so numbering follows what the user sees.
+                        AtomicStripAction("Rename", AtomicIcons.Document, {
+                            onRenameSelected(uiState.filteredItems.filter { it.id in uiState.selectedIds })
+                        })
+                    } else {
+                        null
+                    },
                     if (uiState.selectedIds.size == 1) {
                         AtomicStripAction(
                             label = "Info",
