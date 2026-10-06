@@ -51,6 +51,25 @@ class ApkInfoReader(private val context: Context) {
             }.getOrNull()
         }
 
+    /**
+     * True when the app this APK installs is already on the phone (smart cleanup, ALL_IN_ONE_PLAN.md
+     * 2.6). Only apps visible through the manifest's launcher `<queries>` can be seen, so a hidden
+     * app is never suggested: the safe direction.
+     */
+    suspend fun isInstalled(path: String): Boolean =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val pm = context.packageManager
+                val name = archiveInfo(pm, path)?.packageName ?: return@runCatching false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getPackageInfo(name, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    pm.getPackageInfo(name, 0)
+                }
+                true
+            }.getOrDefault(false)
+        }
+
     private fun archiveInfo(
         pm: PackageManager,
         path: String,

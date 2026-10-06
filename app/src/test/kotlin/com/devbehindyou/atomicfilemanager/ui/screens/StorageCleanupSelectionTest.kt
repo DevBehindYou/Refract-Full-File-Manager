@@ -74,4 +74,26 @@ class StorageCleanupSelectionTest {
         assertEquals(2, StorageCleanupSelection.count(result, StorageAnalysisCategory.DUPLICATE_FILES))
         assertEquals(1, StorageCleanupSelection.count(result, StorageAnalysisCategory.EMPTY_FOLDERS))
     }
+
+    @Test
+    fun `only safe cards start selected`() {
+        val withTemp = result.copy(tempCacheFiles = listOf(file("/s/x.tmp", 10)))
+        assertEquals(
+            setOf("file:/s/e"),
+            StorageCleanupSelection.initialSelection(withTemp, StorageAnalysisCategory.EMPTY_FOLDERS),
+        )
+        assertEquals(
+            setOf("file:/s/x.tmp"),
+            StorageCleanupSelection.initialSelection(withTemp, StorageAnalysisCategory.TEMP_AND_CACHE),
+        )
+        assertEquals(
+            emptySet<String>(),
+            StorageCleanupSelection.initialSelection(withTemp, StorageAnalysisCategory.DUPLICATE_FILES),
+        )
+        assertEquals(
+            "You get 1.0 KB back once they leave the Trash. You can restore them for 30 days; " +
+                "after that they are deleted for good.",
+            CleanupText.confirmBody(1024, 30),
+        )
+    }
 }

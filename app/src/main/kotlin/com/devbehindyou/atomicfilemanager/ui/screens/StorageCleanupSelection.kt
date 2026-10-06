@@ -4,6 +4,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.DuplicateGroup
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.StorageAnalysisCategory
 import com.devbehindyou.atomicfilemanager.domain.model.StorageAnalysisResult
+import com.devbehindyou.atomicfilemanager.domain.usecase.CleanupRules
 
 /** Pure selection rules for the storage analysis screen, kept apart so they can be unit-tested. */
 internal object StorageCleanupSelection {
@@ -17,6 +18,9 @@ internal object StorageCleanupSelection {
             StorageAnalysisCategory.DUPLICATE_FILES -> result.duplicateGroups.flatMap { it.items }
             StorageAnalysisCategory.EMPTY_FOLDERS -> result.emptyFolders
             StorageAnalysisCategory.TEMP_AND_CACHE -> result.tempCacheFiles
+            StorageAnalysisCategory.OLD_SCREENSHOTS -> result.oldScreenshots
+            StorageAnalysisCategory.OLD_DOWNLOADS -> result.oldDownloads
+            StorageAnalysisCategory.INSTALLED_APKS -> result.installedApks
         }
 
     fun count(
@@ -27,6 +31,13 @@ internal object StorageCleanupSelection {
             StorageAnalysisCategory.DUPLICATE_FILES -> result.duplicateGroups.size
             else -> nodesIn(result, category).size
         }
+
+    /** What a card starts with selected: everything on a safe card, nothing elsewhere. */
+    fun initialSelection(
+        result: StorageAnalysisResult,
+        category: StorageAnalysisCategory,
+    ): Set<String> =
+        if (CleanupRules.preselected(category)) nodesIn(result, category).map { it.id.raw }.toSet() else emptySet()
 
     /** All copies but the first of each group: the first is kept. */
     fun allButFirstCopy(groups: List<DuplicateGroup>): Set<String> =
