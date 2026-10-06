@@ -79,6 +79,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.HideMode
 import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
+import com.devbehindyou.atomicfilemanager.ui.components.BatchRenameSheet
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
 import com.devbehindyou.atomicfilemanager.ui.components.DeleteSheet
 import com.devbehindyou.atomicfilemanager.ui.components.FavouriteToggle
@@ -157,6 +158,7 @@ fun BrowseScreen(
     var nodeForPreview by remember { mutableStateOf<FileNode?>(null) }
     var nodeToDelete by remember { mutableStateOf<FileNode?>(null) }
     var confirmMultiDelete by remember { mutableStateOf(false) }
+    var batchRename by remember { mutableStateOf<List<FileNode>?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     val isSelectionMode = uiState.selectedIds.isNotEmpty()
@@ -390,12 +392,25 @@ fun BrowseScreen(
                 onCutSelected = { viewModel.cutSelected() },
                 onCompressSelected = { viewModel.compressSelected() },
                 onDeleteSelected = { confirmMultiDelete = true },
+                onRenameSelected = { nodes -> batchRename = nodes },
                 onShowDetails = { node ->
                     nodeForDetails = node
                     viewModel.clearSelection()
                 },
                 onClearClipboard = { viewModel.clearClipboard() },
                 onPaste = { viewModel.paste(CollisionPolicy.ASK) },
+            )
+        }
+
+        batchRename?.let { nodes ->
+            BatchRenameSheet(
+                nodes = nodes,
+                folderNames = uiState.rawItems.map { it.name },
+                onChanged = {
+                    viewModel.clearSelection()
+                    viewModel.refresh()
+                },
+                onDismiss = { batchRename = null },
             )
         }
 
@@ -774,6 +789,7 @@ private fun BrowseBottomBar(
     onDeleteSelected: () -> Unit,
     onShowDetails: (FileNode) -> Unit,
     onClearClipboard: () -> Unit,
+    onRenameSelected: (List<FileNode>) -> Unit = {},
     onPaste: () -> Unit,
 ) {
     val clip = uiState.clipboard
@@ -785,6 +801,14 @@ private fun BrowseBottomBar(
                     AtomicStripAction("Move", AtomicIcons.Move, onCutSelected),
                     AtomicStripAction("Zip", AtomicIcons.Archive, onCompressSelected),
                     AtomicStripAction("Delete", AtomicIcons.Trash, onDeleteSelected, destructive = true),
+                    if (uiState.selectedIds.size > 1) {
+                        // In listing order, so numbering follows what the user sees.
+                        AtomicStripAction("Rename", AtomicIcons.Document, {
+                            onRenameSelected(uiState.filteredItems.filter { it.id in uiState.selectedIds })
+                        })
+                    } else {
+                        null
+                    },
                     if (uiState.selectedIds.size == 1) {
                         AtomicStripAction(
                             label = "Info",

@@ -49,6 +49,7 @@ import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.StorageBackend
 import com.devbehindyou.atomicfilemanager.domain.repository.TransferBubbleRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.TrashStore
+import com.devbehindyou.atomicfilemanager.domain.usecase.BatchRenameUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.CreateDirectoryUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.DeleteFileUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileOperationsEngine
@@ -76,6 +77,7 @@ interface AppContainer {
     val getNodeUseCase: GetNodeUseCase
     val createDirectoryUseCase: CreateDirectoryUseCase
     val renameFileUseCase: RenameFileUseCase
+    val batchRenameUseCase: BatchRenameUseCase
     val deleteFileUseCase: DeleteFileUseCase
     val fileOperationsEngine: FileOperationsEngine
     val inspectArchiveUseCase: InspectArchiveUseCase
@@ -276,6 +278,10 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
 
     override val renameFileUseCase: RenameFileUseCase by lazy {
         RenameFileUseCase { id -> storageBackendSelector.forNode(id) }
+    }
+
+    override val batchRenameUseCase: BatchRenameUseCase by lazy {
+        BatchRenameUseCase { id -> storageBackendSelector.forNode(id) }
     }
 
     override val deleteFileUseCase: DeleteFileUseCase by lazy {
