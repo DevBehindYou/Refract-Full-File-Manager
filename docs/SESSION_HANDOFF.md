@@ -295,3 +295,14 @@ The developer has no room for Android Studio or the SDK on their machine, so bui
 - **Branch:** this work sits on top of `claude/project-analysis-handover-kcmy17` (the Atomic redesign) and is ahead of `main` by everything since 20 September. No pull request has been opened.
 - **Next by the plan:** 1.5 better viewers (Media3, Coil 3 thumbnails; new dependencies), 0.5 release hygiene (R8 with keep rules, benchmark module, baseline profile), then Phase 2 (owner decisions in `ALL_IN_ONE_PLAN.md` §10 still open for Phase 3–4).
 
+
+## Update — 6 October 2026 (parallel PRs merged into this branch)
+
+Worked as stacked pull requests on top of [#1](https://github.com/DevBehindYou/Refract-Full-File-Manager/pull/1), each green in CI before merging (owner allowed merging when green and conflict-free):
+
+- **#2 R8 (Phase 0.5):** release builds are minified and resource-shrunk; `proguard-rules.pro` keeps app enum `values`/`valueOf` and line numbers. The emulator job (manual dispatch) now installs the shrunk release APK, launches it and fails on a `FATAL EXCEPTION`; it passed on the PR's own dispatch. APK size before/after not recorded yet.
+- **#3 APK details (Phase 1.5, FR-8.7):** the preview reads an APK with `getPackageArchiveInfo` (nothing installed or run): icon, name, package, version, needed/targeted Android, permission count; a damaged APK says so. Installing stays with Open with (no install permission).
+- **#4 Thumbnails (hotspot H7):** Coil **3.3.0** (`coil-compose`, `coil-video`; newest release built with Kotlin 2.2 — raise with Kotlin). `AtomicApp` is the singleton image loader with video frames. `FileThumbnail` draws image/video thumbnails over the icon tile in Files rows at tile size, cache keys include the modified time. Category, Search and Home rows still show icons.
+- **#5 Search index updates:** after a queued copy/move/delete/trash, the folders it touched are re-read one level deep (`refreshFolders`, `foldersTouchedBy`); removed folders drop their whole subtree from the index. Renames and new folders in Files and Trash restores still wait for the next full build.
+
+Phone checks to add: release APK from CI on the phone; an APK in Download; scroll DCIM/Camera for thumbnail jank; copy a file, then search it immediately.
