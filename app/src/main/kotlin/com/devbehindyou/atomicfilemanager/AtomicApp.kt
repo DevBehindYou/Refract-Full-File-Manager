@@ -38,6 +38,8 @@ import com.devbehindyou.atomicfilemanager.data.repository.TransferBubbleReposito
 import com.devbehindyou.atomicfilemanager.data.repository.volumeRootOf
 import com.devbehindyou.atomicfilemanager.data.search.RoomSearchIndex
 import com.devbehindyou.atomicfilemanager.data.search.foldersTouchedBy
+import com.devbehindyou.atomicfilemanager.data.vault.VaultFiles
+import com.devbehindyou.atomicfilemanager.data.vault.VaultKeys
 import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.repository.BackendType
@@ -85,6 +87,7 @@ interface AppContainer {
     val inspectArchiveUseCase: InspectArchiveUseCase
     val readFileContentUseCase: ReadFileContentUseCase
     val textFileEditor: TextFileEditor
+    val vaultFiles: VaultFiles
     val pdfPreviewHelper: PdfPreviewHelper
     val imagePreviewHelper: ImagePreviewHelper
     val networkCredentialsStore: NetworkCredentialsStore
@@ -305,6 +308,9 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     override val readFileContentUseCase: ReadFileContentUseCase by lazy {
         ReadFileContentUseCase { id -> storageBackendSelector.forNode(id) }
     }
+
+    // The key is made on first vault use, not at start-up (Keystore calls can be slow).
+    override val vaultFiles: VaultFiles by lazy { VaultFiles { VaultKeys.streamingAead(application) } }
 
     override val textFileEditor: TextFileEditor by lazy {
         TextFileEditor(backendFor = { id -> storageBackendSelector.forNode(id) }, trashManager = trashManager)

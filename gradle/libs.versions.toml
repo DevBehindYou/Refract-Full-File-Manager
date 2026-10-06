@@ -36,6 +36,8 @@ coil = "3.3.0"
 # declared here. Maven Central, checked 6 Oct 2026.
 commonsCompress = "1.28.0"
 xz = "1.10"
+# Encrypted vault (ALL_IN_ONE_PLAN.md 2.5), Apache 2.0. Maven Central, checked 6 Oct 2026.
+tink = "1.23.0"
 
 # --- Custom Lint module ----------------------------------------------------
 # Lint's own artifact version has historically tracked "AGP version + 23 major", e.g.
@@ -88,6 +90,7 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commonsCompress" }
 tukaani-xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
+tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tink" }
 
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }

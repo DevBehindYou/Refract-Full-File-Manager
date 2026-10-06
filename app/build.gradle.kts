@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.coil.video)
     implementation(libs.commons.compress)
     implementation(libs.tukaani.xz)
+    implementation(libs.tink.android)
 
     implementation(libs.hilt.android)
 
