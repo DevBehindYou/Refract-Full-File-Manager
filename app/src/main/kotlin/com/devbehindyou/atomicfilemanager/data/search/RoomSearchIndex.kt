@@ -85,6 +85,38 @@ class RoomSearchIndex(
             }
     }
 
+    override suspend fun refreshFolders(folders: Collection<FileNodeId>) {
+        if (_state.value.builtAt == null) return
+        val generation = clock()
+        for (folder in folders.distinct()) {
+            currentCoroutineContext().ensureActive()
+            val listed = mutableListOf<FileNode>()
+            var complete = true
+            listChildren(folder).collect { chunk ->
+                when (chunk) {
+                    is FileResult.Success -> listed += chunk.value.filterNot { it.isHidden }
+                    is FileResult.Failure -> complete = false
+                }
+            }
+            // A folder that can't be read (or no longer exists) is left alone; a full rebuild settles it.
+            if (!complete) continue
+            dao.upsert(listed.map { it.toEntity(generation) })
+            val present = listed.mapTo(HashSet()) { it.id.raw }
+            dao.idsIn(folder.raw).filterNot { it in present }.forEach { gone ->
+                dao.deleteTree(gone, likeEscape(gone) + "/%")
+            }
+        }
+        _state.update { it.copy(indexedCount = dao.count()) }
+    }
+
+    private fun likeEscape(text: String): String =
+        buildString {
+            text.forEach {
+                if (it == '\\' || it == '%' || it == '_') append('\\')
+                append(it)
+            }
+        }
+
     /** Walks [roots] and replaces the index; exposed for tests. */
     internal suspend fun build(roots: List<FileNodeId>) {
         val generation = clock()
