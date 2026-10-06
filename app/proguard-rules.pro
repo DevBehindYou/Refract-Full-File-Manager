@@ -27,3 +27,12 @@
 # --- Crash reports stay readable: keep file names and line numbers, rename the source file attribute ---
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# --- Commons Compress (ALL_IN_ONE_PLAN.md 2.2): optional codecs the app doesn't ship ---
+# Zstandard, Brotli, LZ4-via-aircompressor, Pack200's ASM and OSGi are optional dependencies; only the
+# formats the app opens (TAR, GZ, BZ2, XZ) are used, so the missing classes are never reached.
+-dontwarn com.github.luben.zstd.**
+-dontwarn org.brotli.dec.**
+-dontwarn io.airlift.compress.**
+-dontwarn org.objectweb.asm.**
+-dontwarn org.osgi.**

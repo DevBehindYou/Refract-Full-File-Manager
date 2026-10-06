@@ -7,10 +7,8 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.repository.StorageBackend
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.isActive
-import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.coroutines.coroutineContext
 
@@ -165,20 +163,32 @@ internal object ArchiveOperationsHelper {
                 is FileResult.Failure -> return FileOperationsEngine.ItemResult.Failure(inRes.error)
             }
 
+        val node = (sourceBackend.getNode(sourceId) as? FileResult.Success)?.value
+        val archiveName = node?.name ?: sourceId.raw.substringAfterLast('/')
+        // Anything not recognised by name is read as ZIP, as before.
+        val kind = ArchiveFormats.kindOf(archiveName) ?: ArchiveFormats.Kind.ZIP
         var totalExtractedBytes = 0L
+        var entryCount = 0
 
         try {
             inProvider.stream().use { rawIn ->
-                ZipInputStream(BufferedInputStream(rawIn)).use { zipIn ->
-                    var entry = zipIn.nextEntry
+                ArchiveFormats.open(kind, archiveName, rawIn, node?.size ?: -1).use { archive ->
+                    var entry = archive.next()
                     while (entry != null) {
                         if (!coroutineContext.isActive) throw CancellationException()
-                        val rawEntryName = entry.name.replace('\\', '/')
-                        val normalized = rawEntryName.trimStart('/')
+                        val normalized = entry.path.replace('\\', '/').trimStart('/')
 
-                        if (normalized.contains("..") && normalized.split('/').any { it == ".." }) {
+                        if (escapesTarget(entry.path)) {
                             return FileOperationsEngine.ItemResult.Failure(
-                                FileError.SuspiciousArchive(entry.name, "Path traversal sequence detected"),
+                                FileError.SuspiciousArchive(entry.path, "Path traversal sequence detected"),
+                            )
+                        }
+                        if (++entryCount > ArchiveFormats.MAX_ENTRIES) {
+                            return FileOperationsEngine.ItemResult.Failure(
+                                FileError.SuspiciousArchive(
+                                    archiveName,
+                                    "More than ${ArchiveFormats.MAX_ENTRIES} entries",
+                                ),
                             )
                         }
 
@@ -207,7 +217,7 @@ internal object ArchiveOperationsHelper {
                                     outTarget.stream().use { outStream ->
                                         val buffer = ByteArray(BUFFER_SIZE)
                                         var read: Int
-                                        while (zipIn.read(buffer).also { read = it } != -1) {
+                                        while (archive.read(buffer, 0, buffer.size).also { read = it } != -1) {
                                             if (!coroutineContext.isActive) {
                                                 outTarget.discard()
                                                 throw CancellationException()
@@ -218,7 +228,7 @@ internal object ArchiveOperationsHelper {
                                                 outTarget.discard()
                                                 return FileOperationsEngine.ItemResult.Failure(
                                                     FileError.SuspiciousArchive(
-                                                        entry.name,
+                                                        entry.path,
                                                         "Archive bomb detected: exceeded max size limit",
                                                     ),
                                                 )
@@ -235,8 +245,7 @@ internal object ArchiveOperationsHelper {
                             }
                         }
 
-                        zipIn.closeEntry()
-                        entry = zipIn.nextEntry
+                        entry = archive.next()
                     }
                 }
             }
