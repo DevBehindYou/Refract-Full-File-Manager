@@ -123,10 +123,10 @@ they must survive process death and be deep-linkable:
 
 | Link | Destination |
 |---|---|
-| `refract://folder?id={nodeId}` | Folder |
-| `refract://search?q={query}` | Search |
-| `refract://storage` | Storage |
-| `refract://operations` | Operations (from the progress notification) |
+| `atomic://folder?id={nodeId}` | Folder |
+| `atomic://search?q={query}` | Search |
+| `atomic://storage` | Storage |
+| `atomic://operations` | Operations (from the progress notification) |
 | `ACTION_VIEW` + `content://` | Preview |
 | `ACTION_GET_CONTENT` / `OPEN_DOCUMENT` | Picker mode (V1) |
 

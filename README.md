@@ -1,4 +1,6 @@
-# Refract
+# Atomic File Manager
+
+> Formerly **Refract**. Renamed on 4 October 2026 (app name, `applicationId` and Kotlin package `com.devbehindyou.atomicfilemanager`). The repository keeps its old name. Part of the DevBehindYou Atomic family; see `docs/design/ATOMIC_DESIGN_SYSTEM.md`.
 
 A native Android file manager (Kotlin, Jetpack Compose, Hilt, coroutines). Built by an AI
 assistant against the specification in `docs/`, phase by phase, following
@@ -35,7 +37,7 @@ Ranked by how likely each one is to actually break something, not by how interes
      rename is exactly the kind of thing that produces a clean, easy-to-fix
      "plugin not found" error.
 2. **AGP 9's built-in Kotlin support**, used in
-   `build-logic/convention/src/main/kotlin/refract.android.application.gradle.kts`. This
+   `build-logic/convention/src/main/kotlin/atomic.android.application.gradle.kts`. This
    project targets AGP 9.3.0, which folds Kotlin support into `com.android.application`
    directly rather than needing a separate `org.jetbrains.kotlin.android` plugin — a
    change that happened after this assistant's reliable knowledge cutoff (Jan 2026) and
@@ -103,7 +105,7 @@ cleanly.
 build-logic     Convention plugin (compileSdk/minSdk/targetSdk/Compose baseline for :app)
 ```
 
-Inside `:app/src/main/kotlin/com/devbehindyou/refract/`:
+Inside `:app/src/main/kotlin/com/devbehindyou/atomicfilemanager/`:
 
 ```
 domain/model/       FileNode, FileNodeId, FileError, FileResult, Operation, SortSpec, ...

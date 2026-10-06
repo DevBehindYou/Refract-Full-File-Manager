@@ -83,7 +83,7 @@ The baseline regression run exposed eleven failing scenarios; the new FTP negoti
 
 ### Added test evidence
 
-Paths below are relative to `app/src/test/kotlin/com/devbehindyou/refract/`.
+Paths below are relative to `app/src/test/kotlin/com/devbehindyou/atomicfilemanager/`.
 
 | Suite | Tests | Boundary exercised |
 |---|---:|---|
@@ -95,7 +95,7 @@ Paths below are relative to `app/src/test/kotlin/com/devbehindyou/refract/`.
 | `domain/usecase/TextPreviewBoundsTest.kt` | 2 | Bounded input and coroutine cancellation |
 | `data/backend/network/FtpProtocolIntegrationTest.kt` | 3 | Actual loopback TCP control-channel exchanges |
 
-`app/src/androidTest/kotlin/com/devbehindyou/refract/StorageJourneyInstrumentedTest.kt` adds three device journeys: activity recreation, byte-for-byte local copying and bubble database reopening. Together with the existing storage-routing test, the initial device suite had four tests. The phone follow-up adds four `HiddenFilesDeviceTest` cases and one `RemovableStorageDeviceTest` case; all nine passed on API 34. Compilation is recorded separately from runtime execution.
+`app/src/androidTest/kotlin/com/devbehindyou/atomicfilemanager/StorageJourneyInstrumentedTest.kt` adds three device journeys: activity recreation, byte-for-byte local copying and bubble database reopening. Together with the existing storage-routing test, the initial device suite had four tests. The phone follow-up adds four `HiddenFilesDeviceTest` cases and one `RemovableStorageDeviceTest` case; all nine passed on API 34. Compilation is recorded separately from runtime execution.
 
 ## Remaining release work, in order
 

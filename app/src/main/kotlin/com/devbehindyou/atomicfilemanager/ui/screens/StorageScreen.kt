@@ -1,0 +1,367 @@
+package com.devbehindyou.atomicfilemanager.ui.screens
+
+import android.os.Environment
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.devbehindyou.atomicfilemanager.AtomicApp
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextField
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicEmptyState
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFileRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSectionLabel
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicStatTile
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicToggleCard
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicStorageCard
+import com.devbehindyou.atomicfilemanager.data.backend.network.NetworkCredentialsStore
+import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
+import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
+import com.devbehindyou.atomicfilemanager.domain.model.NetworkProtocol
+import com.devbehindyou.atomicfilemanager.domain.model.NetworkServerConfig
+import com.devbehindyou.atomicfilemanager.domain.model.StorageType
+import com.devbehindyou.atomicfilemanager.domain.model.StorageVolumeInfo
+import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.UUID
+
+/**
+ * Storage (ATOMIC_UI_PLAN.md §7.4, canvas "Storage"): free space on the main volume, a card with
+ * a meter per volume, storage analysis, app cache, and network servers.
+ */
+@Composable
+fun StorageScreen(
+    volumes: List<StorageVolumeInfo>,
+    onBrowseVolume: (StorageVolumeInfo) -> Unit,
+    onBrowseFolder: (FileNodeId) -> Unit = {},
+    onOpenStorageIntelligence: ((FileNodeId) -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    onOpenOperations: () -> Unit = {},
+    onOpenTrash: () -> Unit = {},
+    onNotify: (String) -> Unit = {},
+) {
+    val context = LocalContext.current
+    val app = context.applicationContext as? AtomicApp
+    val credentialsStore = remember { app?.container?.networkCredentialsStore ?: NetworkCredentialsStore(context) }
+    var savedServers by remember { mutableStateOf(credentialsStore.getAllServers()) }
+    var showAddServerDialog by rememberSaveable { mutableStateOf(false) }
+    var serverToDelete by remember { mutableStateOf<NetworkServerConfig?>(null) }
+
+    fun refreshServers() {
+        savedServers = credentialsStore.getAllServers()
+    }
+
+    val cacheSize by produceState(initialValue = 0L) {
+        value = withContext(Dispatchers.IO) { StorageVolumes.getAppCacheSize(context) }
+    }
+    val primary = volumes.firstOrNull { it.type == StorageType.INTERNAL_SHARED } ?: volumes.firstOrNull()
+
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(AtomicSpacing.s16)
+                .testTag("storage_screen"),
+        verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s24),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s16)) {
+            AtomicSectionLabel("Volumes", trailingText = "${volumes.size} volumes")
+            if (primary != null) {
+                AtomicStatTile(
+                    value = FileUtils.formatBytes(primary.freeBytes),
+                    caption = "Free on ${primary.label} of ${FileUtils.formatBytes(primary.totalBytes)}",
+                    featured = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            volumes.forEach { volume -> StorageVolumeCard(volume, onBrowse = { onBrowseVolume(volume) }) }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
+            AtomicSectionLabel("Analysis")
+            AtomicText(
+                "Find duplicates, large files and empty folders. Nothing is deleted without asking.",
+                AtomicTextRole.BodySecondary,
+            )
+            AtomicButton(
+                "Analyze storage",
+                onClick = {
+                    val primaryRoot =
+                        volumes.firstOrNull()?.rootNodeId ?: FileNodeId.file(
+                            Environment.getExternalStorageDirectory()?.absolutePath ?: context.filesDir.absolutePath,
+                        )
+                    onOpenStorageIntelligence?.invoke(primaryRoot)
+                },
+                leadingIcon = AtomicIcons.Cleanup,
+                modifier = Modifier.fillMaxWidth().testTag("open_storage_intelligence_button"),
+            )
+            AtomicText("App cache · ${FileUtils.formatBytes(cacheSize)}", AtomicTextRole.MonoMeta)
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
+            AtomicSectionLabel("Tools")
+            val running = app?.container?.operationQueue?.active?.collectAsState()?.value
+            AtomicSettingsRow(
+                title = "Operations",
+                value = if (running == null) "History, resume and retry" else "1 running",
+                onClick = onOpenOperations,
+                modifier = Modifier.testTag("open_operations"),
+            )
+            val trashFlow = remember(app) { app?.container?.trashStore?.observeAll() }
+            val trash = trashFlow?.collectAsState(initial = emptyList())?.value.orEmpty()
+            AtomicSettingsRow(
+                title = "Trash",
+                value = TrashText.summary(trash),
+                onClick = onOpenTrash,
+                modifier = Modifier.testTag("open_trash"),
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
+            AtomicSectionLabel("Network")
+            if (savedServers.isEmpty()) {
+                AtomicEmptyState(
+                    message = "No servers yet.",
+                    detail = "Connect to FTP, FTPS or WebDAV to browse and move files on another machine.",
+                )
+            } else {
+                Column {
+                    savedServers.forEach { server ->
+                        AtomicFileRow(
+                            name = server.name,
+                            meta = "${server.protocol.name} · ${serverAddress(server)}",
+                            icon = AtomicIcons.Network,
+                            onClick = { onBrowseFolder(server.toRootNodeId()) },
+                            trailing = {
+                                AtomicIconButton(
+                                    AtomicIcons.Trash,
+                                    "Remove ${server.name}",
+                                    onClick = { serverToDelete = server },
+                                    variant = AtomicIconButtonVariant.Destructive,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+            AtomicButton(
+                "Add server",
+                onClick = { showAddServerDialog = true },
+                variant = AtomicButtonVariant.Ghost,
+                leadingIcon = AtomicIcons.Add,
+                modifier = Modifier.fillMaxWidth().testTag("add_network_server_button"),
+            )
+            AtomicText("SFTP and SMB are coming soon. FTP, FTPS and WebDAV work today.", AtomicTextRole.MonoMeta)
+        }
+
+        AtomicText(
+            "Android keeps some system partitions private. Free and total space cover shared storage only.",
+            AtomicTextRole.BodySecondary,
+        )
+    }
+
+    if (showAddServerDialog) {
+        AddNetworkServerDialog(
+            onDismiss = { showAddServerDialog = false },
+            onSave = { config, password ->
+                if (!credentialsStore.saveServer(config, password)) {
+                    onNotify("Server saved without its password: it couldn't be encrypted on this phone.")
+                }
+                refreshServers()
+                showAddServerDialog = false
+            },
+        )
+    }
+
+    serverToDelete?.let { server ->
+        AtomicConfirmSheet(
+            label = "Network",
+            headline = "Remove server?",
+            body = "\"${server.name}\" and its saved password are removed from this phone. Files on the server stay.",
+            confirmLabel = "Remove",
+            destructive = true,
+            onConfirm = {
+                credentialsStore.deleteServer(server.id)
+                refreshServers()
+                serverToDelete = null
+            },
+            onDismiss = { serverToDelete = null },
+        )
+    }
+}
+
+private fun serverAddress(server: NetworkServerConfig): String {
+    val user =
+        when {
+            server.anonymous -> "anonymous@"
+            server.username.isNotEmpty() -> "${server.username}@"
+            else -> ""
+        }
+    return "$user${server.host}:${server.port}${server.remotePath}"
+}
+
+@Composable
+private fun StorageVolumeCard(
+    volume: StorageVolumeInfo,
+    onBrowse: () -> Unit,
+) {
+    val total = volume.totalBytes
+    val used = (total - volume.freeBytes).coerceAtLeast(0L)
+    val fraction = if (total > 0L) (used.toFloat() / total).coerceIn(0f, 1f) else 0f
+    AtomicStorageCard(
+        name = volume.label,
+        usage = "${FileUtils.formatBytes(used)} / ${FileUtils.formatBytes(total)}",
+        fraction = fraction,
+        meterDescription = "${volume.label}, ${(fraction * 100).toInt()} percent used",
+        onBrowse = onBrowse,
+        browseLabel =
+            when {
+                !volume.isMounted -> "Unavailable"
+                volume.requiresGrant -> "Grant access →"
+                else -> "Browse →"
+            },
+        nearlyFullLabel = "Nearly full · ${FileUtils.formatBytes(volume.freeBytes)} left",
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddNetworkServerDialog(
+    onDismiss: () -> Unit,
+    onSave: (NetworkServerConfig, String?) -> Unit,
+) {
+    var selectedProtocol by rememberSaveable { mutableStateOf(NetworkProtocol.FTP) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var host by rememberSaveable { mutableStateOf("") }
+    var portText by rememberSaveable { mutableStateOf(selectedProtocol.defaultPort.toString()) }
+    var remotePath by rememberSaveable { mutableStateOf("/") }
+    var username by rememberSaveable { mutableStateOf("") }
+    // Kept in memory only: a password must not end up in the saved-state bundle.
+    var password by remember { mutableStateOf("") }
+    var anonymous by rememberSaveable { mutableStateOf(false) }
+    val portError = if (portText.toIntOrNull()?.let { it in 1..65535 } == false) "Use a port from 1 to 65535." else null
+
+    AtomicSheet(label = "Add server", onDismiss = onDismiss) {
+        AtomicText("Protocol", AtomicTextRole.MonoLabel)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
+            verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
+        ) {
+            NetworkProtocol.entries.forEach { proto ->
+                AtomicChip(
+                    label = proto.name,
+                    selected = selectedProtocol == proto,
+                    onSelectedChange = {
+                        selectedProtocol = proto
+                        portText = proto.defaultPort.toString()
+                    },
+                )
+            }
+        }
+        AtomicTextField(
+            name,
+            { name = it },
+            label = "Name",
+            placeholder = "Office NAS",
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicTextField(
+            host,
+            { host = it },
+            label = "Host or address",
+            placeholder = "192.168.1.100",
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicTextField(
+            portText,
+            { portText = it },
+            label = "Port",
+            errorText = portError,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicTextField(
+            remotePath,
+            { remotePath = it },
+            label = "Remote path or share",
+            placeholder = "/",
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicToggleCard(
+            title = "Anonymous",
+            description = "Connect without a user name or password.",
+            checked = anonymous,
+            onCheckedChange = { anonymous = it },
+        )
+        if (!anonymous) {
+            AtomicTextField(username, { username = it }, label = "User name", modifier = Modifier.fillMaxWidth())
+            AtomicTextField(
+                password,
+                { password = it },
+                label = "Password",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        AtomicButton(
+            "Save server",
+            onClick = {
+                val port = portText.toIntOrNull() ?: selectedProtocol.defaultPort
+                val effectiveName = name.ifBlank { "${selectedProtocol.name} - $host" }
+                val config =
+                    NetworkServerConfig(
+                        id = UUID.randomUUID().toString(),
+                        name = effectiveName,
+                        protocol = selectedProtocol,
+                        host = host.trim(),
+                        port = port,
+                        username = username.trim(),
+                        remotePath = if (remotePath.startsWith("/")) remotePath else "/$remotePath",
+                        anonymous = anonymous,
+                    )
+                onSave(config, if (anonymous) null else password)
+            },
+            enabled = host.isNotBlank() && portError == null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AtomicButton(
+            "Cancel",
+            onClick = onDismiss,
+            variant = AtomicButtonVariant.Ghost,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}

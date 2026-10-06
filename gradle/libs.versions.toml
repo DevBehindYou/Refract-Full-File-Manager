@@ -1,4 +1,4 @@
-# Refract — version catalog
+# Atomic File Manager — version catalog
 #
 # Provenance key used in the comments below (see PHASE_1_NOTES.md for the full
 # explanation of why this matters this phase):
@@ -13,7 +13,8 @@
 # --- Core toolchain --------------------------------------------------------
 agp = "9.1.1" # Matched to Gradle 9.3.1 toolchain
 kotlin = "2.2.10" # [BEST-EFFORT] AGP 9.1's reported bundled default; AGP 9.3 may bundle a newer patch.
-ksp = "2.2.10-2.0.2" # [BEST-EFFORT] must track the `kotlin` version above (KSP2 versions as "<kotlinVersion>-<kspPatch>").
+ksp = "2.3.12" # KSP 2.3+ is versioned independently of Kotlin and is the line meant to work with AGP 9 built-in Kotlin. Confirmed on Maven Central and the Gradle plugin portal (5 Oct 2026); compatibility with this build is proven by CI, not locally.
+room = "2.7.2" # [BEST-EFFORT] Google Maven is not reachable from the build machine; 2.7.2 is a known published release.
 
 # --- Compose -----------------------------------------------------------
 # Pinned to the April '26 train (Compose 1.11.0) deliberately: the August '26 train
@@ -28,6 +29,9 @@ androidxFragment = "1.8.5" # [BEST-EFFORT] FragmentActivity for BiometricPrompt;
 coreSplashscreen = "1.0.1" # [BEST-EFFORT] verify no newer stable exists.
 hilt = "2.57.2" # [BEST-EFFORT, moderately confident]
 kotlinxCoroutines = "1.9.0" # [BEST-EFFORT]
+# Coil 3.3.0 is the newest release built with Kotlin 2.2 (3.4.0 needs 2.3, 3.5+ needs 2.4; this build
+# compiles with 2.2.10). Maven Central, checked 6 Oct 2026. Raise together with the Kotlin version.
+coil = "3.3.0"
 
 # --- Custom Lint module ----------------------------------------------------
 # Lint's own artifact version has historically tracked "AGP version + 23 major", e.g.
@@ -76,9 +80,16 @@ activity-compose = { group = "androidx.activity", name = "activity-compose", ver
 core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "androidxBiometric" }
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidxFragment" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
 
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
+
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
@@ -105,7 +116,7 @@ androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchm
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 # No `kotlin-compose` plugin alias here: org.jetbrains.kotlin.plugin.compose is applied
-# via a bare id() inside build-logic/convention's refract.android.application.gradle.kts,
+# via a bare id() inside build-logic/convention's atomic.android.application.gradle.kts,
 # since its implementation is already on that module's own classpath
 # (kotlin-composeCompilerGradlePlugin below). A version-catalog alias would be unused.
 # kotlin-android is used only by :benchmark (a com.android.test module) — deliberately

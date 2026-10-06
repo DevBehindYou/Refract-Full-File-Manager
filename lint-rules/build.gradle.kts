@@ -29,6 +29,11 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Show lint's expected-vs-actual report in CI logs, not just the assertion class.
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
     val localProps =
         Properties().apply {
             val propFile = rootProject.file("local.properties")

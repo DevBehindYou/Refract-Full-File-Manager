@@ -62,7 +62,7 @@ no exception names, no "please try again later".
 
 | Error | Title | Body | Action |
 |---|---|---|---|
-| `PermissionDenied` | Access needed | Refract needs permission to see your files. | **Grant access** → the correct flow for this API level |
+| `PermissionDenied` | Access needed | Atomic File Manager needs permission to see your files. | **Grant access** → the correct flow for this API level |
 | `AccessDenied(name)` | Can't open *name* | Android is blocking access to this item. | **Check access** → troubleshooting |
 | `PlatformRestricted` | Android blocks this folder | Since Android 11, no file manager can open app data folders. This is a system restriction. | **Got it** (no retry) |
 | `ProviderUnavailable` | This storage isn't responding | The app providing this folder stopped. | **Retry** |

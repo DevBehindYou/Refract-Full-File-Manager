@@ -10,7 +10,7 @@ may ever use.
 
 ```text
 ┌────────────────────────────────────────┐
-│  Refract                    ⚙  (glass) │  ← GlassToolbar, transparent until scroll
+│  Atomic File Manager                    ⚙  (glass) │  ← GlassToolbar, transparent until scroll
 ├────────────────────────────────────────┤
 │  ╭──────────────────────────────────╮  │
 │  │  Internal storage                │  │  ← StorageCard (glass, elevation 1)

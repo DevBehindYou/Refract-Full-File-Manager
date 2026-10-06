@@ -1,0 +1,217 @@
+package com.devbehindyou.atomicfilemanager.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicCheckbox
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicDivider
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconTile
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicBorder
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
+import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
+import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
+import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
+import com.devbehindyou.atomicfilemanager.domain.model.FileNode
+import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
+
+private const val HIDDEN_ALPHA = 0.62f
+
+/** Outlined type icon for a node (spec §10: one icon family, no per-type colours). */
+fun iconFor(node: FileNode): ImageVector =
+    when {
+        node.isDirectory -> AtomicIcons.Files
+        node.mimeType?.startsWith("image/") == true -> AtomicIcons.Image
+        node.mimeType?.startsWith("video/") == true -> AtomicIcons.Video
+        node.mimeType?.startsWith("audio/") == true -> AtomicIcons.AudioFile
+        node.mimeType == "application/vnd.android.package-archive" -> AtomicIcons.Apk
+        node.mimeType?.contains("zip") == true ||
+            node.mimeType?.contains("compressed") == true ||
+            node.mimeType?.contains("archive") == true -> AtomicIcons.Archive
+        else -> AtomicIcons.Document
+    }
+
+/** Star state for a row's actions sheet; null hides the action. */
+class FavouriteToggle(
+    val isFavourite: Boolean,
+    val onToggle: () -> Unit,
+)
+
+/** Mono meta line: "42 items · 2026-10-02 21:44" for folders, "214.0 KB · 2026-10-04 08:11" for files. */
+fun metaFor(node: FileNode): String {
+    val date = FileUtils.formatDate(node.modifiedAt)
+    return if (node.isDirectory) {
+        val items = node.childCount?.let { "$it item${if (it == 1) "" else "s"}" } ?: "Folder"
+        "$items · $date"
+    } else {
+        val size = FileUtils.formatBytes(node.size)
+        if (node.isHidden) "$size · Hidden" else "$size · $date"
+    }
+}
+
+/**
+ * File or folder row (ATOMIC_UI_PLAN.md §7.2): icon tile, name as stored, mono meta line, and
+ * either "→" for folders or a More button that opens the file actions sheet. Selected rows get a
+ * 2 dp accent border and a checkbox; hidden files are faded. TalkBack gets the same actions as
+ * custom actions. [isSelectionMode] is derived by the caller from `selectedIds.isNotEmpty()`.
+ */
+@Composable
+fun FileListItem(
+    node: FileNode,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelect: () -> Unit,
+    onClick: () -> Unit,
+    onShowDetails: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onExtract: (() -> Unit)? = null,
+    onCompress: (() -> Unit)? = null,
+    onQuickPeek: (() -> Unit)? = null,
+    onHide: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    favourite: FavouriteToggle? = null,
+) {
+    val colors = Atomic.colors
+    var showActions by rememberSaveable(node.id.raw) { mutableStateOf(false) }
+    val isZip = node.name.endsWith(".zip", ignoreCase = true) || node.mimeType?.contains("zip") == true
+    val isMedia = node.mimeType?.startsWith("image/") == true || node.mimeType?.startsWith("video/") == true
+    val actions =
+        listOfNotNull(
+            if (isZip && onExtract != null) "Extract" to onExtract else null,
+            if (isMedia && onQuickPeek != null) "Quick preview" to onQuickPeek else null,
+            if (onCompress != null) "Compress to ZIP" to onCompress else null,
+            favourite?.let {
+                (if (it.isFavourite) "Remove from favourites" else "Add to favourites") to it.onToggle
+            },
+            if (onHide != null) "Hide" to onHide else null,
+            "Details" to onShowDetails,
+            "Rename" to onRename,
+            "Delete" to onDelete,
+        )
+    val frame =
+        if (isSelected) {
+            Modifier
+                .background(colors.surfaceCard, AtomicShape.sm)
+                .border(AtomicBorder.selected, colors.accent, AtomicShape.sm)
+        } else {
+            Modifier
+        }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .heightIn(min = AtomicSize.touchTarget)
+                    .then(frame)
+                    .combinedClickable(
+                        // The caller's onClick toggles in selection mode; long-press may select a range.
+                        onClick = onClick,
+                        onLongClick = onToggleSelect,
+                    ).semantics {
+                        contentDescription =
+                            buildString {
+                                append(if (node.isDirectory) "Folder " else "File ")
+                                append(node.name)
+                                if (!node.isDirectory) {
+                                    append(", ")
+                                    append(FileUtils.formatBytes(node.size))
+                                }
+                            }
+                        if (isSelectionMode) {
+                            selected = isSelected
+                            role = Role.Checkbox
+                        }
+                        customActions =
+                            actions.map { (label, action) ->
+                                CustomAccessibilityAction(label) {
+                                    action()
+                                    true
+                                }
+                            }
+                    }.padding(horizontal = AtomicSpacing.s16, vertical = AtomicSpacing.s10)
+                    .alpha(if (node.isHidden) HIDDEN_ALPHA else 1f)
+                    .testTag("file_item_${node.id.raw}"),
+        ) {
+            FileThumbnail(node)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s2)) {
+                AtomicText(node.name, AtomicTextRole.Name, maxLines = 2)
+                AtomicText(metaFor(node), AtomicTextRole.MonoMeta, maxLines = 1)
+            }
+            when {
+                isSelectionMode -> AtomicCheckbox(checked = isSelected, onCheckedChange = null)
+                else ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (node.isDirectory) AtomicText("→", AtomicTextRole.MonoMeta, color = colors.accentText)
+                        AtomicIconButton(
+                            icon = AtomicIcons.More,
+                            contentDescription = "More options for ${node.name}",
+                            onClick = { showActions = true },
+                            modifier = Modifier.testTag("file_item_menu_${node.id.raw}"),
+                        )
+                    }
+            }
+        }
+        if (!isSelected) AtomicDivider(modifier = Modifier.padding(horizontal = AtomicSpacing.s16))
+    }
+
+    if (showActions) {
+        AtomicSheet(
+            label = if (node.isDirectory) "Folder actions" else "File actions",
+            onDismiss = { showActions = false },
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
+            ) {
+                AtomicIconTile(iconFor(node))
+                Column(Modifier.weight(1f)) {
+                    AtomicText(node.name, AtomicTextRole.Name, maxLines = 2)
+                    AtomicText(metaFor(node), AtomicTextRole.MonoMeta, maxLines = 1)
+                }
+            }
+            Column {
+                actions.forEach { (label, action) ->
+                    AtomicSettingsRow(
+                        title = label,
+                        onClick = {
+                            showActions = false
+                            action()
+                        },
+                    )
+                }
+            }
+        }
+    }
+}

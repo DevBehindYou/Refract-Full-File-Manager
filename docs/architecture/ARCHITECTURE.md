@@ -148,8 +148,8 @@ The three storage backends are bound into a map and selected at runtime by
 | Selection | `SavedStateHandle` (list of node ids, capped at 500; beyond that, cleared with a message) |
 | Search query and filters | `SavedStateHandle` |
 | Running operations | Database (`operation` table) + the foreground service; the service is `START_REDELIVER_INTENT` and rebuilds its queue from database on restart |
-| Transfer Bubbles | Persisted in SQLite `refract_transfer_bubbles.db` |
-| Hidden Items & Journal | Persisted in SQLite `refract_hidden_files.db` with startup journal crash recovery |
+| Transfer Bubbles | Persisted in SQLite `atomic_transfer_bubbles.db` |
+| Hidden Items & Journal | Persisted in SQLite `atomic_hidden_files.db` with startup journal crash recovery |
 
 Process-death behaviour is a **tested requirement**, not an aspiration — see
 `../testing/TEST_STRATEGY.md` §6.

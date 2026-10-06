@@ -88,6 +88,6 @@ Whenever the user tries to reach `/Android/data` or `/Android/obb` on API 30+, t
 
 > **Android blocks this folder**
 > Since Android 11, no file manager can open app data folders. This is a system restriction,
-> not a limitation of Refract.
+> not a limitation of Atomic File Manager.
 
 and offers no retry button. Pretending otherwise generates support load and one-star reviews.

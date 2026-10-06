@@ -1,15 +1,16 @@
 plugins {
-    id("refract.android.application")
+    id("atomic.android.application")
     alias(libs.plugins.androidJunit5)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
 }
 
 android {
-    namespace = "com.devbehindyou.refract"
+    namespace = "com.devbehindyou.atomicfilemanager"
 
     defaultConfig {
-        applicationId = "com.devbehindyou.refract"
+        applicationId = "com.devbehindyou.atomicfilemanager"
         versionCode = 1
         versionName = "0.1.0-phase1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -31,7 +32,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            isMinifyEnabled = false
+            // R8 shrinking and obfuscation (ALL_IN_ONE_PLAN.md 0.5, hotspot H3). Keep rules are in
+            // proguard-rules.pro; the emulator CI job launches the shrunk APK to catch missing ones.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -47,7 +51,8 @@ android {
     }
 
     lint {
-        disable += "NoHardcodedDp"
+        // Atomic design rules warn while screens migrate; they become errors at U8 (ATOMIC_UI_PLAN.md §14.2).
+        warning += "NoHardcodedDp"
         abortOnError = true
         checkTestSources = false
         checkDependencies = false
@@ -70,11 +75,20 @@ dependencies {
     implementation(libs.core.splashscreen)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.fragment.ktx)
+    // Thumbnails in file lists (ALL_IN_ONE_PLAN.md hotspot H7): images and video frames, memory + disk cache.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.video)
 
     implementation(libs.hilt.android)
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+
+    // Room (ALL_IN_ONE_PLAN.md Phase 0.2): the operation journal first, other tables move over later.
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+    testImplementation(libs.room.testing)
 
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.junit.jupiter.api)
@@ -96,6 +110,11 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+}
+
+ksp {
+    // Exported schemas are committed so every migration can be tested against the real history.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 detekt {

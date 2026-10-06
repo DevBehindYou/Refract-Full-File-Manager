@@ -35,7 +35,7 @@ clear quota model before it is designed.
 
 ## 3. On-device intelligence
 
-Any intelligent feature in Refract must satisfy **all four** of these, or it does not ship:
+Any intelligent feature in Atomic File Manager must satisfy **all four** of these, or it does not ship:
 
 1. **On-device only.** No file, no file name, no path, no thumbnail leaves the device. Ever.
    The base flavour has no `INTERNET` permission and that must not change for this.
@@ -73,7 +73,7 @@ moves files on its own judgement is a file manager that loses files.**
 
 ## 5. Ecosystem
 
-* **Documents provider** — expose Refract's favourites and recents to other apps through a
+* **Documents provider** — expose Atomic File Manager's favourites and recents to other apps through a
   `DocumentsProvider`. Genuinely useful and architecturally clean.
 * **Quick Share / nearby integration** as a share target.
 * **Backup integration** — export favourites, settings, and bookmarks; explicitly never files.

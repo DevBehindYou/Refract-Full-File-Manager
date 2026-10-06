@@ -19,8 +19,8 @@ rules that are exactly as strict as module boundaries would be.
 ## 2. Package structure (MVP)
 
 ```text
-com.devbehindyou.refract
-├── RefractApp.kt                  // @HiltAndroidApp
+com.devbehindyou.atomicfilemanager
+├── AtomicApp.kt                  // @HiltAndroidApp
 ├── MainActivity.kt                // single activity, enableEdgeToEdge
 │
 ├── core
@@ -30,7 +30,7 @@ com.devbehindyou.refract
 │   │   ├── glass                  // GlassTier, tokens, GlassSurface, AGSL shader, capability manager
 │   │   └── component              // GlassButton, GlassSheet, LiquidBottomBar, ...
 │   ├── ui                         // FileRow, StorageMeter, EmptyState, previews
-│   ├── database                   // Room: entities, DAOs, RefractDatabase, migrations
+│   ├── database                   // Room: entities, DAOs, AtomicDatabase, migrations
 │   ├── datastore                  // SettingsDataStore
 │   └── navigation                 // routes, NavHost, deep links
 │

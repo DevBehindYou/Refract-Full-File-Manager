@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Refract"
+rootProject.name = "AtomicFileManager"
 
 // Convention plugins (compileSdk/minSdk/targetSdk/Compose baseline). See
 // architecture/MODULES.md §6 — "Convention plugins live in build-logic/ from day one,

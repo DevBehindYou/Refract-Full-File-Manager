@@ -1,0 +1,92 @@
+package com.devbehindyou.atomicfilemanager.lint
+
+import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
+import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
+import com.android.tools.lint.checks.infrastructure.TestMode
+import org.junit.jupiter.api.Test
+
+class NoPlatformFileInUiDetectorTest {
+    @Test
+    fun `flags an android_net_Uri import in a feature package`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.feature.browse.ui
+
+                    import android.net.Uri
+
+                    class BrowseScreenState(val currentUri: Uri)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoPlatformFileInUiDetector.ISSUE)
+            .run()
+            .expectErrorCount(1)
+    }
+
+    @Test
+    fun `flags a java_io_File import in core_ui`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.core.ui.widgets
+
+                    import java.io.File
+
+                    class ThumbnailLoader(private val file: File)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoPlatformFileInUiDetector.ISSUE)
+            .run()
+            .expectErrorCount(1)
+    }
+
+    @Test
+    fun `allows a domain model import in a feature package`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.feature.browse.ui
+
+                    import com.devbehindyou.atomicfilemanager.domain.model.FileNode
+
+                    class BrowseScreenState(val current: FileNode)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoPlatformFileInUiDetector.ISSUE)
+            .run()
+            .expectClean()
+    }
+
+    @Test
+    fun `allows a java_io_File import in the data layer`() {
+        lint()
+            .testModes(TestMode.DEFAULT)
+            .allowCompilationErrors()
+            .files(
+                kotlin(
+                    """
+                    package com.devbehindyou.atomicfilemanager.data.local
+
+                    import java.io.File
+
+                    class LocalFileRepository(private val root: File)
+                    """.trimIndent(),
+                ),
+            )
+            .issues(NoPlatformFileInUiDetector.ISSUE)
+            .run()
+            .expectClean()
+    }
+}

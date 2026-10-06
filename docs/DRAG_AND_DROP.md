@@ -1,10 +1,10 @@
 # Drag-and-Drop System
 
-Refract implements a direct-manipulation drag-and-drop system built using Jetpack Compose's pointer gestures and drag architecture (`Modifier.dragAndDropSource` / `Modifier.dragAndDropTarget` and `detectDragGesturesAfterLongPress`), specifically engineered for high-performance multi-selection file management across storage backends.
+Atomic File Manager implements a direct-manipulation drag-and-drop system built using Jetpack Compose's pointer gestures and drag architecture (`Modifier.dragAndDropSource` / `Modifier.dragAndDropTarget` and `detectDragGesturesAfterLongPress`), specifically engineered for high-performance multi-selection file management across storage backends.
 
 ## 1. Core Architecture & Separation of Concerns
 
-Rather than scattering drag state into individual list rows or grid items, Refract uses an explicit, centralized controller architecture:
+Rather than scattering drag state into individual list rows or grid items, Atomic File Manager uses an explicit, centralized controller architecture:
 
 - **`FileDragController`**: Central coordinator holding the active `DragSession` state (`isDragging`, `dragPosition`, `activeTarget`, `itemsBeingDragged`, `originLocation`).
 - **`DragSession`**: Represents the current drag interaction lifecycle, containing a unique session ID, start offset, and payload.
@@ -52,7 +52,7 @@ When the user hovers over a folder while dragging files:
 - Dwell detection is active for **500–750ms**.
 - A circular progress animation appears over the target folder.
 - When the delay completes, the folder opens immediately without dropping the files.
-- The drag session remains active, allowing users to traverse nested hierarchies (`Downloads` $\to$ `Work` $\to$ `Refract`) without releasing their grip.
+- The drag session remains active, allowing users to traverse nested hierarchies (`Downloads` $\to$ `Work` $\to$ `Atomic File Manager`) without releasing their grip.
 - Hovering over breadcrumb items allows moving back upward through the folder tree.
 
 ## 5. Edge Auto-Scroll

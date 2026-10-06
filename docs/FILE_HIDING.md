@@ -2,13 +2,13 @@
 
 # Multi-Mode File Hiding Architecture
 
-Refract eliminates the confusion of a single ambiguous "Hide" button by introducing three explicitly differentiated hiding mechanisms tailored for distinct privacy needs, transparent technical tradeoffs, and crash recovery guarantees.
+Atomic File Manager eliminates the confusion of a single ambiguous "Hide" button by introducing three explicitly differentiated hiding mechanisms tailored for distinct privacy needs, transparent technical tradeoffs, and crash recovery guarantees.
 
 ---
 
 ## 1. Transparency & Security Terminology
 
-Refract maintains strict truth in advertising:
+Atomic File Manager maintains strict truth in advertising:
 - `.nomedia` and header obfuscation are **not** encryption.
 - The UI explicitly states the privacy level, tradeoffs, and failure modes before any hiding operation is performed.
 
@@ -20,16 +20,16 @@ Refract maintains strict truth in advertising:
 Prevents selected media from appearing in photo galleries and media scanning applications.
 
 ### Architecture & Rules
-- **Rule**: `.nomedia` is a filesystem marker respected by `android.provider.MediaStore`. It affects the containing directory and all descendants. Refract **never** drops a `.nomedia` file blindly into a general user folder containing unrelated photos.
+- **Rule**: `.nomedia` is a filesystem marker respected by `android.provider.MediaStore`. It affects the containing directory and all descendants. Atomic File Manager **never** drops a `.nomedia` file blindly into a general user folder containing unrelated photos.
 - **Implementation**:
-  - For individual media files, Refract manages a hidden vault folder per storage volume: `<storage>/.RefractHidden/` with a `.nomedia` file.
+  - For individual media files, Atomic File Manager manages a hidden folder per storage volume, set in Settings (default `<storage>/Atomic File Manager/Hidden/`), with a `.nomedia` file.
   - Selected files are moved safely into this directory using transactional move semantics.
   - Metadata is recorded in `HiddenFilesDatabaseHelper` tracking `originalLocation`, `currentLocation`, `displayName`, and `hiddenTimestamp`.
 - **Restoration**: Unhiding moves the file back to its original location and triggers MediaStore scanning so galleries discover it again.
 
 ---
 
-## 3. Mode B — Fast Obscure (`RefractHiddenFormat v1`)
+## 3. Mode B — Fast Obscure (`RefractHiddenFormat v1`, footer `REFRACT_OBSCURE_V1`; the name predates the rename and is kept because obscured files on users' storage carry it)
 
 ### Purpose
 Makes files unrecognizable to casual apps and file indexers instantly (O(1)), without processing or encrypting multi-gigabyte file contents.
@@ -58,14 +58,14 @@ Makes files unrecognizable to casual apps and file indexers instantly (O(1)), wi
 
 ---
 
-## 4. Mode C — Move to Refract Private Storage
+## 4. Mode C — Move to Atomic File Manager Private Storage
 
 ### Purpose
-Provides strong app-level privacy by moving files into Refract's private internal storage (`context.filesDir / refract_private_storage`). Other ordinary third-party applications without root cannot read or browse these files.
+Provides strong app-level privacy by moving files into Atomic File Manager's private internal storage (`context.filesDir / private_storage`). Other ordinary third-party applications without root cannot read or browse these files.
 
 ### Critical User Warning
 - The UI explicitly informs the user:
-  > *"Files stored in Refract private storage are protected from other apps, but will be deleted if Refract is uninstalled."*
+  > *"Files stored in Atomic File Manager private storage are protected from other apps, but will be deleted if Atomic File Manager is uninstalled."*
 
 ### Execution Safety
 - Uses transactional copy $\to$ verify byte count $\to$ delete original source semantics.
