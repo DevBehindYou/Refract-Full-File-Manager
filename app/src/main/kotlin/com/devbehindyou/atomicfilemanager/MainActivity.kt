@@ -86,6 +86,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
 import com.devbehindyou.atomicfilemanager.ui.components.ConflictSheet
 import com.devbehindyou.atomicfilemanager.ui.components.RecoverySheet
+import com.devbehindyou.atomicfilemanager.ui.screens.AppManagerScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabStrip
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabsState
@@ -494,6 +495,10 @@ fun AtomicAppContent(
             )
             return
         }
+        AtomicRoute.Apps -> {
+            AppManagerScreen(onBack = ::pop, onNotify = ::notify)
+            return
+        }
         AtomicRoute.Trash -> {
             TrashScreen(
                 store = app.container.trashStore,
@@ -610,6 +615,7 @@ fun AtomicAppContent(
                     onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
                     onOpenOperations = { push(AtomicRoute.Operations) },
                     onOpenTrash = { push(AtomicRoute.Trash) },
+                    onOpenApps = { push(AtomicRoute.Apps) },
                 ),
         )
     }
@@ -711,6 +717,7 @@ private class ShellCallbacks(
     val onOpenStorageDetails: () -> Unit,
     val onOpenOperations: () -> Unit,
     val onOpenTrash: () -> Unit,
+    val onOpenApps: () -> Unit,
 )
 
 @Composable
@@ -774,6 +781,7 @@ private fun MainScreenContent(
                 onOpenStorageIntelligence = callbacks.onOpenStorageIntelligence,
                 onOpenOperations = callbacks.onOpenOperations,
                 onOpenTrash = callbacks.onOpenTrash,
+                onOpenApps = callbacks.onOpenApps,
                 onNotify = callbacks.onNotify,
             )
         }

@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- App manager's Uninstall opens the system uninstall prompt (ALL_IN_ONE_PLAN.md 2.7). -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <!-- Launchable apps only (smart cleanup's installed-APK check, app manager); never QUERY_ALL_PACKAGES. -->
     <queries>
