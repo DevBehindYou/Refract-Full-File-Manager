@@ -1,7 +1,6 @@
-# Atomic File Manager ProGuard / R8 Rules
-# NOTE: Release build uses isMinifyEnabled = false (Phase 1 constraint).
-# These rules are pre-populated for when minification is enabled.
-# Current persistence layer: SQLiteOpenHelper (NOT Room). No @Entity/@Dao annotations exist.
+# Atomic File Manager R8 rules. Release builds are minified and resource-shrunk (ALL_IN_ONE_PLAN.md 0.5).
+# Room, Compose, AndroidX and coroutines ship their own consumer rules; only app-specific needs are here.
+# Persistence: Room (operation journal, trash, favourites, recents, search index) plus two SQLiteOpenHelpers.
 
 # --- Coroutines ---
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
@@ -19,6 +18,12 @@
 # --- Network backend enums and sealed classes (BackendType, FileResult, FileError) ---
 -keep class com.devbehindyou.atomicfilemanager.domain.repository.** { *; }
 
-# NOTE: When Coil or Media3 dependencies are added to build.gradle.kts, uncomment:
-# -keepclassmembers class coil3.** { *; }
-# -keep class androidx.media3.** { *; }
+# --- Enums stored by name (journal states, operation types, settings, hide modes) ---
+-keepclassmembers enum com.devbehindyou.atomicfilemanager.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# --- Crash reports stay readable: keep file names and line numbers, rename the source file attribute ---
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

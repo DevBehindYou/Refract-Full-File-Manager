@@ -191,7 +191,19 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: ./gradlew :app:connectedDebugAndroidTest
+          # Then the shrunk release APK: install, launch, and fail if the app process dies or
+          # logs a fatal exception (R8 removing something reflection needs shows up here first).
+          script: |
+            ./gradlew :app:connectedDebugAndroidTest :app:assembleRelease
+            adb uninstall com.devbehindyou.atomicfilemanager || true
+            adb install -r app/build/outputs/apk/release/app-release.apk
+            adb logcat -c
+            adb shell am start -W -n com.devbehindyou.atomicfilemanager/.MainActivity
+            sleep 10
+            adb logcat -d -s AndroidRuntime:E > release-launch.log || true
+            cat release-launch.log
+            if grep -q "FATAL EXCEPTION" release-launch.log; then echo "Release build crashed on launch"; exit 1; fi
+            adb shell pidof com.devbehindyou.atomicfilemanager
 
       - name: Upload instrumented test reports
         if: always()
