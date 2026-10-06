@@ -930,6 +930,7 @@ private fun DualPaneBrowseContent(
                     FilePreviewPane(
                         node = nodeForPreview,
                         onClose = actions.onClosePreview,
+                        gallery = uiState.filteredItems,
                     )
                 } else {
                     EmptyPreviewPane()
@@ -1089,6 +1090,7 @@ private fun BrowseDialogs(
         FilePreviewDialog(
             node = state.nodeForPreview,
             onDismiss = callbacks.onDismissPreview,
+            gallery = uiState.filteredItems,
         )
     }
 }
