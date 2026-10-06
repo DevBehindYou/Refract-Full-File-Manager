@@ -81,6 +81,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.components.BatchRenameSheet
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
+import com.devbehindyou.atomicfilemanager.ui.components.CompareSheet
 import com.devbehindyou.atomicfilemanager.ui.components.DeleteSheet
 import com.devbehindyou.atomicfilemanager.ui.components.FavouriteToggle
 import com.devbehindyou.atomicfilemanager.ui.components.FileDetailsDialog
@@ -159,6 +160,7 @@ fun BrowseScreen(
     var nodeToDelete by remember { mutableStateOf<FileNode?>(null) }
     var confirmMultiDelete by remember { mutableStateOf(false) }
     var batchRename by remember { mutableStateOf<List<FileNode>?>(null) }
+    var comparePair by remember { mutableStateOf<Pair<FileNode, FileNode>?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     val isSelectionMode = uiState.selectedIds.isNotEmpty()
@@ -399,7 +401,9 @@ fun BrowseScreen(
                 },
                 onClearClipboard = { viewModel.clearClipboard() },
                 onPaste = { viewModel.paste(CollisionPolicy.ASK) },
+                onCompare = { a, b -> comparePair = a to b },
             )
+            comparePair?.let { (a, b) -> CompareSheet(first = a, second = b, onDismiss = { comparePair = null }) }
         }
 
         batchRename?.let { nodes ->
@@ -791,8 +795,17 @@ private fun BrowseBottomBar(
     onClearClipboard: () -> Unit,
     onRenameSelected: (List<FileNode>) -> Unit = {},
     onPaste: () -> Unit,
+    onCompare: (FileNode, FileNode) -> Unit = { _, _ -> },
 ) {
     val clip = uiState.clipboard
+    val selectedFiles =
+        if (uiState.selectedIds.size == 2) {
+            uiState.rawItems.filter {
+                it.id in uiState.selectedIds && !it.isDirectory
+            }
+        } else {
+            emptyList()
+        }
     if (isSelectionMode) {
         AtomicActionStrip(
             actions =
@@ -817,6 +830,15 @@ private fun BrowseBottomBar(
                                 val single = uiState.rawItems.firstOrNull { it.id in uiState.selectedIds }
                                 if (single != null) onShowDetails(single)
                             },
+                        )
+                    } else {
+                        null
+                    },
+                    if (selectedFiles.size == 2) {
+                        AtomicStripAction(
+                            "Compare",
+                            AtomicIcons.CheckCircle,
+                            { onCompare(selectedFiles[0], selectedFiles[1]) },
                         )
                     } else {
                         null
@@ -954,6 +976,7 @@ private fun DualPaneBrowseContent(
                     FilePreviewPane(
                         node = nodeForPreview,
                         onClose = actions.onClosePreview,
+                        gallery = uiState.filteredItems,
                     )
                 } else {
                     EmptyPreviewPane()
@@ -1113,6 +1136,7 @@ private fun BrowseDialogs(
         FilePreviewDialog(
             node = state.nodeForPreview,
             onDismiss = callbacks.onDismissPreview,
+            gallery = uiState.filteredItems,
         )
     }
 }

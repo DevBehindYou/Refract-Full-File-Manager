@@ -3,7 +3,6 @@ package com.devbehindyou.atomicfilemanager.ui.components
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,19 +22,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.window.Dialog
@@ -51,6 +47,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButt
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicText
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextField
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicTextRole
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicShape
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSize
@@ -68,8 +65,10 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveEntryInfo
+import com.devbehindyou.atomicfilemanager.domain.usecase.ChecksumVerdict
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileChecksums
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextContent
+import com.devbehindyou.atomicfilemanager.domain.usecase.checkExpectedChecksum
 import com.devbehindyou.atomicfilemanager.ui.components.preview.AudioPreviewContent
 import com.devbehindyou.atomicfilemanager.ui.components.preview.MarkdownPreviewContent
 import com.devbehindyou.atomicfilemanager.ui.components.preview.VideoPreviewContent
@@ -91,9 +90,7 @@ private fun resolvePreviewType(node: FileNode): PreviewType {
     val name = node.name.lowercase()
     val mime = node.mimeType.orEmpty().lowercase()
     return when {
-        mime.startsWith("image/") || name.endsWith(".jpg") || name.endsWith(".jpeg") ||
-            name.endsWith(".png") ||
-            name.endsWith(".webp") || name.endsWith(".gif") || name.endsWith(".bmp") -> PreviewType.IMAGE
+        Gallery.isImage(node) -> PreviewType.IMAGE
         mime.startsWith("audio/") || name.endsWith(".mp3") || name.endsWith(".m4a") ||
             name.endsWith(".aac") || name.endsWith(".flac") || name.endsWith(".wav") ||
             name.endsWith(".ogg") || name.endsWith(".opus") -> PreviewType.AUDIO
@@ -124,16 +121,25 @@ fun FilePreviewPane(
     modifier: Modifier = Modifier,
     onShare: (() -> Unit)? = null,
     onOpenExternal: (() -> Unit)? = null,
+    gallery: List<FileNode> = emptyList(),
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as? AtomicApp
+    // An image opened from a list swipes through that list's other images (ALL_IN_ONE_PLAN.md 1.5).
+    val images =
+        remember(node.id, gallery) {
+            Gallery.of(gallery, node).takeIf { Gallery.isImage(node) && it.first.size > 1 }
+        }
+    var shown by remember(node.id) { mutableStateOf(node) }
     // Every preview counts as "opened" for Home > Recent (ALL_IN_ONE_PLAN.md 1.2).
-    LaunchedEffect(node.id) {
-        runCatching { app?.container?.recentsRepository?.recordOpened(node) }
+    LaunchedEffect(shown.id) {
+        runCatching { app?.container?.recentsRepository?.recordOpened(shown) }
     }
     val container = app?.container ?: return
     val colors = Atomic.colors
     val previewType = remember(node) { resolvePreviewType(node) }
+    // Share and open-with act on the file the caller opened, so they hide once another image is shown.
+    val actsOnShown = shown.id == node.id
 
     Column(modifier.background(colors.background).testTag("file_preview_pane")) {
         Row(
@@ -149,14 +155,17 @@ fun FilePreviewPane(
                 modifier = Modifier.testTag("preview_close"),
             )
             Column(Modifier.weight(1f)) {
-                AtomicText(node.name, AtomicTextRole.Name, maxLines = 1)
+                AtomicText(shown.name, AtomicTextRole.Name, maxLines = 1)
+                val list = images?.first
+                val position = list?.let { Gallery.position(it.indexOfFirst { n -> n.id == shown.id }, it.size) }
+                val size = "${FileUtils.formatBytes(shown.size)} · ${FileUtils.formatDate(shown.modifiedAt)}"
                 AtomicText(
-                    "${FileUtils.formatBytes(node.size)} · ${FileUtils.formatDate(node.modifiedAt)}",
+                    if (position != null) "$position · $size" else size,
                     AtomicTextRole.MonoMeta,
                     maxLines = 1,
                 )
             }
-            if (onShare != null) {
+            if (onShare != null && actsOnShown) {
                 AtomicIconButton(
                     AtomicIcons.Share,
                     "Share file",
@@ -164,7 +173,7 @@ fun FilePreviewPane(
                     modifier = Modifier.testTag("preview_share"),
                 )
             }
-            if (onOpenExternal != null) {
+            if (onOpenExternal != null && actsOnShown) {
                 AtomicIconButton(
                     AtomicIcons.OpenExternally,
                     "Open with another app",
@@ -175,15 +184,19 @@ fun FilePreviewPane(
         }
         AtomicDivider(strong = true, modifier = Modifier.padding(top = AtomicSpacing.s4))
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            when (previewType) {
-                PreviewType.IMAGE -> ImagePreviewContent(node, container)
-                PreviewType.PDF -> PdfPreviewContent(node, container)
-                PreviewType.TEXT -> TextPreviewContent(node, container)
-                PreviewType.MARKDOWN -> MarkdownPreviewContent(node, container)
-                PreviewType.ARCHIVE -> ArchivePreviewContent(node, container)
-                PreviewType.AUDIO -> AudioPreviewContent(node, container)
-                PreviewType.VIDEO -> VideoPreviewContent(node, container)
-                PreviewType.GENERIC -> GenericFileContent(node, container, onOpenExternal)
+            if (images != null) {
+                ImageGallery(images.first, images.second, container, onPageChange = { shown = it })
+            } else {
+                when (previewType) {
+                    PreviewType.IMAGE -> ZoomableImage(node, container)
+                    PreviewType.PDF -> PdfPreviewContent(node, container)
+                    PreviewType.TEXT -> TextPreviewContent(node, container)
+                    PreviewType.MARKDOWN -> MarkdownPreviewContent(node, container)
+                    PreviewType.ARCHIVE -> ArchivePreviewContent(node, container)
+                    PreviewType.AUDIO -> AudioPreviewContent(node, container)
+                    PreviewType.VIDEO -> VideoPreviewContent(node, container)
+                    PreviewType.GENERIC -> GenericFileContent(node, container, onOpenExternal)
+                }
             }
         }
     }
@@ -196,6 +209,7 @@ fun FilePreviewDialog(
     modifier: Modifier = Modifier,
     onShare: (() -> Unit)? = null,
     onOpenExternal: (() -> Unit)? = null,
+    gallery: List<FileNode> = emptyList(),
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -207,13 +221,14 @@ fun FilePreviewDialog(
             modifier = modifier.fillMaxSize(),
             onShare = onShare,
             onOpenExternal = onOpenExternal,
+            gallery = gallery,
         )
     }
 }
 
 /** Centred loading or error state shared by the viewers. */
 @Composable
-private fun ViewerState(
+internal fun ViewerState(
     loading: Boolean,
     error: String?,
 ) {
@@ -222,65 +237,6 @@ private fun ViewerState(
             loading -> AtomicLoading("Loading preview…")
             error != null -> AtomicErrorState(title = "Can't preview this file", message = error)
         }
-    }
-}
-
-@Composable
-private fun ImagePreviewContent(
-    node: FileNode,
-    container: AppContainer,
-) {
-    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-
-    LaunchedEffect(node.id) {
-        isLoading = true
-        when (val res = container.imagePreviewHelper.decodeImage(node.id)) {
-            is FileResult.Success -> {
-                bitmap = res.value
-                isLoading = false
-            }
-            is FileResult.Failure -> {
-                errorMessage = "The image may be damaged or in a format this phone can't decode."
-                isLoading = false
-            }
-        }
-    }
-
-    val shown = bitmap
-    if (isLoading || errorMessage != null || shown == null) {
-        ViewerState(isLoading, errorMessage)
-        return
-    }
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
-                        offset = if (scale > 1f) offset + pan else Offset.Zero
-                    }
-                },
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(
-            bitmap = shown.asImageBitmap(),
-            contentDescription = node.name,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offset.x,
-                        translationY = offset.y,
-                    ),
-        )
     }
 }
 
@@ -548,6 +504,7 @@ private fun GenericFileContent(
             },
         )
         checksumError?.let { AtomicText(it, AtomicTextRole.BodySecondary, color = Atomic.colors.error) }
+        if (hashes != null) ExpectedChecksumField(hashes)
         if (hashes == null) {
             if (isCalculatingChecksums) {
                 AtomicLoading("Calculating checksums…")
@@ -580,9 +537,6 @@ private fun GenericFileContent(
         }
     }
 }
-
-private const val MIN_ZOOM = 0.5f
-private const val MAX_ZOOM = 6f
 
 /**
  * App details read from an APK without installing it (FR-8.7). Says plainly when the file can't be
@@ -638,3 +592,36 @@ internal fun apkFacts(apk: ApkInfo): List<AtomicFact> =
         AtomicFact("Built for", androidVersionName(apk.targetSdk)),
         AtomicFact("Permissions", if (apk.permissionCount == 1) "1 requested" else "${apk.permissionCount} requested"),
     )
+
+/** Paste a checksum from a download page and see whether this file matches (ALL_IN_ONE_PLAN.md 2.8). */
+@Composable
+private fun ExpectedChecksumField(hashes: FileChecksums) {
+    var expected by rememberSaveable { mutableStateOf("") }
+    val verdict = checkExpectedChecksum(expected, hashes)
+    AtomicTextField(
+        value = expected,
+        onValueChange = { expected = it },
+        label = "Expected checksum",
+        placeholder = "Paste an MD5 or SHA-256",
+        errorText = (verdict as? ChecksumVerdict.Mismatch)?.let { verdictText(it) },
+        modifier = Modifier.fillMaxWidth().testTag("expected_checksum"),
+    )
+    if (verdict !is ChecksumVerdict.Mismatch && verdict !is ChecksumVerdict.Empty) {
+        AtomicText(
+            verdictText(verdict),
+            AtomicTextRole.Body,
+            color = if (verdict is ChecksumVerdict.Match) Atomic.colors.accentText else Atomic.colors.contentSecondary,
+            modifier = Modifier.testTag("checksum_verdict"),
+        )
+    }
+}
+
+/** Wording for a [ChecksumVerdict]; pure so it is unit-tested. */
+internal fun verdictText(verdict: ChecksumVerdict): String =
+    when (verdict) {
+        is ChecksumVerdict.Match -> "Matches (${verdict.algorithm}). This is the file that was published."
+        is ChecksumVerdict.Mismatch -> "Doesn't match (${verdict.algorithm}). The file differs from the one published."
+        is ChecksumVerdict.Unsupported -> "That looks like ${verdict.algorithm}. Paste the MD5 or SHA-256 instead."
+        ChecksumVerdict.NotAHash -> "That isn't an MD5 or SHA-256 checksum."
+        ChecksumVerdict.Empty -> ""
+    }
