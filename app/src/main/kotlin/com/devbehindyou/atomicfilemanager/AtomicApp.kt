@@ -26,6 +26,7 @@ import com.devbehindyou.atomicfilemanager.data.database.room.RoomRecentsReposito
 import com.devbehindyou.atomicfilemanager.data.database.room.RoomTrashStore
 import com.devbehindyou.atomicfilemanager.data.operations.OperationQueue
 import com.devbehindyou.atomicfilemanager.data.operations.OperationRecovery
+import com.devbehindyou.atomicfilemanager.data.preview.ApkInfoReader
 import com.devbehindyou.atomicfilemanager.data.preview.ImagePreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.MediaPreviewHelper
 import com.devbehindyou.atomicfilemanager.data.preview.PdfPreviewHelper
@@ -318,9 +319,14 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val storageAnalyzerUseCase: StorageAnalyzerUseCase by lazy {
+        val apks = ApkInfoReader(application)
         StorageAnalyzerUseCase(
             backendSelector = { id -> storageBackendSelector.forNode(id) },
             readFileContentUseCase = readFileContentUseCase,
+            isInstalledApk = { node ->
+                node.id.prefix == FileNodeId.Prefix.FILE &&
+                    apks.isInstalled(node.id.raw.removePrefix(FileNodeId.Prefix.FILE.scheme))
+            },
         )
     }
 

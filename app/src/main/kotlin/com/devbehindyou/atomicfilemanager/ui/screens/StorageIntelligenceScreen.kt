@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,9 +56,20 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationOptions
 import com.devbehindyou.atomicfilemanager.domain.model.OperationType
 import com.devbehindyou.atomicfilemanager.domain.model.StorageAnalysisCategory
 import com.devbehindyou.atomicfilemanager.domain.model.StorageAnalysisResult
+import com.devbehindyou.atomicfilemanager.domain.usecase.CleanupRules
 import com.devbehindyou.atomicfilemanager.ui.components.iconFor
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import kotlinx.coroutines.launch
+
+/** Wording for the cleanup confirm; pure so it is unit-tested. */
+internal object CleanupText {
+    fun confirmBody(
+        bytes: Long,
+        retentionDays: Int,
+    ): String =
+        "You get ${FileUtils.formatBytes(bytes)} back once they leave the Trash. " +
+            "You can restore them for $retentionDays days; after that they are deleted for good."
+}
 
 private val StorageAnalysisCategory.label: String
     get() =
@@ -66,6 +78,9 @@ private val StorageAnalysisCategory.label: String
             StorageAnalysisCategory.DUPLICATE_FILES -> "Duplicates"
             StorageAnalysisCategory.EMPTY_FOLDERS -> "Empty folders"
             StorageAnalysisCategory.TEMP_AND_CACHE -> "Temp & cache"
+            StorageAnalysisCategory.OLD_SCREENSHOTS -> "Old screenshots"
+            StorageAnalysisCategory.OLD_DOWNLOADS -> "Old downloads"
+            StorageAnalysisCategory.INSTALLED_APKS -> "Installed APKs"
         }
 
 private fun StorageAnalysisCategory.emptyMessage(): String =
@@ -74,12 +89,16 @@ private fun StorageAnalysisCategory.emptyMessage(): String =
         StorageAnalysisCategory.DUPLICATE_FILES -> "No duplicate files found."
         StorageAnalysisCategory.EMPTY_FOLDERS -> "No empty folders found."
         StorageAnalysisCategory.TEMP_AND_CACHE -> "No temporary or cache files found."
+        StorageAnalysisCategory.OLD_SCREENSHOTS -> "No screenshots older than ${CleanupRules.SCREENSHOT_AGE_DAYS} days."
+        StorageAnalysisCategory.OLD_DOWNLOADS -> "No large downloads older than ${CleanupRules.DOWNLOAD_AGE_DAYS} days."
+        StorageAnalysisCategory.INSTALLED_APKS -> "No install files for apps already on this phone."
     }
 
 /**
- * Storage analysis (ATOMIC_UI_PLAN.md §7.4, canvas "Analysis"): what could be freed, four
- * categories as chips, selectable rows, and a confirm sheet that names the count and size before
- * anything is deleted. Nothing is selected by default.
+ * Storage analysis and smart cleanup (ATOMIC_UI_PLAN.md §7.4, ALL_IN_ONE_PLAN.md 2.6): what could
+ * be freed, one chip per card with the reason it suggests its files, selectable rows, and a confirm
+ * sheet that names the count and size first. Only safe cards (empty folders, temp files) start
+ * selected. Cleanup moves files to the Trash, so it can be undone.
  */
 @Composable
 fun StorageIntelligenceScreen(
@@ -91,6 +110,7 @@ fun StorageIntelligenceScreen(
     BackHandler(onBack = onNavigateBack)
     val app = LocalContext.current.applicationContext as AtomicApp
     val coroutineScope = rememberCoroutineScope()
+    val settings by app.container.settingsRepository.settings.collectAsState()
 
     var isScanning by remember { mutableStateOf(false) }
     var scannedFilesCount by remember { mutableIntStateOf(0) }
@@ -107,6 +127,7 @@ fun StorageIntelligenceScreen(
                 scannedFilesCount = progress.scannedFilesCount
                 if (progress.isComplete) {
                     analysisResult = progress.result ?: StorageAnalysisResult(isPartial = true)
+                    selected = StorageCleanupSelection.initialSelection(analysisResult, currentCategory)
                     isScanning = false
                 }
             }
@@ -175,12 +196,13 @@ fun StorageIntelligenceScreen(
                             selected = currentCategory == category,
                             onSelectedChange = {
                                 currentCategory = category
-                                selected = emptySet()
+                                selected = StorageCleanupSelection.initialSelection(analysisResult, category)
                             },
                         )
                     }
                 }
             }
+            item { AtomicText(CleanupRules.reason(currentCategory), AtomicTextRole.BodySecondary) }
             if (isScanning) {
                 item { AtomicEmptyState(message = "Results appear when the scan finishes.") }
             } else {
@@ -212,7 +234,7 @@ fun StorageIntelligenceScreen(
                     )
                     AtomicButton("Clear", onClick = { selected = emptySet() }, variant = AtomicButtonVariant.Text)
                     AtomicButton(
-                        "Delete",
+                        "Move to Trash",
                         onClick = { showConfirmDelete = true },
                         variant = AtomicButtonVariant.Destructive,
                     )
@@ -223,20 +245,19 @@ fun StorageIntelligenceScreen(
 
     if (showConfirmDelete) {
         val targets = selectedNodes
+        val retentionDays = settings.trashRetentionDays
         AtomicConfirmSheet(
             label = "Cleanup",
-            headline = "Delete ${targets.size} items?",
-            body =
-                "${FileUtils.formatBytes(StorageCleanupSelection.bytes(targets))} will be freed. " +
-                    "The files are deleted, not moved to a trash. This can't be undone.",
-            confirmLabel = "Delete ${targets.size}",
+            headline = "Move ${targets.size} items to Trash?",
+            body = CleanupText.confirmBody(StorageCleanupSelection.bytes(targets), retentionDays),
+            confirmLabel = "Move ${targets.size} to Trash",
             destructive = true,
             onConfirm = {
                 coroutineScope.launch {
                     val op =
                         FileOperation(
                             id = OperationId.random(),
-                            type = OperationType.DELETE,
+                            type = OperationType.TRASH,
                             // Ids come straight from the scanned nodes; they are already full FileNodeIds.
                             sources = targets.map { it.id },
                             destination = null,

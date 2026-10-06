@@ -26,6 +26,9 @@ class StorageAnalyzerUseCase
     constructor(
         private val backendSelector: (FileNodeId) -> StorageBackend,
         private val readFileContentUseCase: ReadFileContentUseCase,
+        /** True when an .apk is for an app already installed; the platform check lives outside the domain. */
+        private val isInstalledApk: suspend (FileNode) -> Boolean = { false },
+        private val clock: () -> Long = System::currentTimeMillis,
     ) {
         fun analyze(
             rootId: FileNodeId,
@@ -130,7 +133,28 @@ class StorageAnalyzerUseCase
                     if (matches.size > 1) duplicates.add(DuplicateGroup(size, hash, matches))
                 }
             }
+            val now = clock()
+            val installedApks =
+                files.values.filter(CleanupRules::isApk).filter { apk ->
+                    coroutineContext.ensureActive()
+                    runCatching { isInstalledApk(apk) }.getOrDefault(false)
+                }
             return StorageAnalysisResult(
+                oldScreenshots =
+                    files.values.filter {
+                        CleanupRules.isOldScreenshot(
+                            it,
+                            now,
+                        )
+                    }.sortedBy { it.modifiedAt },
+                oldDownloads =
+                    files.values.filter {
+                        CleanupRules.isOldDownload(
+                            it,
+                            now,
+                        )
+                    }.sortedByDescending { it.size },
+                installedApks = installedApks.sortedByDescending { it.size },
                 largeFiles = files.values.filter { it.size >= threshold }.sortedByDescending { it.size },
                 duplicateGroups = duplicates.sortedByDescending { it.potentialSavingsBytes },
                 emptyFolders = emptyFolders,

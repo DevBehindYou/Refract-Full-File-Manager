@@ -23,6 +23,9 @@ enum class StorageAnalysisCategory(val displayName: String) {
     DUPLICATE_FILES("Duplicates"),
     EMPTY_FOLDERS("Empty Folders"),
     TEMP_AND_CACHE("Temp & Cache"),
+    OLD_SCREENSHOTS("Old Screenshots"),
+    OLD_DOWNLOADS("Old Downloads"),
+    INSTALLED_APKS("Installed APKs"),
 }
 
 /**
@@ -45,6 +48,9 @@ data class StorageAnalysisResult(
     val duplicateGroups: List<DuplicateGroup> = emptyList(),
     val emptyFolders: List<FileNode> = emptyList(),
     val tempCacheFiles: List<FileNode> = emptyList(),
+    val oldScreenshots: List<FileNode> = emptyList(),
+    val oldDownloads: List<FileNode> = emptyList(),
+    val installedApks: List<FileNode> = emptyList(),
     val scannedFilesCount: Int = 0,
     val isPartial: Boolean = false,
 ) {
