@@ -127,11 +127,19 @@ fun BrowseScreen(
     onNotify: (String) -> Unit = {},
     /** Opens the Operations screen from the progress banner. */
     onOpenOperations: () -> Unit = {},
+    /** Keeps each Browse tab's view model apart (ALL_IN_ONE_PLAN.md 2.4); empty for the first tab. */
+    tabKey: String = "",
+    /** Shown above the top bar; the tab strip when several tabs are open. */
+    tabStrip: @Composable () -> Unit = {},
+    /** Reports the folder shown, for the tab label. */
+    onLocationChange: (String) -> Unit = {},
+    /** Opens a selected folder in a new tab; null hides the action. */
+    onOpenInNewTab: ((FileNode) -> Unit)? = null,
     viewModel: BrowseViewModel =
         run {
             val app = LocalContext.current.applicationContext as AtomicApp
             val owner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
-            remember(owner, initialFolderId.raw) {
+            remember(owner, tabKey, initialFolderId.raw) {
                 ViewModelProvider(
                     owner,
                     BrowseViewModel.provideFactory(
@@ -145,7 +153,7 @@ fun BrowseScreen(
                         transferBubbleRepository = app.container.transferBubbleRepository,
                         folderSorts = app.container.folderSortMemory,
                     ),
-                )["browse:${initialFolderId.raw}", BrowseViewModel::class.java]
+                )["browse:$tabKey${initialFolderId.raw}", BrowseViewModel::class.java]
             }
         },
 ) {
@@ -237,6 +245,10 @@ fun BrowseScreen(
         viewModel.onOpenRequest(openRequest)
     }
 
+    LaunchedEffect(uiState.currentFolderName) {
+        if (uiState.currentFolderName.isNotBlank()) onLocationChange(uiState.currentFolderName)
+    }
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -294,6 +306,7 @@ fun BrowseScreen(
                 },
     ) {
         Column(Modifier.fillMaxSize().background(Atomic.colors.background)) {
+            tabStrip()
             BrowseTopBar(
                 uiState = uiState,
                 isSelectionMode = isSelectionMode,
@@ -395,6 +408,13 @@ fun BrowseScreen(
                 onCompressSelected = { viewModel.compressSelected() },
                 onDeleteSelected = { confirmMultiDelete = true },
                 onRenameSelected = { nodes -> batchRename = nodes },
+                onOpenInNewTab =
+                    onOpenInNewTab?.let { open ->
+                        { folder: FileNode ->
+                            open(folder)
+                            viewModel.clearSelection()
+                        }
+                    },
                 onShowDetails = { node ->
                     nodeForDetails = node
                     viewModel.clearSelection()
@@ -794,6 +814,7 @@ private fun BrowseBottomBar(
     onShowDetails: (FileNode) -> Unit,
     onClearClipboard: () -> Unit,
     onRenameSelected: (List<FileNode>) -> Unit = {},
+    onOpenInNewTab: ((FileNode) -> Unit)? = null,
     onPaste: () -> Unit,
     onCompare: (FileNode, FileNode) -> Unit = { _, _ -> },
 ) {
@@ -822,6 +843,13 @@ private fun BrowseBottomBar(
                     } else {
                         null
                     },
+                    uiState.filteredItems
+                        .singleOrNull { it.id in uiState.selectedIds }
+                        ?.takeIf { it.isDirectory && uiState.selectedIds.size == 1 && onOpenInNewTab != null }
+                        ?.let {
+                                folder ->
+                            AtomicStripAction("New tab", AtomicIcons.DualPane, { onOpenInNewTab?.invoke(folder) })
+                        },
                     if (uiState.selectedIds.size == 1) {
                         AtomicStripAction(
                             label = "Info",

@@ -37,7 +37,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,6 +71,7 @@ import com.devbehindyou.atomicfilemanager.data.operations.PendingConflict
 import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
 import com.devbehindyou.atomicfilemanager.domain.model.FileCategory
 import com.devbehindyou.atomicfilemanager.domain.model.FileCollection
+import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileOperation
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
@@ -86,6 +87,8 @@ import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
 import com.devbehindyou.atomicfilemanager.ui.components.ConflictSheet
 import com.devbehindyou.atomicfilemanager.ui.components.RecoverySheet
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseScreen
+import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabStrip
+import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabsState
 import com.devbehindyou.atomicfilemanager.ui.screens.CategoryScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HiddenFilesScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HomeScreen
@@ -189,13 +192,16 @@ fun AtomicAppContent(
     }
     var currentTab by rememberSaveable { mutableStateOf(NavigationTab.HOME) }
     val defaultPath = Environment.getExternalStorageDirectory()?.absolutePath ?: context.filesDir.absolutePath
-    var selectedFolderRaw by rememberSaveable { mutableStateOf(FileNodeId.file(defaultPath).raw) }
-    val selectedFolderId = FileNodeId(selectedFolderRaw)
-
-    // Bumped on every explicit open from Home, Storage or analysis. Browse view models are cached
-    // per start folder, so without this a second open of Downloads showed wherever the user had
-    // navigated to last time. Tab switches and rotation leave it unchanged and keep the position.
-    var browseOpenRequest by rememberSaveable { mutableIntStateOf(0) }
+    val defaultFolderRaw = FileNodeId.file(defaultPath).raw
+    // Browse tabs (ALL_IN_ONE_PLAN.md 2.4), saved as one string so they survive rotation and process death.
+    // Each tab counts its explicit opens from Home, Storage or analysis: Browse view models are cached per
+    // start folder, so without that a second open of Downloads showed wherever the user had navigated to
+    // last time. Tab switches and rotation leave it unchanged and keep the position.
+    var browseTabsSaved by rememberSaveable { mutableStateOf(BrowseTabsState.single(defaultFolderRaw).encode()) }
+    val browseTabs = remember(browseTabsSaved) { BrowseTabsState.decode(browseTabsSaved, defaultFolderRaw) }
+    val updateBrowseTabs: ((BrowseTabsState) -> BrowseTabsState) -> Unit = { change ->
+        browseTabsSaved = change(BrowseTabsState.decode(browseTabsSaved, defaultFolderRaw)).encode()
+    }
     var tabHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
     fun navigateTab(tab: NavigationTab) {
@@ -207,8 +213,7 @@ fun AtomicAppContent(
     }
 
     fun openInBrowse(folderId: FileNodeId) {
-        selectedFolderRaw = folderId.raw
-        browseOpenRequest++
+        updateBrowseTabs { it.openInActive(folderId.raw) }
         navigateTab(NavigationTab.BROWSE)
     }
 
@@ -587,8 +592,8 @@ fun AtomicAppContent(
             currentTab = currentTab,
             volumes = volumes,
             hasStorageAccess = hasStorageAccess,
-            selectedFolderId = selectedFolderId,
-            browseOpenRequest = browseOpenRequest,
+            browseTabs = browseTabs,
+            onBrowseTabsChange = updateBrowseTabs,
             settingsRepository = settingsRepository,
             privateLocked = settings.requireAuthForHidden,
             callbacks =
@@ -713,8 +718,8 @@ private fun MainScreenContent(
     currentTab: NavigationTab,
     volumes: List<StorageVolumeInfo>,
     hasStorageAccess: Boolean,
-    selectedFolderId: FileNodeId,
-    browseOpenRequest: Int,
+    browseTabs: BrowseTabsState,
+    onBrowseTabsChange: ((BrowseTabsState) -> BrowseTabsState) -> Unit,
     settingsRepository: SettingsRepository,
     privateLocked: Boolean,
     callbacks: ShellCallbacks,
@@ -734,13 +739,32 @@ private fun MainScreenContent(
             )
         }
         NavigationTab.BROWSE -> {
-            BrowseScreen(
-                initialFolderId = selectedFolderId,
-                onNavigateBack = callbacks.onNavigateBack,
-                openRequest = browseOpenRequest,
-                onNotify = callbacks.onNotify,
-                onOpenOperations = callbacks.onOpenOperations,
-            )
+            val tab = browseTabs.active
+            // A fresh composition per tab, so dialogs and scroll state don't leak between tabs.
+            key(tab.id) {
+                BrowseScreen(
+                    initialFolderId = FileNodeId(tab.folderRaw),
+                    onNavigateBack = callbacks.onNavigateBack,
+                    openRequest = tab.openRequest,
+                    onNotify = callbacks.onNotify,
+                    onOpenOperations = callbacks.onOpenOperations,
+                    tabKey = if (tab.id == 0) "" else "tab${tab.id}:",
+                    tabStrip = {
+                        BrowseTabStrip(
+                            state = browseTabs,
+                            onSelect = { id -> onBrowseTabsChange { it.select(id) } },
+                            onClose = { id -> onBrowseTabsChange { it.close(id) } },
+                        )
+                    },
+                    onLocationChange = { title -> onBrowseTabsChange { it.retitle(tab.id, title) } },
+                    onOpenInNewTab =
+                        if (browseTabs.canOpenMore) {
+                            { folder: FileNode -> onBrowseTabsChange { it.open(folder.id.raw, folder.name) } }
+                        } else {
+                            null
+                        },
+                )
+            }
         }
         NavigationTab.STORAGE -> {
             StorageScreen(
