@@ -75,6 +75,9 @@ dependencies {
     implementation(libs.core.splashscreen)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.fragment.ktx)
+    // Thumbnails in file lists (ALL_IN_ONE_PLAN.md hotspot H7): images and video frames, memory + disk cache.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.video)
 
     implementation(libs.hilt.android)
 

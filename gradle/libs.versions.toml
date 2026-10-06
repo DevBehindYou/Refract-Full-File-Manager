@@ -29,6 +29,9 @@ androidxFragment = "1.8.5" # [BEST-EFFORT] FragmentActivity for BiometricPrompt;
 coreSplashscreen = "1.0.1" # [BEST-EFFORT] verify no newer stable exists.
 hilt = "2.57.2" # [BEST-EFFORT, moderately confident]
 kotlinxCoroutines = "1.9.0" # [BEST-EFFORT]
+# Coil 3.3.0 is the newest release built with Kotlin 2.2 (3.4.0 needs 2.3, 3.5+ needs 2.4; this build
+# compiles with 2.2.10). Maven Central, checked 6 Oct 2026. Raise together with the Kotlin version.
+coil = "3.3.0"
 
 # --- Custom Lint module ----------------------------------------------------
 # Lint's own artifact version has historically tracked "AGP version + 23 major", e.g.
@@ -77,6 +80,8 @@ activity-compose = { group = "androidx.activity", name = "activity-compose", ver
 core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "androidxBiometric" }
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidxFragment" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
 
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
