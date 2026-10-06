@@ -80,6 +80,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
+import com.devbehindyou.atomicfilemanager.ui.components.CompareSheet
 import com.devbehindyou.atomicfilemanager.ui.components.DeleteSheet
 import com.devbehindyou.atomicfilemanager.ui.components.FavouriteToggle
 import com.devbehindyou.atomicfilemanager.ui.components.FileDetailsDialog
@@ -157,6 +158,7 @@ fun BrowseScreen(
     var nodeForPreview by remember { mutableStateOf<FileNode?>(null) }
     var nodeToDelete by remember { mutableStateOf<FileNode?>(null) }
     var confirmMultiDelete by remember { mutableStateOf(false) }
+    var comparePair by remember { mutableStateOf<Pair<FileNode, FileNode>?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     val isSelectionMode = uiState.selectedIds.isNotEmpty()
@@ -396,7 +398,9 @@ fun BrowseScreen(
                 },
                 onClearClipboard = { viewModel.clearClipboard() },
                 onPaste = { viewModel.paste(CollisionPolicy.ASK) },
+                onCompare = { a, b -> comparePair = a to b },
             )
+            comparePair?.let { (a, b) -> CompareSheet(first = a, second = b, onDismiss = { comparePair = null }) }
         }
 
         // Floating drag preview follows pointer
@@ -775,8 +779,17 @@ private fun BrowseBottomBar(
     onShowDetails: (FileNode) -> Unit,
     onClearClipboard: () -> Unit,
     onPaste: () -> Unit,
+    onCompare: (FileNode, FileNode) -> Unit = { _, _ -> },
 ) {
     val clip = uiState.clipboard
+    val selectedFiles =
+        if (uiState.selectedIds.size == 2) {
+            uiState.rawItems.filter {
+                it.id in uiState.selectedIds && !it.isDirectory
+            }
+        } else {
+            emptyList()
+        }
     if (isSelectionMode) {
         AtomicActionStrip(
             actions =
@@ -793,6 +806,15 @@ private fun BrowseBottomBar(
                                 val single = uiState.rawItems.firstOrNull { it.id in uiState.selectedIds }
                                 if (single != null) onShowDetails(single)
                             },
+                        )
+                    } else {
+                        null
+                    },
+                    if (selectedFiles.size == 2) {
+                        AtomicStripAction(
+                            "Compare",
+                            AtomicIcons.CheckCircle,
+                            { onCompare(selectedFiles[0], selectedFiles[1]) },
                         )
                     } else {
                         null
