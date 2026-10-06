@@ -4,6 +4,10 @@ import android.app.Application
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.StrictMode
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.video.VideoFrameDecoder
 import com.devbehindyou.atomicfilemanager.data.backend.FileSystemBackend
 import com.devbehindyou.atomicfilemanager.data.backend.MediaStoreBackend
 import com.devbehindyou.atomicfilemanager.data.backend.SafBackend
@@ -328,7 +332,19 @@ private fun trashVolumeRoot(id: FileNodeId): FileNodeId? =
 /**
  * Application class for Atomic File Manager.
  */
-class AtomicApp : Application() {
+class AtomicApp :
+    Application(),
+    SingletonImageLoader.Factory {
+    /**
+     * One image loader for thumbnails (ALL_IN_ONE_PLAN.md §16.3): Coil's memory cache (a share of the
+     * heap) and disk cache, plus frames for video files. Rows request images at their own pixel size.
+     */
+    override fun newImageLoader(context: PlatformContext): ImageLoader =
+        ImageLoader
+            .Builder(context)
+            .components { add(VideoFrameDecoder.Factory()) }
+            .build()
+
     lateinit var container: AppContainer
         private set
 

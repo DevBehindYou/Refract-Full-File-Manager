@@ -164,7 +164,7 @@ fun FileListItem(
                     .alpha(if (node.isHidden) HIDDEN_ALPHA else 1f)
                     .testTag("file_item_${node.id.raw}"),
         ) {
-            AtomicIconTile(iconFor(node))
+            FileThumbnail(node)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s2)) {
                 AtomicText(node.name, AtomicTextRole.Name, maxLines = 2)
                 AtomicText(metaFor(node), AtomicTextRole.MonoMeta, maxLines = 1)
