@@ -6,8 +6,6 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.repository.StorageBackend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.BufferedInputStream
-import java.util.zip.ZipInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,31 +34,42 @@ class InspectArchiveUseCase
                         is FileResult.Failure -> return@withContext FileResult.Failure(inRes.error)
                     }
 
+                val node = (backend.getNode(archiveId) as? FileResult.Success)?.value
+                val name = node?.name ?: archiveId.raw.substringAfterLast('/')
+                // Anything not recognised by name is read as ZIP, as before.
+                val kind = ArchiveFormats.kindOf(name) ?: ArchiveFormats.Kind.ZIP
                 val entries = mutableListOf<ArchiveEntryInfo>()
                 try {
                     inProvider.stream().use { stream ->
-                        ZipInputStream(BufferedInputStream(stream)).use { zipIn ->
-                            var entry = zipIn.nextEntry
-                            while (entry != null) {
-                                val entryName = entry.name.replace('\\', '/').trimStart('/')
-                                if (entryName.contains("..") && entryName.split('/').any { it == ".." }) {
+                        ArchiveFormats.open(kind, name, stream, node?.size ?: -1).use { archive ->
+                            var header = archive.next()
+                            while (header != null) {
+                                if (escapesTarget(header.path)) {
                                     return@withContext FileResult.Failure(
-                                        FileError.SuspiciousArchive(entry.name, "Path traversal sequence detected"),
+                                        FileError.SuspiciousArchive(header.path, "Path traversal sequence detected"),
                                     )
                                 }
+                                if (entries.size >= ArchiveFormats.MAX_ENTRIES) {
+                                    return@withContext FileResult.Failure(
+                                        FileError.SuspiciousArchive(
+                                            name,
+                                            "More than ${ArchiveFormats.MAX_ENTRIES} entries",
+                                        ),
+                                    )
+                                }
+                                val entryName = header.path.replace('\\', '/').trimStart('/')
                                 val fileName = entryName.trimEnd('/').substringAfterLast('/')
                                 entries.add(
                                     ArchiveEntryInfo(
                                         name = fileName.ifEmpty { entryName },
                                         path = entryName,
-                                        isDirectory = entry.isDirectory,
-                                        uncompressedSize = entry.size.coerceAtLeast(0L),
-                                        compressedSize = entry.compressedSize.coerceAtLeast(0L),
-                                        modifiedAt = entry.time.coerceAtLeast(0L),
+                                        isDirectory = header.isDirectory,
+                                        uncompressedSize = header.size.coerceAtLeast(0L),
+                                        compressedSize = header.compressedSize.coerceAtLeast(0L),
+                                        modifiedAt = header.modifiedAt.coerceAtLeast(0L),
                                     ),
                                 )
-                                zipIn.closeEntry()
-                                entry = zipIn.nextEntry
+                                header = archive.next()
                             }
                         }
                     }

@@ -65,6 +65,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveEntryInfo
+import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveFormats
 import com.devbehindyou.atomicfilemanager.domain.usecase.ChecksumVerdict
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileChecksums
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextContent
@@ -100,7 +101,7 @@ private fun resolvePreviewType(node: FileNode): PreviewType {
             name.endsWith(".3gp") -> PreviewType.VIDEO
         mime == "application/pdf" || name.endsWith(".pdf") -> PreviewType.PDF
         name.endsWith(".md") -> PreviewType.MARKDOWN
-        name.endsWith(".zip") || mime.contains("zip") -> PreviewType.ARCHIVE
+        ArchiveFormats.kindOf(name) != null || mime.contains("zip") -> PreviewType.ARCHIVE
         mime.startsWith("text/") || mime.contains("json") || mime.contains("xml") ||
             name.endsWith(".txt") || name.endsWith(".json") || name.endsWith(".xml") ||
             name.endsWith(".kt") || name.endsWith(".java") ||

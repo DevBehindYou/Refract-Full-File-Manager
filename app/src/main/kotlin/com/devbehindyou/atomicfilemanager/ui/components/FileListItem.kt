@@ -41,6 +41,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSettingsRow
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
+import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveFormats
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 
 private const val HIDDEN_ALPHA = 0.62f
@@ -102,11 +103,11 @@ fun FileListItem(
 ) {
     val colors = Atomic.colors
     var showActions by rememberSaveable(node.id.raw) { mutableStateOf(false) }
-    val isZip = node.name.endsWith(".zip", ignoreCase = true) || node.mimeType?.contains("zip") == true
+    val isArchive = ArchiveFormats.kindOf(node.name) != null || node.mimeType?.contains("zip") == true
     val isMedia = node.mimeType?.startsWith("image/") == true || node.mimeType?.startsWith("video/") == true
     val actions =
         listOfNotNull(
-            if (isZip && onExtract != null) "Extract" to onExtract else null,
+            if (isArchive && onExtract != null) "Extract" to onExtract else null,
             if (isMedia && onQuickPeek != null) "Quick preview" to onQuickPeek else null,
             if (onCompress != null) "Compress to ZIP" to onCompress else null,
             favourite?.let {
