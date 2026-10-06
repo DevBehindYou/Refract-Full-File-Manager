@@ -156,5 +156,5 @@ fun CategoryScreen(
             }
         }
     }
-    preview?.let { FilePreviewDialog(node = it, onDismiss = { preview = null }) }
+    preview?.let { FilePreviewDialog(node = it, onDismiss = { preview = null }, gallery = result.files) }
 }
