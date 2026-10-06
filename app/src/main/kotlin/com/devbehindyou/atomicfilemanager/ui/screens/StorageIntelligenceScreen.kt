@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -109,6 +110,7 @@ fun StorageIntelligenceScreen(
     BackHandler(onBack = onNavigateBack)
     val app = LocalContext.current.applicationContext as AtomicApp
     val coroutineScope = rememberCoroutineScope()
+    val settings by app.container.settingsRepository.settings.collectAsState()
 
     var isScanning by remember { mutableStateOf(false) }
     var scannedFilesCount by remember { mutableIntStateOf(0) }
@@ -243,7 +245,7 @@ fun StorageIntelligenceScreen(
 
     if (showConfirmDelete) {
         val targets = selectedNodes
-        val retentionDays = app.container.settingsRepository.settings.value.trashRetentionDays
+        val retentionDays = settings.trashRetentionDays
         AtomicConfirmSheet(
             label = "Cleanup",
             headline = "Move ${targets.size} items to Trash?",
