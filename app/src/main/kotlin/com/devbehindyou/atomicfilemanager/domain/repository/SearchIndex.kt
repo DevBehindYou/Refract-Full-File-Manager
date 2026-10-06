@@ -20,4 +20,10 @@ interface SearchIndex {
 
     /** Starts a full build now, unless one is already running. */
     fun rebuild(roots: List<FileNodeId>)
+
+    /**
+     * Re-reads just [folders] (one level each) after the app changed them: new entries are added,
+     * missing ones removed with everything below them. Does nothing before the first full build.
+     */
+    suspend fun refreshFolders(folders: Collection<FileNodeId>)
 }

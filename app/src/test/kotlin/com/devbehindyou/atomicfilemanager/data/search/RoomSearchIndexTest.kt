@@ -26,24 +26,36 @@ class RoomSearchIndexTest {
             pattern: String,
             limit: Int,
         ): List<SearchIndexEntity> {
-            val regex =
-                buildString {
-                    var escaped = false
-                    pattern.forEach { c ->
-                        when {
-                            escaped -> append(Regex.escape(c.toString())).also { escaped = false }
-                            c == '\\' -> escaped = true
-                            c == '%' -> append(".*")
-                            c == '_' -> append(".")
-                            else -> append(Regex.escape(c.toString()))
-                        }
-                    }
-                }.toRegex()
+            val regex = like(pattern)
             return rows.values
                 .filter { regex.matches(it.nameLower) }
                 .sortedWith(compareByDescending<SearchIndexEntity> { it.isDirectory }.thenBy { it.nameLower })
                 .take(limit)
         }
+
+        override suspend fun idsIn(parentId: String) = rows.values.filter { it.parentId == parentId }.map { it.id }
+
+        override suspend fun deleteTree(
+            id: String,
+            descendants: String,
+        ) {
+            val under = like(descendants)
+            rows.keys.filter { it == id || under.matches(it) }.forEach(rows::remove)
+        }
+
+        private fun like(pattern: String): Regex =
+            buildString {
+                var escaped = false
+                pattern.forEach { c ->
+                    when {
+                        escaped -> append(Regex.escape(c.toString())).also { escaped = false }
+                        c == '\\' -> escaped = true
+                        c == '%' -> append(".*")
+                        c == '_' -> append(".")
+                        else -> append(Regex.escape(c.toString()))
+                    }
+                }
+            }.toRegex()
 
         override suspend fun deleteOlderThan(generation: Long): Int {
             val old = rows.values.filter { it.generation < generation }.map { it.id }
@@ -150,5 +162,42 @@ class RoomSearchIndexTest {
             val index = index()
             index.build(listOf(backend.rootId))
             assertTrue(index.search("   ", 10).isEmpty())
+        }
+
+    @Test
+    fun `refreshing a folder adds new entries and drops removed ones with what was below them`() =
+        runTest {
+            val docs = folder(backend.rootId, "Docs")
+            val old = folder(docs, "Old")
+            backend.putFile(old, "inside-old.txt", byteArrayOf(1))
+            backend.putFile(docs, "keep.txt", byteArrayOf(1))
+            val index = index()
+            index.build(listOf(backend.rootId))
+            // The in-memory backend's ids are not paths, so seed the "descendant" the way a path id would look.
+            dao.upsert(
+                listOf(
+                    dao.rows.values.first {
+                        it.name == "keep.txt"
+                    }.copy(id = "${old.raw}/deep.txt", name = "deep.txt", nameLower = "deep.txt"),
+                ),
+            )
+            backend.delete(old)
+            backend.putFile(docs, "new.txt", byteArrayOf(1))
+
+            index.refreshFolders(listOf(docs))
+
+            val names = dao.rows.values.map { it.name }.toSet()
+            assertTrue("new.txt" in names)
+            assertTrue("keep.txt" in names)
+            assertFalse("Old" in names)
+            assertFalse("deep.txt" in names)
+        }
+
+    @Test
+    fun `nothing is refreshed before the first full build`() =
+        runTest {
+            backend.putFile(backend.rootId, "a.txt", byteArrayOf(1))
+            index().refreshFolders(listOf(backend.rootId))
+            assertTrue(dao.rows.isEmpty())
         }
 }

@@ -45,4 +45,14 @@ interface SearchIndexDao {
 
     @Query("SELECT COUNT(*) FROM search_index")
     suspend fun count(): Int
+
+    @Query("SELECT id FROM search_index WHERE parentId = :parentId")
+    suspend fun idsIn(parentId: String): List<String>
+
+    /** Removes [id] and, for a folder, everything below it (ids of local files are paths). */
+    @Query("DELETE FROM search_index WHERE id = :id OR id LIKE :descendants ESCAPE '\\'")
+    suspend fun deleteTree(
+        id: String,
+        descendants: String,
+    )
 }

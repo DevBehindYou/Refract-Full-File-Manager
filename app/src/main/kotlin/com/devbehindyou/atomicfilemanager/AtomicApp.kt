@@ -36,6 +36,7 @@ import com.devbehindyou.atomicfilemanager.data.repository.SharedPreferencesSetti
 import com.devbehindyou.atomicfilemanager.data.repository.TransferBubbleRepositoryImpl
 import com.devbehindyou.atomicfilemanager.data.repository.volumeRootOf
 import com.devbehindyou.atomicfilemanager.data.search.RoomSearchIndex
+import com.devbehindyou.atomicfilemanager.data.search.foldersTouchedBy
 import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.repository.BackendType
@@ -132,6 +133,13 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
             // A fresh process can't still be running anything the journal says is running.
             startup = { withContext(Dispatchers.IO) { operationRecovery.sweep() } },
         ).also { queue ->
+            // Keep search results current after queued copies, moves, deletes and trashing (renames and new
+            // folders in Files don't go through the queue; the next full build picks those up).
+            appScope.launch {
+                queue.finished.collect { snapshot ->
+                    runCatching { searchIndex.refreshFolders(foldersTouchedBy(snapshot.operation)) }
+                }
+            }
             // Show the progress notification whenever the queue goes from idle to busy.
             appScope.launch {
                 queue.active
