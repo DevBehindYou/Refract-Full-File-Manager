@@ -59,6 +59,7 @@ import com.devbehindyou.atomicfilemanager.domain.usecase.InspectArchiveUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.ReadFileContentUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.RenameFileUseCase
 import com.devbehindyou.atomicfilemanager.domain.usecase.StorageAnalyzerUseCase
+import com.devbehindyou.atomicfilemanager.domain.usecase.TextFileEditor
 import com.devbehindyou.atomicfilemanager.domain.usecase.TrashManager
 import com.devbehindyou.atomicfilemanager.service.FileOperationService
 import kotlinx.coroutines.CoroutineScope
@@ -82,6 +83,7 @@ interface AppContainer {
     val fileOperationsEngine: FileOperationsEngine
     val inspectArchiveUseCase: InspectArchiveUseCase
     val readFileContentUseCase: ReadFileContentUseCase
+    val textFileEditor: TextFileEditor
     val pdfPreviewHelper: PdfPreviewHelper
     val imagePreviewHelper: ImagePreviewHelper
     val networkCredentialsStore: NetworkCredentialsStore
@@ -301,6 +303,10 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
 
     override val readFileContentUseCase: ReadFileContentUseCase by lazy {
         ReadFileContentUseCase { id -> storageBackendSelector.forNode(id) }
+    }
+
+    override val textFileEditor: TextFileEditor by lazy {
+        TextFileEditor(backendFor = { id -> storageBackendSelector.forNode(id) }, trashManager = trashManager)
     }
 
     override val pdfPreviewHelper: PdfPreviewHelper by lazy {

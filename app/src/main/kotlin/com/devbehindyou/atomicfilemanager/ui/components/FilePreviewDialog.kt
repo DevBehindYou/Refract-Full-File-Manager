@@ -68,6 +68,7 @@ import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveEntryInfo
 import com.devbehindyou.atomicfilemanager.domain.usecase.ChecksumVerdict
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileChecksums
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextContent
+import com.devbehindyou.atomicfilemanager.domain.usecase.TextFileEditor
 import com.devbehindyou.atomicfilemanager.domain.usecase.checkExpectedChecksum
 import com.devbehindyou.atomicfilemanager.ui.components.preview.AudioPreviewContent
 import com.devbehindyou.atomicfilemanager.ui.components.preview.MarkdownPreviewContent
@@ -347,8 +348,11 @@ private fun TextPreviewContent(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var wrapLines by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    // Bumped after each save in the editor, so the preview shows what was saved.
+    var reloads by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(node.id) {
+    LaunchedEffect(node.id, reloads) {
         isLoading = true
         when (val res = container.readFileContentUseCase.readText(node.id)) {
             is FileResult.Success -> {
@@ -379,7 +383,20 @@ private fun TextPreviewContent(
                 "${content.totalLinesCount} lines" + if (content.isTruncated) " · first part shown" else "",
                 AtomicTextRole.MonoMeta,
             )
-            AtomicChip(label = "Wrap", selected = wrapLines, onSelectedChange = { wrapLines = it })
+            Row(horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8)) {
+                if (node.access.writable && node.size <= TextFileEditor.MAX_EDIT_BYTES) {
+                    AtomicChip(
+                        label = "Edit",
+                        selected = false,
+                        onSelectedChange = { editing = true },
+                        modifier = Modifier.testTag("preview_edit_text"),
+                    )
+                }
+                AtomicChip(label = "Wrap", selected = wrapLines, onSelectedChange = { wrapLines = it })
+            }
+        }
+        if (editing) {
+            TextEditorDialog(node = node, onDismiss = { editing = false }, onSaved = { reloads++ })
         }
         AtomicDivider()
 
