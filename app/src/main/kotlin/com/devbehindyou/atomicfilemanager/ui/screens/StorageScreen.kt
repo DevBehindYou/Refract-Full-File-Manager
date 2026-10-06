@@ -69,6 +69,7 @@ fun StorageScreen(
     modifier: Modifier = Modifier,
     onOpenOperations: () -> Unit = {},
     onOpenTrash: () -> Unit = {},
+    onOpenApps: () -> Unit = {},
     onNotify: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -146,6 +147,12 @@ fun StorageScreen(
                 value = TrashText.summary(trash),
                 onClick = onOpenTrash,
                 modifier = Modifier.testTag("open_trash"),
+            )
+            AtomicSettingsRow(
+                title = "Apps",
+                value = "Save APKs, uninstall, app info",
+                onClick = onOpenApps,
+                modifier = Modifier.testTag("open_apps"),
             )
         }
 

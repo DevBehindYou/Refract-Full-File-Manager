@@ -49,6 +49,7 @@ class RouteStackTest {
                 .push(AtomicRoute.Category("VIDEOS"))
                 .push(AtomicRoute.PrivateFiles)
                 .push(AtomicRoute.Operations)
+                .push(AtomicRoute.Apps)
 
         assertEquals(stack, RouteStack.decode(stack.encode()))
     }

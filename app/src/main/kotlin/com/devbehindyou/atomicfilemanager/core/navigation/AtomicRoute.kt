@@ -27,6 +27,11 @@ sealed interface AtomicRoute {
         override fun encode() = TRASH
     }
 
+    /** Launchable apps: open, info, save or share the APK, uninstall. */
+    data object Apps : AtomicRoute {
+        override fun encode() = APPS
+    }
+
     /** A category collection; [collection] is a `FileCollection` name. */
     data class Category(
         val collection: String,
@@ -46,6 +51,7 @@ sealed interface AtomicRoute {
         private const val OPERATIONS = "operations"
         private const val TRASH = "trash"
         private const val SEARCH = "search"
+        private const val APPS = "apps"
         private const val CATEGORY = "category"
         private const val ANALYSIS = "analysis"
         private const val SEPARATOR = ':'
@@ -56,6 +62,7 @@ sealed interface AtomicRoute {
             if (value == OPERATIONS) return Operations
             if (value == TRASH) return Trash
             if (value == SEARCH) return Search
+            if (value == APPS) return Apps
             val kind = value.substringBefore(SEPARATOR, missingDelimiterValue = "")
             val argument = value.substringAfter(SEPARATOR, missingDelimiterValue = "")
             if (argument.isEmpty()) return null
