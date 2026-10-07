@@ -21,6 +21,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFact
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFactSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
+import com.devbehindyou.atomicfilemanager.ui.shortcuts.AppShortcuts
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import java.util.Locale
 
@@ -173,6 +174,15 @@ fun FileDetailsDialog(
             leadingIcon = AtomicIcons.Copy,
             modifier = Modifier.fillMaxWidth().testTag("copy_path_button"),
         )
+        if (node.isDirectory && AppShortcuts.canPinFolder(context)) {
+            AtomicButton(
+                "Add to home screen",
+                onClick = { AppShortcuts.pinFolder(context, node.id.raw, node.name) },
+                variant = AtomicButtonVariant.Ghost,
+                leadingIcon = AtomicIcons.Add,
+                modifier = Modifier.fillMaxWidth().testTag("pin_folder_button"),
+            )
+        }
         AtomicButton(
             "Close",
             onClick = onDismiss,
