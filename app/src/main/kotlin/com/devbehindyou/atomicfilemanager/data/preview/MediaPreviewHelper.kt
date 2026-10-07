@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.os.Build
 import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
@@ -23,6 +24,7 @@ data class MediaMetadata(
     val height: Int,
     val artwork: Bitmap?,
     val mimeType: String?,
+    val tags: AudioTags = AudioTags(),
 )
 
 data class PreparedMedia(
@@ -128,6 +130,25 @@ class MediaPreviewHelper(
             height = height,
             artwork = artwork,
             mimeType = mime,
+            tags = extractTags(retriever),
+        )
+    }
+
+    private fun extractTags(retriever: MediaMetadataRetriever): AudioTags {
+        fun text(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
+
+        fun number(key: Int) = text(key)?.toIntOrNull()?.takeIf { it > 0 }
+        val newer = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        return AudioTags(
+            albumArtist = text(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
+            year = text(MediaMetadataRetriever.METADATA_KEY_YEAR),
+            genre = text(MediaMetadataRetriever.METADATA_KEY_GENRE),
+            track = text(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER),
+            disc = text(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER),
+            composer = text(MediaMetadataRetriever.METADATA_KEY_COMPOSER),
+            bitrateBps = number(MediaMetadataRetriever.METADATA_KEY_BITRATE),
+            sampleRateHz = if (newer) number(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE) else null,
+            bitsPerSample = if (newer) number(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE) else null,
         )
     }
 
