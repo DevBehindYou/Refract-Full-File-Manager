@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.view.KeyEvent
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -91,9 +92,11 @@ import com.devbehindyou.atomicfilemanager.ui.screens.BrowseScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabStrip
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabsState
 import com.devbehindyou.atomicfilemanager.ui.screens.CategoryScreen
+import com.devbehindyou.atomicfilemanager.ui.screens.CommandPaletteSheet
 import com.devbehindyou.atomicfilemanager.ui.screens.HiddenFilesScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HomeScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.OperationsScreen
+import com.devbehindyou.atomicfilemanager.ui.screens.PaletteCommand
 import com.devbehindyou.atomicfilemanager.ui.screens.SearchScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.SettingsScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
@@ -161,9 +164,22 @@ class MainActivity : FragmentActivity() {
         intent.getStringExtra(EXTRA_OPEN)?.let { externalOpen.value = it }
     }
 
+    /** Ctrl+K opens the command palette (FR-10.10) on tablets and Chromebooks with a keyboard. */
+    override fun onKeyShortcut(
+        keyCode: Int,
+        event: KeyEvent,
+    ): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_K && event.isCtrlPressed) {
+            externalOpen.value = OPEN_PALETTE
+            return true
+        }
+        return super.onKeyShortcut(keyCode, event)
+    }
+
     companion object {
         const val EXTRA_OPEN = "com.devbehindyou.atomicfilemanager.extra.OPEN"
         const val OPEN_OPERATIONS = "operations"
+        const val OPEN_PALETTE = "palette"
     }
 }
 
@@ -184,12 +200,13 @@ fun AtomicAppContent(
     var routeEntries by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val routes = RouteStack.decode(routeEntries)
 
+    // Read the saved entries, not [routes], so two changes in one callback both apply.
     fun push(route: AtomicRoute) {
-        routeEntries = routes.push(route).encode()
+        routeEntries = RouteStack.decode(routeEntries).push(route).encode()
     }
 
     fun pop() {
-        routeEntries = routes.pop().encode()
+        routeEntries = RouteStack.decode(routeEntries).pop().encode()
     }
     var currentTab by rememberSaveable { mutableStateOf(NavigationTab.HOME) }
     val defaultPath = Environment.getExternalStorageDirectory()?.absolutePath ?: context.filesDir.absolutePath
@@ -227,6 +244,7 @@ fun AtomicAppContent(
     var volumes by remember { mutableStateOf<List<StorageVolumeInfo>>(emptyList()) }
     var hasStorageAccess by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showPalette by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -463,6 +481,38 @@ fun AtomicAppContent(
             if (routes.top != AtomicRoute.Operations) push(AtomicRoute.Operations)
             onOpenRequestHandled()
         }
+        if (openRequest == MainActivity.OPEN_PALETTE) {
+            showPalette = true
+            onOpenRequestHandled()
+        }
+    }
+
+    fun runCommand(command: PaletteCommand) {
+        showPalette = false
+        // A command starts from the tabs, so Back from what it opens returns there.
+        routeEntries = emptyList()
+        when (command) {
+            PaletteCommand.SEARCH -> push(AtomicRoute.Search)
+            PaletteCommand.FILES -> navigateTab(NavigationTab.BROWSE)
+            PaletteCommand.DOWNLOADS -> openCategory(FileCategory.DOWNLOAD)
+            PaletteCommand.IMAGES -> openCategory(FileCategory.IMAGE)
+            PaletteCommand.VIDEOS -> openCategory(FileCategory.VIDEO)
+            PaletteCommand.AUDIO -> openCategory(FileCategory.AUDIO)
+            PaletteCommand.DOCUMENTS -> openCategory(FileCategory.DOCUMENT)
+            PaletteCommand.ARCHIVES -> openCategory(FileCategory.ARCHIVE)
+            PaletteCommand.APKS -> openCategory(FileCategory.APK)
+            PaletteCommand.STORAGE -> navigateTab(NavigationTab.STORAGE)
+            PaletteCommand.ANALYSIS -> push(AtomicRoute.Analysis(defaultFolderRaw))
+            PaletteCommand.TRASH -> push(AtomicRoute.Trash)
+            PaletteCommand.OPERATIONS -> push(AtomicRoute.Operations)
+            PaletteCommand.APPS -> push(AtomicRoute.Apps)
+            PaletteCommand.PRIVATE -> push(AtomicRoute.PrivateFiles)
+            PaletteCommand.SETTINGS, PaletteCommand.THEME -> navigateTab(NavigationTab.SETTINGS)
+            PaletteCommand.ABOUT -> showAboutDialog = true
+        }
+    }
+    if (showPalette) {
+        CommandPaletteSheet(onRun = ::runCommand, onDismiss = { showPalette = false })
     }
 
     BackHandler(enabled = !routes.isEmpty) { pop() }
@@ -632,6 +682,12 @@ fun AtomicAppContent(
                     modifier = Modifier.background(Atomic.colors.background).statusBarsPadding(),
                     actions = {
                         if (home) {
+                            AtomicIconButton(
+                                icon = AtomicIcons.MoreHorizontal,
+                                contentDescription = "Commands",
+                                onClick = { showPalette = true },
+                                modifier = Modifier.testTag("home_palette_button"),
+                            )
                             AtomicIconButton(
                                 icon = AtomicIcons.Search,
                                 contentDescription = "Search all storage",
