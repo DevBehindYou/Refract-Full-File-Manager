@@ -42,6 +42,12 @@ android {
             )
             signingConfig = signingConfigs.getByName("debug")
         }
+        // Target of the :benchmark macrobenchmarks (ALL_IN_ONE_PLAN.md 0.5, §16.1): same as release
+        // (R8, not debuggable) so timings match what users get. The manifest is already profileable.
+        create("benchmark") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+        }
     }
 
     testOptions {

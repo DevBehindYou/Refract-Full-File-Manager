@@ -4,7 +4,6 @@
 plugins {
     id("com.android.test")
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.androidx.benchmark)
 }
 
 android {
@@ -17,12 +16,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Mirrors :app's flavours exactly so Gradle can match variants between this module
-    // and its target (androidx.benchmark's variant-matching needs this on both sides).
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("base") { dimension = "distribution" }
-        create("reporting") { dimension = "distribution" }
+    // Macrobenchmarks run against :app's "benchmark" build type: release-like (R8, not
+    // debuggable) but signed with the debug key so it installs next to the test APK.
+    buildTypes {
+        create("benchmark") {
+            isDebuggable = true
+            signingConfig = getByName("debug").signingConfig
+            matchingFallbacks += listOf("release")
+        }
     }
 
     compileOptions {
@@ -30,16 +31,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // The androidx.benchmark plugin (applied above) adds a "benchmark" build type
-    // derived from release automatically — non-debuggable, non-minified-by-default,
-    // matching real-world startup conditions. See PHASE_1_NOTES.md for what this
-    // scaffold does and doesn't verify.
     targetProjectPath = ":app"
     experimentalProperties["android.experimental.self-instrumenting"] = true
 }
 
 kotlin {
     jvmToolchain(17)
+}
+
+// Only the benchmark variant is useful; skip building debug/release test APKs.
+androidComponents {
+    beforeVariants(selector().all()) { it.enable = it.buildType == "benchmark" }
 }
 
 dependencies {
