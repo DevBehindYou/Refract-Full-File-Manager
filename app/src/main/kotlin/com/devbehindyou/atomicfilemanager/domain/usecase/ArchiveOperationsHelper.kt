@@ -168,12 +168,22 @@ internal object ArchiveOperationsHelper {
         val archiveName = node?.name ?: sourceId.raw.substringAfterLast('/')
         // Anything not recognised by name is read as ZIP, as before.
         val kind = ArchiveFormats.kindOf(archiveName) ?: ArchiveFormats.Kind.ZIP
+        // Given once from the preview, never stored; gone after this extract whatever happens.
+        val password = ArchivePasswords.take(sourceId)
         var totalExtractedBytes = 0L
         var entryCount = 0
 
         try {
             inProvider.stream().use { rawIn ->
-                ArchiveFormats.open(kind, archiveName, rawIn, node?.size ?: -1, spool).use { archive ->
+                ArchiveFormats.open(
+                    kind,
+                    archiveName,
+                    rawIn,
+                    node?.size ?: -1,
+                    password = password,
+                    spool = spool,
+                ).use {
+                        archive ->
                     var entry = archive.next()
                     while (entry != null) {
                         if (!coroutineContext.isActive) throw CancellationException()
@@ -253,6 +263,9 @@ internal object ArchiveOperationsHelper {
             return FileOperationsEngine.ItemResult.Success
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (e is ArchiveWrongPassword) {
+                return FileOperationsEngine.ItemResult.Failure(FileError.UnsupportedFormat(WRONG_PASSWORD))
+            }
             if (e is ArchivePasswordRequired) {
                 return FileOperationsEngine.ItemResult.Failure(FileError.UnsupportedFormat(PASSWORD_PROTECTED))
             }

@@ -1,5 +1,6 @@
 package com.devbehindyou.atomicfilemanager.domain.usecase
 
+import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.github.junrar.Archive
 import org.apache.commons.compress.archivers.ArchiveInputStream
 import org.apache.commons.compress.archivers.sevenz.SevenZFile
@@ -12,8 +13,11 @@ import java.io.Closeable
 import java.io.IOException
 import java.io.InputStream
 import java.nio.channels.SeekableByteChannel
+import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
+import net.lingala.zip4j.exception.ZipException as Zip4jException
+import net.lingala.zip4j.io.inputstream.ZipInputStream as Zip4jInputStream
 
 /** One entry as an archive lists it; [path] is as stored, before any safety check. */
 data class ArchiveHeader(
@@ -78,16 +82,23 @@ object ArchiveFormats {
         return name.dropLast(suffix.length).ifEmpty { "file" }
     }
 
+    /** [password] opens encrypted ZIPs (ZipCrypto or AES) through zip4j; other kinds ignore it. */
     fun open(
         kind: Kind,
         name: String,
         input: InputStream,
         size: Long = -1,
+        password: CharArray? = null,
         spool: SeekableSpool? = null,
     ): ArchiveStream {
         val buffered = BufferedInputStream(input)
         return when (kind) {
-            Kind.ZIP -> ZipStream(ZipInputStream(buffered))
+            Kind.ZIP ->
+                if (password != null) {
+                    Zip4jStream(Zip4jInputStream(buffered, password))
+                } else {
+                    ZipStream(ZipInputStream(buffered))
+                }
             Kind.TAR -> CommonsStream(TarArchiveInputStream(buffered))
             Kind.TAR_GZ -> CommonsStream(TarArchiveInputStream(GzipCompressorInputStream(buffered, true)))
             Kind.TAR_BZ2 -> CommonsStream(TarArchiveInputStream(BZip2CompressorInputStream(buffered, true)))
@@ -172,8 +183,62 @@ object ArchiveFormats {
     }
 }
 
-/** Shown as the "format" of an archive that needs a password the app can't take yet. */
+/** Shown as the "format" of an archive opened without its password. */
 const val PASSWORD_PROTECTED = "password-protected archive"
+
+/** Shown as the "format" when the password given for an archive is wrong. */
+const val WRONG_PASSWORD = "wrong password"
+
+/** The password given for an archive doesn't open it. */
+class ArchiveWrongPassword : IOException("Wrong password for this archive")
+
+/**
+ * Passwords for archives about to be extracted, kept in memory only and used once
+ * (ALL_IN_ONE_PLAN.md 2.2: a password is never stored). After the app is closed the extract
+ * fails as password-protected and the preview asks again.
+ */
+object ArchivePasswords {
+    private val byArchive = ConcurrentHashMap<String, CharArray>()
+
+    fun put(
+        archive: FileNodeId,
+        password: CharArray,
+    ) {
+        byArchive[archive.raw] = password.copyOf()
+    }
+
+    /** The password for [archive], removed as it is read. */
+    fun take(archive: FileNodeId): CharArray? = byArchive.remove(archive.raw)
+}
+
+private class Zip4jStream(private val zip: Zip4jInputStream) : ArchiveStream {
+    override fun next(): ArchiveHeader? {
+        val header = zip4j { zip.nextEntry } ?: return null
+        return ArchiveHeader(
+            path = header.fileName,
+            isDirectory = header.isDirectory,
+            size = header.uncompressedSize,
+            compressedSize = header.compressedSize,
+            modifiedAt = header.lastModifiedTimeEpoch,
+        )
+    }
+
+    override fun read(
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int = zip4j { zip.read(buffer, offset, length) }
+
+    override fun close() = zip.close()
+
+    private inline fun <T> zip4j(block: () -> T): T =
+        try {
+            block()
+        } catch (e: Zip4jException) {
+            if (e.type == Zip4jException.Type.WRONG_PASSWORD) throw ArchiveWrongPassword()
+            throw e
+        }
+}
 
 /** The archive (or one of its entries) is password-protected, which the app can't open yet. */
 class ArchivePasswordRequired : IOException("This archive is password-protected")

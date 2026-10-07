@@ -26,7 +26,11 @@ class InspectArchiveUseCase
         private val spool: SeekableSpool? = null,
         private val backendSelector: (FileNodeId) -> StorageBackend,
     ) {
-        suspend operator fun invoke(archiveId: FileNodeId): FileResult<List<ArchiveEntryInfo>> =
+        /** [password] opens an encrypted ZIP; it is used for this call only and not kept. */
+        suspend operator fun invoke(
+            archiveId: FileNodeId,
+            password: CharArray? = null,
+        ): FileResult<List<ArchiveEntryInfo>> =
             withContext(Dispatchers.IO) {
                 val backend = backendSelector(archiveId)
                 val inRes = backend.openInput(archiveId)
@@ -43,7 +47,15 @@ class InspectArchiveUseCase
                 val entries = mutableListOf<ArchiveEntryInfo>()
                 try {
                     inProvider.stream().use { stream ->
-                        ArchiveFormats.open(kind, name, stream, node?.size ?: -1, spool).use { archive ->
+                        ArchiveFormats.open(
+                            kind,
+                            name,
+                            stream,
+                            node?.size ?: -1,
+                            password = password,
+                            spool = spool,
+                        ).use {
+                                archive ->
                             var header = archive.next()
                             while (header != null) {
                                 if (escapesTarget(header.path)) {
@@ -76,6 +88,8 @@ class InspectArchiveUseCase
                         }
                     }
                     FileResult.Success(entries)
+                } catch (_: ArchiveWrongPassword) {
+                    FileResult.Failure(FileError.UnsupportedFormat(WRONG_PASSWORD))
                 } catch (_: ArchivePasswordRequired) {
                     FileResult.Failure(FileError.UnsupportedFormat(PASSWORD_PROTECTED))
                 } catch (e: Exception) {

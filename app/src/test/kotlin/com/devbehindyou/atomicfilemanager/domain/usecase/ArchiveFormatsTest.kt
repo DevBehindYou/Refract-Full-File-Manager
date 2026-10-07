@@ -7,6 +7,9 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.testing.InMemoryBackend
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import net.lingala.zip4j.model.ZipParameters
+import net.lingala.zip4j.model.enums.AesKeyStrength
+import net.lingala.zip4j.model.enums.EncryptionMethod
 import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -20,6 +23,7 @@ import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.util.Base64
+import net.lingala.zip4j.io.outputstream.ZipOutputStream as Zip4jOutputStream
 
 class ArchiveFormatsTest {
     private val backend = InMemoryBackend()
@@ -164,6 +168,55 @@ class ArchiveFormatsTest {
             val result = extract("broken.rar", "not a rar at all".toByteArray())
 
             assertTrue((result as FileOperationsEngine.ItemResult.Failure).error is FileError.CorruptedArchive)
+        }
+
+    @Test
+    fun `the right password lists and extracts, a wrong one says so, and it is used only once`() =
+        runTest {
+            val bytes = Base64.getDecoder().decode(ENCRYPTED_ZIP)
+            val id = backend.putFile(backend.rootId, "locked.zip", bytes)
+            val inspect = InspectArchiveUseCase { backend }
+
+            assertEquals(
+                FileError.UnsupportedFormat(WRONG_PASSWORD),
+                (inspect(id, "nope".toCharArray()) as FileResult.Failure).error,
+            )
+            assertEquals(listOf("s.txt"), (inspect(id, "pw".toCharArray()) as FileResult.Success).value.map { it.path })
+
+            val target = (backend.createDirectory(backend.rootId, "out") as FileResult.Success).value.id
+            ArchivePasswords.put(id, "pw".toCharArray())
+            assertEquals(
+                FileOperationsEngine.ItemResult.Success,
+                ArchiveOperationsHelper.extractArchive(id, target, backend, backend, {}, {}),
+            )
+            assertEquals("secret", textAt("out", "s.txt"))
+            assertEquals(null, ArchivePasswords.take(id))
+        }
+
+    @Test
+    fun `aes zips open with their password`() =
+        runTest {
+            val out = ByteArrayOutputStream()
+            val params =
+                ZipParameters().apply {
+                    isEncryptFiles = true
+                    encryptionMethod = EncryptionMethod.AES
+                    aesKeyStrength = AesKeyStrength.KEY_STRENGTH_256
+                    fileNameInZip = "notes.txt"
+                }
+            Zip4jOutputStream(out, "s3cret".toCharArray()).use { zip ->
+                zip.putNextEntry(params)
+                zip.write("aes content".toByteArray())
+                zip.closeEntry()
+            }
+            val id = backend.putFile(backend.rootId, "aes.zip", out.toByteArray())
+
+            assertEquals(
+                FileError.UnsupportedFormat(PASSWORD_PROTECTED),
+                (InspectArchiveUseCase { backend }(id) as FileResult.Failure).error,
+            )
+            val listed = (InspectArchiveUseCase { backend }(id, "s3cret".toCharArray()) as FileResult.Success).value
+            assertEquals(listOf("notes.txt"), listed.map { it.path })
         }
 
     private val spoolDir = java.nio.file.Files.createTempDirectory("spool").toFile()
