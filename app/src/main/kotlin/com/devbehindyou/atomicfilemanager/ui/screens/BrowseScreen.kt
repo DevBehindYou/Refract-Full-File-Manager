@@ -78,6 +78,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
 import com.devbehindyou.atomicfilemanager.domain.model.OperationSnapshot
 import com.devbehindyou.atomicfilemanager.domain.model.OperationStatus
+import com.devbehindyou.atomicfilemanager.domain.model.RemovableNames
 import com.devbehindyou.atomicfilemanager.domain.model.TransferBubble
 import com.devbehindyou.atomicfilemanager.ui.components.BatchRenameSheet
 import com.devbehindyou.atomicfilemanager.ui.components.BreadcrumbBar
@@ -1136,6 +1137,7 @@ private fun BrowseDialogs(
     if (state.showNewFolderDialog) {
         NewFolderDialog(
             parentName = uiState.currentFolderName.ifEmpty { null },
+            removable = RemovableNames.appliesTo(uiState.currentFolderId),
             onDismiss = callbacks.onDismissNewFolder,
             onConfirm = { name ->
                 viewModel.createFolder(name)
@@ -1147,6 +1149,7 @@ private fun BrowseDialogs(
     state.nodeToRename?.let { node ->
         RenameDialog(
             initialName = node.name,
+            removable = RemovableNames.appliesTo(node.id),
             onDismiss = callbacks.onDismissRename,
             onConfirm = { newName ->
                 viewModel.rename(node.id, newName)

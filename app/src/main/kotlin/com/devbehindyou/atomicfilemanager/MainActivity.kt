@@ -1,8 +1,10 @@
 package com.devbehindyou.atomicfilemanager
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
@@ -307,6 +309,25 @@ fun AtomicAppContent(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
+    }
+
+    // A USB drive or SD card plugged in or pulled out shows up at once, not on the next resume
+    // (ALL_IN_ONE_PLAN.md 3.5).
+    DisposableEffect(context) {
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context,
+                    intent: Intent,
+                ) = refreshVolumes()
+            }
+        val filter =
+            IntentFilter().apply {
+                MEDIA_EVENTS.forEach(::addAction)
+                addDataScheme("file")
+            }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
     val permissionLauncher =
@@ -912,3 +933,13 @@ private fun OperationStatus.summaryOrNull(): OperationSummary? =
         is OperationStatus.Failed -> summary
         else -> null
     }
+
+/** Volume changes that refresh the Storage list. */
+private val MEDIA_EVENTS =
+    listOf(
+        Intent.ACTION_MEDIA_MOUNTED,
+        Intent.ACTION_MEDIA_UNMOUNTED,
+        Intent.ACTION_MEDIA_REMOVED,
+        Intent.ACTION_MEDIA_BAD_REMOVAL,
+        Intent.ACTION_MEDIA_EJECT,
+    )

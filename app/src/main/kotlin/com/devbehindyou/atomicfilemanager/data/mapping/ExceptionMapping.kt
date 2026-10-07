@@ -33,13 +33,16 @@ import java.nio.file.AccessDeniedException as NioAccessDeniedException
 fun Throwable.toFileError(context: ErrorContext? = null): FileError =
     when (this) {
         is CancellationException -> throw this
-        is FileNotFoundException -> FileError.FileNotFound(context?.name)
+        // Android's file streams wrap the real errno as the cause ("open failed: EACCES"), so it
+        // decides first; a bare exception keeps its old meaning.
+        is FileNotFoundException ->
+            errnoCause()?.let { errnoToFileError(it, context) } ?: FileError.FileNotFound(context?.name)
         is NioAccessDeniedException -> FileError.AccessDenied(context?.name)
         is SecurityException -> FileError.AccessDenied(context?.name)
         is ErrnoException -> errnoToFileError(this, context)
         is ZipException -> FileError.CorruptedArchive(context?.name)
         is OutOfMemoryError -> FileError.OutOfMemory
-        is IOException -> FileError.IoFailure(context?.name)
+        is IOException -> errnoCause()?.let { errnoToFileError(it, context) } ?: FileError.IoFailure(context?.name)
         else -> FileError.Unknown(this::class.simpleName ?: "UnknownThrowable")
     }
 
@@ -54,5 +57,9 @@ private fun errnoToFileError(
         OsConstants.ENOENT -> FileError.FileNotFound(context?.name)
         OsConstants.ENAMETOOLONG -> FileError.PathTooLong(context?.name)
         OsConstants.EEXIST -> FileError.FileAlreadyExists(context?.name.orEmpty())
+        // What a USB drive or SD card pulled out mid-operation looks like (ALL_IN_ONE_PLAN.md 3.5).
+        OsConstants.EIO, OsConstants.ENODEV, OsConstants.ENXIO -> FileError.StorageUnavailable(null)
         else -> FileError.Unknown("errno=${exception.errno}")
     }
+
+private fun Throwable.errnoCause(): ErrnoException? = cause as? ErrnoException
