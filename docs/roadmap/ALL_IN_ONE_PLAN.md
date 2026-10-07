@@ -506,7 +506,7 @@ Effort is relative: **S** about a day, **M** a few days, **L** a week or more, f
 
 ### Phase 3: Connectivity
 
-Requires Phase 0.4 (secure credentials) and owner approval of the scope change in section 10.
+Requires Phase 0.4 (secure credentials, done) and owner approval of the scope change in section 10 (approved 7 October 2026).
 
 #### 3.1 Real SFTP and SMB backends (L)
 
@@ -536,7 +536,7 @@ Requires Phase 0.4 (secure credentials) and owner approval of the scope change i
   - Session-based: started by the user, shows a URL and a random one-time PIN; stops automatically after 15 minutes idle or when the user leaves the screen.
   - Scope is one folder the user chose, **read-only by default**; upload is a separate opt-in.
   - The notification shows the session is running, with Stop.
-- **Owner decision required** (section 10).
+- **Approved** by the owner on 7 October 2026 (section 10).
 
 #### 3.5 USB OTG (S to M)
 
@@ -575,6 +575,8 @@ Requires Phase 0.4 (secure credentials) and owner approval of the scope change i
 ## 10. Decisions the owner needs to make
 
 These conflict with `PRODUCT_SCOPE.md` or `PRODUCT_CONTEXT.md`. Recommendations are given; nothing in Phase 3 or 4 that depends on them should start before the owner decides.
+
+**Decided 7 October 2026: the owner approved every recommendation below.** `PRODUCT_SCOPE.md` and FR-10.3 are updated to match; Phases 3 and 4 may start.
 
 | Topic | Current scope | Recommendation |
 |---|---|---|

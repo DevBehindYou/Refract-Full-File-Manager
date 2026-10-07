@@ -13,7 +13,7 @@
 * ZIP: create and extract
 * Hidden-file toggle, sorting, view mode (list/grid), folder size calculation
 * Full permission flows for API 27 → 37
-* Clean Plain Material 3 with tonal elevation, dark/light theme, and dynamic color
+* The Atomic design system (`design/ATOMIC_DESIGN_SYSTEM.md`), dark/light theme. Decided 7 Oct 2026; replaces the earlier plain Material 3 baseline
 * Direct multi-selection drag-and-drop between folders, panes, and Transfer Bubbles
 * Up to 3 persistent Transfer Bubbles for virtual staging
 * Instagram-style Quick Peek for images and videos with GestureArbiter
@@ -38,12 +38,12 @@
 
 | Item | Status | Reason |
 |---|---|---|
-| Root / system partition browsing | Out | Play policy risk, safety risk, tiny audience |
-| FTP / SMB / WebDAV / SFTP client | Future | Large surface area, security burden |
-| FTP/HTTP **server** | Out | Security liability |
-| Cloud accounts (Drive, Dropbox) | Future | Requires accounts, breaks local-first promise |
-| Built-in media player beyond preview | Out | Hand off via `Intent` |
-| Document editing (docx/xlsx) | Out | Rendering fidelity is a product in itself |
+| Root / system partition browsing | Out | Play policy risk, safety risk, tiny audience. Shizuku is an optional Labs add-on (`roadmap/ALL_IN_ONE_PLAN.md` 4.3) |
+| FTP / SMB / WebDAV / SFTP client | **In: Phase 3** (decided 7 Oct 2026) | Code already existed; host-key and certificate checks and Keystore credentials are required (plan 3.1) |
+| FTP/HTTP **server** | Out, except the guarded Wi-Fi share | Only plan 3.4: local Wi-Fi, one folder, read-only by default, one-time PIN, auto-stop |
+| Cloud accounts (Drive, Dropbox) | Future | No in-app logins; cloud apps are reached through Android providers and WebDAV (plan 3.3) |
+| Built-in media player beyond preview | Out | A Media3 preview player only; no media library |
+| Document editing (docx/xlsx) | Out | Rendering fidelity is a product in itself. Plain-text editing is in (plan 2.3) |
 | Themes marketplace, icon packs | Out | Dilutes the design identity |
 | Ads, analytics SDKs, referral | Out | Contradicts `PRIVACY.md` |
 | Cloud AI features on user files | Out | Contradicts `PRIVACY.md`; see `roadmap/FUTURE.md` §AI |
@@ -53,7 +53,7 @@
 
 * Not a "pro tool" aesthetic. No dense toolbars, no permanent 8-icon action row.
 * Not a category-only launcher that hides the filesystem. Both views are first class.
-* Plain Material 3 design foundation. No fake glass surfaces, blur shaders, or runtime AGSL overhead.
+* The Atomic design system is the foundation. No fake glass surfaces, blur shaders, or runtime AGSL overhead.
 * Not a settings maze. Settings fits on two scroll-screens.
 
 ## 5. Scope guards

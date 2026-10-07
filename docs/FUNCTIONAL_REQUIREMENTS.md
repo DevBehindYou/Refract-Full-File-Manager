@@ -140,7 +140,7 @@ and its priority (`M` must, `S` should, `C` could).
 |---|---|---|---|
 | FR-10.1 | Light and dark themes, following system by default, overridable | MVP | M |
 | FR-10.2 | Dynamic colour (Material You) on API 31+, opt-out available | MVP | S |
-| FR-10.3 | Liquid Glass tier auto-selected, with a manual override (Auto/High/Medium/Off) | MVP | M |
+| FR-10.3 | ~~Liquid Glass tier auto-selected, with a manual override~~ Dropped 7 Oct 2026: the Atomic design system forbids blur and glass (`PRODUCT_SCOPE.md` §4) | — | — |
 | FR-10.4 | Full TalkBack support with meaningful labels on every interactive element | MVP | M |
 | FR-10.5 | Layout intact at font scale 200% and display size largest | MVP | M |
 | FR-10.6 | Reduce motion and reduce transparency respected system-wide | MVP | M |
