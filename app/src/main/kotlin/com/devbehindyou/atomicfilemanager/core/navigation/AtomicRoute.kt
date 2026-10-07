@@ -46,6 +46,14 @@ sealed interface AtomicRoute {
         override fun encode() = "$ANALYSIS$SEPARATOR$rootRaw"
     }
 
+    /** Folder compare and sync (ALL_IN_ONE_PLAN.md 4.1) between two raw `FileNodeId`s. */
+    data class FolderCompare(
+        val leftRaw: String,
+        val rightRaw: String,
+    ) : AtomicRoute {
+        override fun encode() = "$COMPARE$SEPARATOR$leftRaw$PAIR$rightRaw"
+    }
+
     companion object {
         private const val PRIVATE = "private"
         private const val OPERATIONS = "operations"
@@ -54,7 +62,11 @@ sealed interface AtomicRoute {
         private const val APPS = "apps"
         private const val CATEGORY = "category"
         private const val ANALYSIS = "analysis"
+        private const val COMPARE = "compare"
         private const val SEPARATOR = ':'
+
+        /** Ids contain ':' and '/', never this. */
+        private const val PAIR = '\u001F'
 
         /** Returns null for anything it does not recognise, so a stale bundle never crashes. */
         fun decode(value: String): AtomicRoute? {
@@ -69,6 +81,11 @@ sealed interface AtomicRoute {
             return when (kind) {
                 CATEGORY -> Category(argument)
                 ANALYSIS -> Analysis(argument)
+                COMPARE -> {
+                    val left = argument.substringBefore(PAIR, missingDelimiterValue = "")
+                    val right = argument.substringAfter(PAIR, missingDelimiterValue = "")
+                    if (left.isEmpty() || right.isEmpty()) null else FolderCompare(left, right)
+                }
                 else -> null
             }
         }

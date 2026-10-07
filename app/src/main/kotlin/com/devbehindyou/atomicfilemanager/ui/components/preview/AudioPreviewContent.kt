@@ -42,12 +42,17 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import com.devbehindyou.atomicfilemanager.AppContainer
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButtonVariant
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.core.designsystem.foundation.AtomicSpacing
 import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFact
+import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFactSheet
+import com.devbehindyou.atomicfilemanager.data.preview.MediaMetadata
 import com.devbehindyou.atomicfilemanager.data.preview.PreparedMedia
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
@@ -182,6 +187,18 @@ private fun AudioPlayerView(
             },
             modifier = Modifier.testTag("audio_speed"),
         )
+        val details = AudioTagText.facts(media.metadata)
+        if (details.isNotEmpty()) {
+            var showDetails by remember(node.id) { mutableStateOf(false) }
+            Spacer(modifier = Modifier.height(8.dp))
+            AtomicButton(
+                if (showDetails) "Hide details" else "Details",
+                onClick = { showDetails = !showDetails },
+                variant = AtomicButtonVariant.Text,
+                modifier = Modifier.testTag("audio_details"),
+            )
+            if (showDetails) AtomicFactSheet(details)
+        }
     }
 }
 
@@ -306,4 +323,38 @@ private fun AudioPlaybackControls(
         Spacer(modifier = Modifier.width(AtomicSpacing.s16))
         AtomicIconButton(AtomicIcons.Forward10, "Forward 10 seconds", onClick = onForward)
     }
+}
+
+/** Tag details under the player (ALL_IN_ONE_PLAN.md 4.2); pure so it is unit-tested. */
+internal object AudioTagText {
+    fun facts(meta: MediaMetadata): List<AtomicFact> {
+        val tags = meta.tags
+        return listOfNotNull(
+            tags.albumArtist?.takeIf { it != meta.artist }?.let { AtomicFact("Album artist", it) },
+            tags.year?.let { AtomicFact("Year", it, monoValue = true) },
+            tags.genre?.let { AtomicFact("Genre", it) },
+            tags.track?.let { AtomicFact("Track", it, monoValue = true) },
+            tags.disc?.let { AtomicFact("Disc", it, monoValue = true) },
+            tags.composer?.let { AtomicFact("Composer", it) },
+            quality(tags.bitrateBps, tags.sampleRateHz, tags.bitsPerSample)?.let {
+                AtomicFact("Quality", it, monoValue = true)
+            },
+            meta.mimeType?.let { AtomicFact("Format", it, monoValue = true) },
+        ).takeIf { facts -> facts.any { it.label != "Format" } }.orEmpty()
+    }
+
+    /** "320 kbps · 44.1 kHz · 16-bit", leaving out what the file doesn't say. */
+    fun quality(
+        bitrateBps: Int?,
+        sampleRateHz: Int?,
+        bitsPerSample: Int?,
+    ): String? =
+        listOfNotNull(
+            bitrateBps?.let { "${(it + KILO / 2) / KILO} kbps" },
+            sampleRateHz?.let { if (it % KILO == 0) "${it / KILO} kHz" else "${it / KILO}.${it % KILO / HUNDRED} kHz" },
+            bitsPerSample?.let { "$it-bit" },
+        ).joinToString(" · ").ifEmpty { null }
+
+    private const val KILO = 1000
+    private const val HUNDRED = 100
 }

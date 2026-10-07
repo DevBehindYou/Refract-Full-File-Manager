@@ -135,6 +135,8 @@ fun BrowseScreen(
     onLocationChange: (String) -> Unit = {},
     /** Opens a selected folder in a new tab; null hides the action. */
     onOpenInNewTab: ((FileNode) -> Unit)? = null,
+    /** Compares two folders (ALL_IN_ONE_PLAN.md 4.1); null hides the actions. */
+    onCompareFolders: ((FileNodeId, FileNodeId) -> Unit)? = null,
     viewModel: BrowseViewModel =
         run {
             val app = LocalContext.current.applicationContext as AtomicApp
@@ -422,6 +424,13 @@ fun BrowseScreen(
                 onClearClipboard = { viewModel.clearClipboard() },
                 onPaste = { viewModel.paste(CollisionPolicy.ASK) },
                 onCompare = { a, b -> comparePair = a to b },
+                onCompareFolders =
+                    onCompareFolders?.let { compare ->
+                        { left: FileNodeId, right: FileNodeId ->
+                            viewModel.clearSelection()
+                            compare(left, right)
+                        }
+                    },
             )
             comparePair?.let { (a, b) -> CompareSheet(first = a, second = b, onDismiss = { comparePair = null }) }
         }
@@ -817,8 +826,16 @@ private fun BrowseBottomBar(
     onOpenInNewTab: ((FileNode) -> Unit)? = null,
     onPaste: () -> Unit,
     onCompare: (FileNode, FileNode) -> Unit = { _, _ -> },
+    onCompareFolders: ((FileNodeId, FileNodeId) -> Unit)? = null,
 ) {
     val clip = uiState.clipboard
+    val selectedFolders =
+        uiState.rawItems.filter { it.id in uiState.selectedIds && it.isDirectory }.takeIf {
+            it.size == 2 && uiState.selectedIds.size == 2
+        }
+    // A copied folder can be compared with the folder shown, on any storage.
+    val clipFolder =
+        clip?.items?.singleOrNull()?.takeIf { it.isDirectory && it.id != uiState.currentFolderId }
     val selectedFiles =
         if (uiState.selectedIds.size == 2) {
             uiState.rawItems.filter {
@@ -871,6 +888,15 @@ private fun BrowseBottomBar(
                     } else {
                         null
                     },
+                    if (selectedFolders != null && onCompareFolders != null) {
+                        AtomicStripAction(
+                            "Compare",
+                            AtomicIcons.DualPane,
+                            { onCompareFolders(selectedFolders[0].id, selectedFolders[1].id) },
+                        )
+                    } else {
+                        null
+                    },
                 ),
         )
     } else if (clip != null) {
@@ -891,6 +917,14 @@ private fun BrowseBottomBar(
                     modifier = Modifier.weight(1f),
                 )
                 AtomicButton("Cancel", onClick = onClearClipboard, variant = AtomicButtonVariant.Text)
+                if (clipFolder != null && onCompareFolders != null) {
+                    AtomicButton(
+                        "Compare",
+                        onClick = { onCompareFolders(clipFolder.id, uiState.currentFolderId) },
+                        variant = AtomicButtonVariant.Text,
+                        modifier = Modifier.testTag("compare_with_clip_button"),
+                    )
+                }
                 AtomicButton(
                     "Paste here",
                     onClick = onPaste,
