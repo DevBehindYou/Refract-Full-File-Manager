@@ -89,6 +89,8 @@ dependencies {
     implementation(libs.sshj)
     implementation(libs.smbj)
     implementation(libs.bouncycastle.prov)
+    implementation(libs.bouncycastle.util)
+    implementation(libs.bouncycastle.pkix)
     implementation(libs.commons.compress)
     implementation(libs.tukaani.xz)
     implementation(libs.media3.exoplayer)
