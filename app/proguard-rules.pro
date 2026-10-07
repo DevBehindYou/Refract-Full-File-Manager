@@ -36,3 +36,7 @@
 -dontwarn io.airlift.compress.**
 -dontwarn org.objectweb.asm.**
 -dontwarn org.osgi.**
+
+# --- Tink (ALL_IN_ONE_PLAN.md 2.5): compile-only annotations it references ---
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
