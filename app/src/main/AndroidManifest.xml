@@ -60,6 +60,19 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Storage widget (ALL_IN_ONE_PLAN.md 4.5). -->
+        <receiver
+            android:name=".widget.StorageWidget"
+            android:exported="false"
+            android:label="@string/widget_storage_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/storage_widget_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

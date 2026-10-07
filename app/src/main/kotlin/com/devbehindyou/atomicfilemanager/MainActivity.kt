@@ -104,6 +104,8 @@ import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.TrashScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.TrashText
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
+import com.devbehindyou.atomicfilemanager.ui.shortcuts.AppShortcuts
+import com.devbehindyou.atomicfilemanager.ui.shortcuts.OpenTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -129,6 +131,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         // After recreation the route stack is already restored; don't push the same screen again.
         if (savedInstanceState == null) externalOpen.value = intent?.getStringExtra(EXTRA_OPEN)
+        AppShortcuts.publish(this)
 
         enableEdgeToEdge()
 
@@ -178,8 +181,8 @@ class MainActivity : FragmentActivity() {
 
     companion object {
         const val EXTRA_OPEN = "com.devbehindyou.atomicfilemanager.extra.OPEN"
-        const val OPEN_OPERATIONS = "operations"
-        const val OPEN_PALETTE = "palette"
+        const val OPEN_OPERATIONS = OpenTarget.OPERATIONS
+        const val OPEN_PALETTE = OpenTarget.PALETTE
     }
 }
 
@@ -476,17 +479,6 @@ fun AtomicAppContent(
     }
 
     // A tap on the operation notification opens Operations on top of whatever is showing.
-    LaunchedEffect(openRequest) {
-        if (openRequest == MainActivity.OPEN_OPERATIONS) {
-            if (routes.top != AtomicRoute.Operations) push(AtomicRoute.Operations)
-            onOpenRequestHandled()
-        }
-        if (openRequest == MainActivity.OPEN_PALETTE) {
-            showPalette = true
-            onOpenRequestHandled()
-        }
-    }
-
     fun runCommand(command: PaletteCommand) {
         showPalette = false
         // A command starts from the tabs, so Back from what it opens returns there.
@@ -510,6 +502,21 @@ fun AtomicAppContent(
             PaletteCommand.SETTINGS, PaletteCommand.THEME -> navigateTab(NavigationTab.SETTINGS)
             PaletteCommand.ABOUT -> showAboutDialog = true
         }
+    }
+    // Opens asked for from outside: the operation notification, a launcher shortcut, a pinned
+    // folder, the storage widget or Ctrl+K.
+    LaunchedEffect(openRequest) {
+        when (val target = OpenTarget.parse(openRequest)) {
+            OpenTarget.Operations -> if (routes.top != AtomicRoute.Operations) push(AtomicRoute.Operations)
+            OpenTarget.Palette -> showPalette = true
+            is OpenTarget.Command -> runCommand(target.command)
+            is OpenTarget.Folder -> {
+                routeEntries = emptyList()
+                openInBrowse(FileNodeId(target.raw))
+            }
+            null -> Unit
+        }
+        if (openRequest != null) onOpenRequestHandled()
     }
     if (showPalette) {
         CommandPaletteSheet(onRun = ::runCommand, onDismiss = { showPalette = false })

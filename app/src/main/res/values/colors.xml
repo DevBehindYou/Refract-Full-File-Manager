@@ -8,4 +8,8 @@
     -->
     <color name="window_background_light">#FFFFFFFF</color>
     <color name="window_background_dark">#FF121212</color>
+    <!-- Storage widget (ALL_IN_ONE_PLAN.md 4.5); RemoteViews can't read Compose theme tokens. -->
+    <color name="widget_surface">#FFF7F7F5</color>
+    <color name="widget_text">#FF1B1B1B</color>
+    <color name="widget_text_secondary">#FF5F5F5F</color>
 </resources>
