@@ -1,23 +1,18 @@
-// A macrobenchmark module, deliberately NOT using the atomic.android.application
-// convention plugin — see settings.gradle.kts and PHASE_1_NOTES.md's addendum for why.
-// This is the one module in the project not built on that shared baseline.
+// Macrobenchmarks (ALL_IN_ONE_PLAN.md 0.5, §16.1): cold start and Files scrolling, run against
+// :app's "benchmark" build type on a device or emulator. CI only compiles this module.
 plugins {
-    id("com.android.test")
-    alias(libs.plugins.kotlin.android)
+    id("atomic.android.test")
 }
 
 android {
     namespace = "com.devbehindyou.atomicfilemanager.benchmark"
-    compileSdk = 36
 
     defaultConfig {
-        minSdk = 27
-        targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Macrobenchmarks run against :app's "benchmark" build type: release-like (R8, not
-    // debuggable) but signed with the debug key so it installs next to the test APK.
+    // Matches :app's "benchmark" build type: release-like (R8, not debuggable) app, debuggable
+    // test APK, both signed with the debug key so they install side by side.
     buildTypes {
         create("benchmark") {
             isDebuggable = true
@@ -26,17 +21,8 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
     targetProjectPath = ":app"
     experimentalProperties["android.experimental.self-instrumenting"] = true
-}
-
-kotlin {
-    jvmToolchain(17)
 }
 
 // Only the benchmark variant is useful; skip building debug/release test APKs.

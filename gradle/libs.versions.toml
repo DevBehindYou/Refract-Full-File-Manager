@@ -130,12 +130,6 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 # via a bare id() inside build-logic/convention's atomic.android.application.gradle.kts,
 # since its implementation is already on that module's own classpath
 # (kotlin-composeCompilerGradlePlugin below). A version-catalog alias would be unused.
-# kotlin-android is used only by :benchmark (a com.android.test module) — deliberately
-# NOT relying on AGP 9's built-in Kotlin support there, since that was only confirmed
-# for com.android.application/com.android.library, not com.android.test. See
-# PHASE_1_NOTES.md's addendum on the :benchmark module.
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-androidx-benchmark = { id = "androidx.benchmark", version.ref = "androidxBenchmark" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 androidJunit5 = { id = "de.mannodermaus.android-junit", version.ref = "androidJunit5Plugin" }
