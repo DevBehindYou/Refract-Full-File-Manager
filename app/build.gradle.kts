@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
     implementation(libs.junrar)
+    implementation(libs.zip4j)
     implementation(libs.commons.compress)
     implementation(libs.tukaani.xz)
     implementation(libs.media3.exoplayer)

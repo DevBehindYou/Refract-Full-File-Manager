@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.devbehindyou.atomicfilemanager.AppContainer
@@ -61,15 +62,23 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFile
 import com.devbehindyou.atomicfilemanager.data.preview.ApkInfo
 import com.devbehindyou.atomicfilemanager.data.preview.ApkInfoReader
 import com.devbehindyou.atomicfilemanager.data.preview.androidVersionName
+import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
+import com.devbehindyou.atomicfilemanager.domain.model.FileOperation
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
+import com.devbehindyou.atomicfilemanager.domain.model.OperationId
+import com.devbehindyou.atomicfilemanager.domain.model.OperationOptions
+import com.devbehindyou.atomicfilemanager.domain.model.OperationType
 import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveEntryInfo
 import com.devbehindyou.atomicfilemanager.domain.usecase.ArchiveFormats
+import com.devbehindyou.atomicfilemanager.domain.usecase.ArchivePasswords
 import com.devbehindyou.atomicfilemanager.domain.usecase.ChecksumVerdict
 import com.devbehindyou.atomicfilemanager.domain.usecase.FileChecksums
+import com.devbehindyou.atomicfilemanager.domain.usecase.PASSWORD_PROTECTED
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextContent
 import com.devbehindyou.atomicfilemanager.domain.usecase.TextFileEditor
+import com.devbehindyou.atomicfilemanager.domain.usecase.WRONG_PASSWORD
 import com.devbehindyou.atomicfilemanager.domain.usecase.checkExpectedChecksum
 import com.devbehindyou.atomicfilemanager.ui.components.preview.AudioPreviewContent
 import com.devbehindyou.atomicfilemanager.ui.components.preview.MarkdownPreviewContent
@@ -438,26 +447,88 @@ private fun ArchivePreviewContent(
     var entries by remember { mutableStateOf<List<ArchiveEntryInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // A password is asked for only when the archive needs one, and kept only on this screen.
+    var needsPassword by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    var openedWith by remember { mutableStateOf<String?>(null) }
+    var attempt by remember { mutableIntStateOf(0) }
+    var extractQueued by remember { mutableStateOf(false) }
 
-    LaunchedEffect(node.id) {
+    LaunchedEffect(node.id, attempt) {
         isLoading = true
-        when (val res = container.inspectArchiveUseCase(node.id)) {
+        val given = openedWith?.toCharArray()
+        when (val res = container.inspectArchiveUseCase(node.id, given)) {
             is FileResult.Success -> {
                 entries = res.value
-                isLoading = false
+                errorMessage = null
+                needsPassword = false
             }
             is FileResult.Failure -> {
-                errorMessage = "The ZIP couldn't be read. It may be damaged or encrypted."
-                isLoading = false
+                val error = res.error
+                needsPassword =
+                    error is FileError.UnsupportedFormat &&
+                    (error.mimeType == PASSWORD_PROTECTED || error.mimeType == WRONG_PASSWORD)
+                errorMessage = archiveError(error)
+                if (needsPassword) openedWith = null
             }
         }
+        given?.fill(' ')
+        isLoading = false
     }
 
+    if (needsPassword) {
+        Column(
+            Modifier.fillMaxSize().padding(AtomicSpacing.s16),
+            verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12),
+        ) {
+            AtomicText(errorMessage.orEmpty(), AtomicTextRole.Body)
+            AtomicTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = "Password",
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth().testTag("archive_password"),
+            )
+            AtomicButton(
+                if (isLoading) "Opening…" else "Open",
+                onClick = {
+                    openedWith = password
+                    attempt++
+                },
+                enabled = password.isNotEmpty() && !isLoading,
+                modifier = Modifier.fillMaxWidth().testTag("archive_password_open"),
+            )
+            AtomicText("The password isn't saved.", AtomicTextRole.BodySecondary)
+        }
+        return
+    }
     if (isLoading || errorMessage != null) {
         ViewerState(isLoading, errorMessage)
         return
     }
 
+    val parent = node.parentId
+    if (openedWith != null && parent != null) {
+        AtomicButton(
+            if (extractQueued) "Extracting in the background" else "Extract here",
+            onClick = {
+                openedWith?.let { ArchivePasswords.put(node.id, it.toCharArray()) }
+                container.operationQueue.enqueue(
+                    FileOperation(
+                        id = OperationId.random(),
+                        type = OperationType.EXTRACT,
+                        sources = listOf(node.id),
+                        destination = parent,
+                        options = OperationOptions(),
+                        createdAt = System.currentTimeMillis(),
+                    ),
+                )
+                extractQueued = true
+            },
+            enabled = !extractQueued,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = AtomicSpacing.s16).testTag("archive_extract"),
+        )
+    }
     Column(modifier = Modifier.fillMaxSize()) {
         AtomicText(
             "${entries.size} items in archive",
@@ -597,6 +668,17 @@ private fun ApkSummary(node: FileNode) {
     AtomicFactSheet(apkFacts(apk))
     AtomicText("Use Open with to install it with Android's installer.", AtomicTextRole.BodySecondary)
 }
+
+/** Why an archive can't be listed, in plain words. */
+internal fun archiveError(error: FileError): String =
+    when {
+        error is FileError.UnsupportedFormat && error.mimeType == PASSWORD_PROTECTED ->
+            "This archive is password-protected. Enter its password to see what's inside."
+        error is FileError.UnsupportedFormat && error.mimeType == WRONG_PASSWORD ->
+            "That password didn't open the archive. Try again."
+        error is FileError.SuspiciousArchive -> "This archive was not opened: ${error.reason}."
+        else -> "The archive couldn't be read. It may be damaged or in a format this app can't open."
+    }
 
 /** Facts shown for an APK; pure so the wording is unit-tested. */
 internal fun apkFacts(apk: ApkInfo): List<AtomicFact> =
