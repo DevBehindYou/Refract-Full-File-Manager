@@ -1,7 +1,5 @@
 package com.devbehindyou.atomicfilemanager.ui.components.preview
 
-import android.widget.MediaController
-import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -16,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.ui.PlayerView
 import com.devbehindyou.atomicfilemanager.AppContainer
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
 import com.devbehindyou.atomicfilemanager.core.designsystem.icons.AtomicIcons
@@ -80,24 +78,15 @@ private fun VideoPlayerView(
     media: PreparedMedia,
     modifier: Modifier = Modifier,
 ) {
-    DisposableEffect(media.filePath) {
-        onDispose {
-            media.cleanup()
-        }
-    }
+    val player = rememberPreviewPlayer(media.filePath, playWhenReady = true, onRelease = media.cleanup)
 
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Media3's own controls: play, pause, seek, and playback speed in its settings menu.
         AndroidView(
             factory = { context ->
-                VideoView(context).apply {
-                    val controller = MediaController(context)
-                    controller.setAnchorView(this)
-                    setMediaController(controller)
-                    setVideoPath(media.filePath)
-                    setOnPreparedListener { player ->
-                        player.isLooping = false
-                        start()
-                    }
+                PlayerView(context).apply {
+                    this.player = player
+                    useController = true
                 }
             },
             modifier = Modifier.fillMaxSize(),
