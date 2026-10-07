@@ -440,6 +440,36 @@ class HiddenFilesRepositoryImpl(
             refresh()
         }
 
+    override suspend fun encryptPrivateItem(item: HiddenItem): Result<HiddenItem> =
+        io {
+            val cipher = vault ?: return@io Result.failure(IllegalStateException("The vault isn't available"))
+            val plain = File(item.currentLocation)
+            when {
+                item.mode != HideMode.PRIVATE_STORAGE ->
+                    return@io Result.failure(IllegalArgumentException("Only Private Storage items can be encrypted"))
+                isVaultFile(item, plain) -> return@io Result.success(item)
+                !plain.exists() -> return@io Result.failure(IllegalStateException("Private file no longer exists"))
+            }
+            val id = UUID.randomUUID().toString()
+            val target = File(plain.parentFile, "$id$VAULT_SUFFIX")
+            FileInputStream(plain)
+                .use { input -> cipher.encrypt(input, target, id.toByteArray()) }
+                .getOrElse { return@io Result.failure(it) }
+            val encrypted = item.copy(id = id, currentLocation = target.absolutePath, size = plain.length())
+            // New record first, then the old one and the plain copy; undo the new one if the plain copy stays.
+            dbHelper.insertHiddenItem(encrypted)
+            dbHelper.deleteHiddenItem(item.id)
+            if (!plain.delete()) {
+                dbHelper.deleteHiddenItem(encrypted.id)
+                dbHelper.insertHiddenItem(item)
+                target.delete()
+                refresh()
+                return@io Result.failure(IllegalStateException("Could not remove the plain copy"))
+            }
+            refresh()
+            Result.success(encrypted)
+        }
+
     /** Encrypts [sourceFile] into the vault; the original is removed only after the vault copy checks out. */
     private fun moveIntoVault(
         cipher: VaultFiles,
