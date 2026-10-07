@@ -36,3 +36,6 @@
 -dontwarn io.airlift.compress.**
 -dontwarn org.objectweb.asm.**
 -dontwarn org.osgi.**
+
+# --- junrar (ALL_IN_ONE_PLAN.md 2.2): logs through slf4j, which has no binding in the app ---
+-dontwarn org.slf4j.**

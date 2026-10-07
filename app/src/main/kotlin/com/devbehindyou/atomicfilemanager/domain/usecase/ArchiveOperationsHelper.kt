@@ -252,6 +252,9 @@ internal object ArchiveOperationsHelper {
             return FileOperationsEngine.ItemResult.Success
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (e is ArchivePasswordRequired) {
+                return FileOperationsEngine.ItemResult.Failure(FileError.UnsupportedFormat(PASSWORD_PROTECTED))
+            }
             return FileOperationsEngine.ItemResult.Failure(FileError.CorruptedArchive(sourceId.raw))
         }
     }

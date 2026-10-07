@@ -1,13 +1,18 @@
 package com.devbehindyou.atomicfilemanager.domain.usecase
 
+import com.github.junrar.Archive
 import org.apache.commons.compress.archivers.ArchiveInputStream
+import org.apache.commons.compress.archivers.sevenz.SevenZFile
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import java.io.BufferedInputStream
 import java.io.Closeable
+import java.io.File
+import java.io.IOException
 import java.io.InputStream
+import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
 
 /** One entry as an archive lists it; [path] is as stored, before any safety check. */
@@ -32,8 +37,10 @@ interface ArchiveStream : Closeable {
 
 /**
  * Archive formats the app opens (ALL_IN_ONE_PLAN.md 2.2). Each kind is read as a stream, so nothing
- * is extracted to look inside. ZIP keeps the platform reader; TAR and the single-file compressors
- * (GZ, BZ2, XZ) come from Apache Commons Compress. A lone compressed file lists as one entry.
+ * is extracted to look inside. ZIP keeps the platform reader; TAR, 7z and the single-file compressors
+ * (GZ, BZ2, XZ) come from Apache Commons Compress, RAR from junrar (read only: its licence forbids
+ * writing RAR). A lone compressed file lists as one entry. 7z needs random access, so it is first
+ * copied to a temporary file that is deleted when the stream closes.
  */
 object ArchiveFormats {
     enum class Kind(vararg val suffixes: String) {
@@ -45,6 +52,8 @@ object ArchiveFormats {
         GZ(".gz"),
         BZ2(".bz2"),
         XZ(".xz"),
+        SEVEN_Z(".7z"),
+        RAR(".rar"),
     }
 
     /** At most this many entries are read: a guard against archives built to exhaust memory. */
@@ -85,12 +94,14 @@ object ArchiveFormats {
             Kind.GZ -> SingleStream(GzipCompressorInputStream(buffered, true), innerName(name, kind), size)
             Kind.BZ2 -> SingleStream(BZip2CompressorInputStream(buffered, true), innerName(name, kind), size)
             Kind.XZ -> SingleStream(XZCompressorInputStream(buffered, true), innerName(name, kind), size)
+            Kind.SEVEN_Z -> SevenZStream.open(buffered)
+            Kind.RAR -> RarStream(Archive(buffered))
         }
     }
 
     private class ZipStream(private val zip: ZipInputStream) : ArchiveStream {
         override fun next(): ArchiveHeader? =
-            zip.nextEntry?.let {
+            passwordAware { zip.nextEntry }?.let {
                 ArchiveHeader(it.name, it.isDirectory, it.size, it.compressedSize, it.time.coerceAtLeast(0L))
             }
 
@@ -98,7 +109,16 @@ object ArchiveFormats {
             buffer: ByteArray,
             offset: Int,
             length: Int,
-        ): Int = zip.read(buffer, offset, length)
+        ): Int = passwordAware { zip.read(buffer, offset, length) }
+
+        /** The platform reader can't decrypt; say so instead of calling the archive damaged. */
+        private inline fun <T> passwordAware(block: () -> T): T =
+            try {
+                block()
+            } catch (e: ZipException) {
+                if (e.message.orEmpty().contains("encrypted", ignoreCase = true)) throw ArchivePasswordRequired()
+                throw e
+            }
 
         override fun close() = zip.close()
     }
@@ -148,6 +168,88 @@ object ArchiveFormats {
         ): Int = input.read(buffer, offset, length)
 
         override fun close() = input.close()
+    }
+}
+
+/** Shown as the "format" of an archive that needs a password the app can't take yet. */
+const val PASSWORD_PROTECTED = "password-protected archive"
+
+/** The archive (or one of its entries) is password-protected, which the app can't open yet. */
+class ArchivePasswordRequired : IOException("This archive is password-protected")
+
+private class SevenZStream(
+    private val file: SevenZFile,
+    private val temp: File,
+) : ArchiveStream {
+    override fun next(): ArchiveHeader? {
+        val entry = file.nextEntry ?: return null
+        return ArchiveHeader(
+            path = entry.name,
+            isDirectory = entry.isDirectory,
+            size = entry.size,
+            compressedSize = -1,
+            modifiedAt = if (entry.hasLastModifiedDate) entry.lastModifiedDate.time else 0L,
+        )
+    }
+
+    override fun read(
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int = file.read(buffer, offset, length)
+
+    override fun close() {
+        try {
+            file.close()
+        } finally {
+            temp.delete()
+        }
+    }
+
+    companion object {
+        fun open(input: InputStream): SevenZStream {
+            val temp = File.createTempFile("atomic-7z-", ".7z")
+            try {
+                temp.outputStream().use { input.copyTo(it) }
+                return SevenZStream(SevenZFile.builder().setFile(temp).get(), temp)
+            } catch (e: IOException) {
+                temp.delete()
+                throw e
+            }
+        }
+    }
+}
+
+private class RarStream(private val archive: Archive) : ArchiveStream {
+    private var current: InputStream? = null
+
+    override fun next(): ArchiveHeader? {
+        current?.close()
+        current = null
+        val header = archive.nextFileHeader() ?: return null
+        if (header.isEncrypted || archive.isEncrypted) throw ArchivePasswordRequired()
+        if (!header.isDirectory) current = archive.getInputStream(header)
+        return ArchiveHeader(
+            path = header.fileName,
+            isDirectory = header.isDirectory,
+            size = header.fullUnpackSize,
+            compressedSize = header.fullPackSize,
+            modifiedAt = header.mTime?.time ?: 0L,
+        )
+    }
+
+    override fun read(
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int = current?.read(buffer, offset, length) ?: -1
+
+    override fun close() {
+        try {
+            current?.close()
+        } finally {
+            archive.close()
+        }
     }
 }
 

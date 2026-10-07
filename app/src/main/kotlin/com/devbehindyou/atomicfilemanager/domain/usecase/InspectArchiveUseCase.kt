@@ -74,6 +74,8 @@ class InspectArchiveUseCase
                         }
                     }
                     FileResult.Success(entries)
+                } catch (_: ArchivePasswordRequired) {
+                    FileResult.Failure(FileError.UnsupportedFormat(PASSWORD_PROTECTED))
                 } catch (e: Exception) {
                     FileResult.Failure(FileError.CorruptedArchive(archiveId.raw))
                 }

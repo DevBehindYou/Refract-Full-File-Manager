@@ -6,6 +6,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.testing.InMemoryBackend
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
+import java.util.Base64
 
 class ArchiveFormatsTest {
     private val backend = InMemoryBackend()
@@ -117,4 +119,63 @@ class ArchiveFormatsTest {
             )
             assertTrue(escapesTarget("a\\..\\..\\b"))
         }
+
+    @Test
+    fun `7z lists and extracts through a temporary copy`() =
+        runTest {
+            val file = java.io.File.createTempFile("fixture", ".7z")
+            SevenZOutputFile(file).use { out ->
+                listOf("photos/a.txt" to "alpha", "b.txt" to "beta").forEach { (path, text) ->
+                    val data = text.toByteArray()
+                    out.putArchiveEntry(
+                        out.createArchiveEntry(java.io.File(path), path).apply { size = data.size.toLong() },
+                    )
+                    out.write(data)
+                    out.closeArchiveEntry()
+                }
+            }
+            val bytes = file.readBytes().also { file.delete() }
+            val tempsBefore = sevenZTemps()
+
+            val id = backend.putFile(backend.rootId, "pack.7z", bytes)
+            val listed = (InspectArchiveUseCase { backend }(id) as FileResult.Success).value
+            assertEquals(listOf("photos/a.txt", "b.txt"), listed.map { it.path })
+            assertEquals(FileOperationsEngine.ItemResult.Success, extract("copy.7z", bytes))
+            assertEquals("alpha", textAt("out", "photos", "a.txt"))
+            assertEquals(tempsBefore, sevenZTemps())
+        }
+
+    @Test
+    fun `a password-protected zip says so instead of claiming damage`() =
+        runTest {
+            val result = extract("locked.zip", Base64.getDecoder().decode(ENCRYPTED_ZIP))
+
+            val error = (result as FileOperationsEngine.ItemResult.Failure).error
+            assertEquals(FileError.UnsupportedFormat(PASSWORD_PROTECTED), error)
+        }
+
+    @Test
+    fun `rar is recognised and a damaged one reports damage`() =
+        runTest {
+            assertEquals(ArchiveFormats.Kind.RAR, ArchiveFormats.kindOf("show.RAR"))
+            assertEquals(ArchiveFormats.Kind.SEVEN_Z, ArchiveFormats.kindOf("backup.7z"))
+
+            val result = extract("broken.rar", "not a rar at all".toByteArray())
+
+            assertTrue((result as FileOperationsEngine.ItemResult.Failure).error is FileError.CorruptedArchive)
+        }
+
+    private fun sevenZTemps(): Set<String> =
+        java.io.File(System.getProperty("java.io.tmpdir")).list()
+            .orEmpty()
+            .filter { it.startsWith("atomic-7z-") }
+            .toSet()
+
+    private companion object {
+        /** `zip -P pw` of one file "s.txt" containing "secret" (traditional ZIP encryption). */
+        const val ENCRYPTED_ZIP =
+            "UEsDBAoACQAAAEhBR13l6KJcEgAAAAYAAAAFABwAcy50eHRVVAkAA2j+xWpo/sVqdXgLAAEEAAAAAAQAAAAAZCKCJO9TsJ9+" +
+                "O6YCATDQhqV6UEsHCOXoolwSAAAABgAAAFBLAQIeAwoACQAAAEhBR13l6KJcEgAAAAYAAAAFABgAAAAAAAEAAACkgQAA" +
+                "AABzLnR4dFVUBQADaP7FanV4CwABBAAAAAAEAAAAAFBLBQYAAAAAAQABAEsAAABhAAAAAAA="
+    }
 }

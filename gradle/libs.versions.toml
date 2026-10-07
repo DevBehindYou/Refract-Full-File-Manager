@@ -32,6 +32,8 @@ kotlinxCoroutines = "1.9.0" # [BEST-EFFORT]
 # Coil 3.3.0 is the newest release built with Kotlin 2.2 (3.4.0 needs 2.3, 3.5+ needs 2.4; this build
 # compiles with 2.2.10). Maven Central, checked 6 Oct 2026. Raise together with the Kotlin version.
 coil = "3.3.0"
+# RAR extract only (its licence forbids creating RAR, ALL_IN_ONE_PLAN.md 2.2). Maven Central, 7 Oct 2026.
+junrar = "8.1.1"
 # Archive formats (ALL_IN_ONE_PLAN.md 2.2), Apache 2.0. XZ is optional in Commons Compress, so it is
 # declared here. Maven Central, checked 6 Oct 2026.
 commonsCompress = "1.28.0"
@@ -89,6 +91,7 @@ androidx-biometric = { group = "androidx.biometric", name = "biometric", version
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidxFragment" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
+junrar = { group = "com.github.junrar", name = "junrar", version.ref = "junrar" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commonsCompress" }
 tukaani-xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
