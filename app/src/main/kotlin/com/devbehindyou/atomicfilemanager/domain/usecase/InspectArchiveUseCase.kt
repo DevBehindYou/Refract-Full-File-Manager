@@ -22,6 +22,8 @@ data class ArchiveEntryInfo(
 class InspectArchiveUseCase
     @Inject
     constructor(
+        /** Random-access copies for 7z; without one, 7z archives can't be listed. */
+        private val spool: SeekableSpool? = null,
         private val backendSelector: (FileNodeId) -> StorageBackend,
     ) {
         suspend operator fun invoke(archiveId: FileNodeId): FileResult<List<ArchiveEntryInfo>> =
@@ -41,7 +43,7 @@ class InspectArchiveUseCase
                 val entries = mutableListOf<ArchiveEntryInfo>()
                 try {
                     inProvider.stream().use { stream ->
-                        ArchiveFormats.open(kind, name, stream, node?.size ?: -1).use { archive ->
+                        ArchiveFormats.open(kind, name, stream, node?.size ?: -1, spool).use { archive ->
                             var header = archive.next()
                             while (header != null) {
                                 if (escapesTarget(header.path)) {
