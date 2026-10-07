@@ -293,6 +293,7 @@ class NetworkStorageTest {
         }
 
     // --- Regression guard: the unimplemented-protocol backends must never fabricate success.
+    // SFTP is real now (SftpBackendTest); SMB stays a stub until smbj lands, so these cover SMB.
     //
     // A previous implementation of SftpBackend/SmbBackend returned Success for writes,
     // directory creation, renames and deletes without ever touching the network:
@@ -306,13 +307,8 @@ class NetworkStorageTest {
         runTest {
             val store = NetworkCredentialsStore(context, cipher)
 
-            for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
-                val parent =
-                    if (backend is SftpBackend) {
-                        FileNodeId.sftp("srv", "/")
-                    } else {
-                        FileNodeId.smb("srv", "/")
-                    }
+            for (backend in listOf(SmbBackend(store))) {
+                val parent = FileNodeId.smb("srv", "/")
 
                 val output = backend.openOutput(parent, "payload.bin", "application/octet-stream")
                 assertTrue(
@@ -337,13 +333,8 @@ class NetworkStorageTest {
         runTest {
             val store = NetworkCredentialsStore(context, cipher)
 
-            for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
-                val target =
-                    if (backend is SftpBackend) {
-                        FileNodeId.sftp("srv", "/doomed.txt")
-                    } else {
-                        FileNodeId.smb("srv", "/doomed.txt")
-                    }
+            for (backend in listOf(SmbBackend(store))) {
+                val target = FileNodeId.smb("srv", "/doomed.txt")
 
                 assertTrue(
                     "${backend.type} delete must not claim to have deleted anything",
@@ -360,7 +351,7 @@ class NetworkStorageTest {
     fun `unimplemented protocol backends advertise no write capabilities`() {
         val store = NetworkCredentialsStore(context, cipher)
 
-        for (backend in listOf(SftpBackend(store), SmbBackend(store))) {
+        for (backend in listOf(SmbBackend(store))) {
             val caps = backend.capabilities
             assertFalse("${backend.type} must not advertise canWrite", caps.canWrite)
             assertFalse("${backend.type} must not advertise canCreate", caps.canCreate)

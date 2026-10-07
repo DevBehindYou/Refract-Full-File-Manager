@@ -43,3 +43,14 @@
 
 # --- junrar (ALL_IN_ONE_PLAN.md 2.2): logs through slf4j, which has no binding in the app ---
 -dontwarn org.slf4j.**
+
+# --- sshj and BouncyCastle (ALL_IN_ONE_PLAN.md 3.1) ---
+# BouncyCastle registers algorithms by class name and sshj builds its factories reflectively,
+# so both are kept whole. sshj logs through slf4j (already -dontwarn above); the rest are optional.
+-keep class org.bouncycastle.** { *; }
+-keep class net.schmizz.sshj.** { *; }
+-keep class com.hierynomus.sshj.** { *; }
+-dontwarn org.bouncycastle.**
+-dontwarn net.i2p.crypto.eddsa.**
+-dontwarn javax.naming.**
+-dontwarn sun.security.x509.**

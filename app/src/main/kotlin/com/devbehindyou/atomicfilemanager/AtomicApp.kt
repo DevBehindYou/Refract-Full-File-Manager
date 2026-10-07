@@ -15,6 +15,7 @@ import com.devbehindyou.atomicfilemanager.data.backend.SafBackend
 import com.devbehindyou.atomicfilemanager.data.backend.StorageBackendSelector
 import com.devbehindyou.atomicfilemanager.data.backend.network.FtpBackend
 import com.devbehindyou.atomicfilemanager.data.backend.network.NetworkCredentialsStore
+import com.devbehindyou.atomicfilemanager.data.backend.network.PrefsKnownHosts
 import com.devbehindyou.atomicfilemanager.data.backend.network.SftpBackend
 import com.devbehindyou.atomicfilemanager.data.backend.network.SmbBackend
 import com.devbehindyou.atomicfilemanager.data.backend.network.WebDavBackend
@@ -249,9 +250,8 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
         WebDavBackend(networkCredentialsStore)
     }
     private val sftpBackend by lazy {
-        SftpBackend(
-            networkCredentialsStore,
-        )
+        // Host keys are pinned per server on first connection (ALL_IN_ONE_PLAN.md 3.1).
+        SftpBackend(networkCredentialsStore, PrefsKnownHosts(application))
     }
     private val smbBackend by lazy { SmbBackend(networkCredentialsStore) }
 
