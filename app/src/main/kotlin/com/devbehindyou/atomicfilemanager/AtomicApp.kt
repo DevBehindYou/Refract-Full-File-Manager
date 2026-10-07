@@ -8,6 +8,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.video.VideoFrameDecoder
+import com.devbehindyou.atomicfilemanager.data.archive.TempFileSpool
 import com.devbehindyou.atomicfilemanager.data.backend.FileSystemBackend
 import com.devbehindyou.atomicfilemanager.data.backend.MediaStoreBackend
 import com.devbehindyou.atomicfilemanager.data.backend.SafBackend
@@ -292,14 +293,18 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val fileOperationsEngine: FileOperationsEngine by lazy {
-        FileOperationsEngine(backendSelector = {
-                id ->
-            storageBackendSelector.forNode(id)
-        }, trashManager = trashManager)
+        FileOperationsEngine(
+            trashManager = trashManager,
+            archiveSpool = archiveSpool,
+            backendSelector = { id -> storageBackendSelector.forNode(id) },
+        )
     }
 
+    // 7z needs random access: archives are copied into the app cache while they are read.
+    private val archiveSpool by lazy { TempFileSpool(application.cacheDir) }
+
     override val inspectArchiveUseCase: InspectArchiveUseCase by lazy {
-        InspectArchiveUseCase { id -> storageBackendSelector.forNode(id) }
+        InspectArchiveUseCase(spool = archiveSpool) { id -> storageBackendSelector.forNode(id) }
     }
 
     override val readFileContentUseCase: ReadFileContentUseCase by lazy {

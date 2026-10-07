@@ -22,6 +22,8 @@ data class ArchiveEntryInfo(
 class InspectArchiveUseCase
     @Inject
     constructor(
+        /** Random-access copies for 7z; without one, 7z archives can't be listed. */
+        private val spool: SeekableSpool? = null,
         private val backendSelector: (FileNodeId) -> StorageBackend,
     ) {
         /** [password] opens an encrypted ZIP; it is used for this call only and not kept. */
@@ -45,7 +47,15 @@ class InspectArchiveUseCase
                 val entries = mutableListOf<ArchiveEntryInfo>()
                 try {
                     inProvider.stream().use { stream ->
-                        ArchiveFormats.open(kind, name, stream, node?.size ?: -1, password).use { archive ->
+                        ArchiveFormats.open(
+                            kind,
+                            name,
+                            stream,
+                            node?.size ?: -1,
+                            password = password,
+                            spool = spool,
+                        ).use {
+                                archive ->
                             var header = archive.next()
                             while (header != null) {
                                 if (escapesTarget(header.path)) {

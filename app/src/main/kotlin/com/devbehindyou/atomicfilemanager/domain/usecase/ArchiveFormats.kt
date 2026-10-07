@@ -10,9 +10,9 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import java.io.BufferedInputStream
 import java.io.Closeable
-import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.nio.channels.SeekableByteChannel
 import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
@@ -44,7 +44,7 @@ interface ArchiveStream : Closeable {
  * is extracted to look inside. ZIP keeps the platform reader; TAR, 7z and the single-file compressors
  * (GZ, BZ2, XZ) come from Apache Commons Compress, RAR from junrar (read only: its licence forbids
  * writing RAR). A lone compressed file lists as one entry. 7z needs random access, so it is first
- * copied to a temporary file that is deleted when the stream closes.
+ * copied through a [SeekableSpool], and the copy is deleted when the stream closes.
  */
 object ArchiveFormats {
     enum class Kind(vararg val suffixes: String) {
@@ -89,6 +89,7 @@ object ArchiveFormats {
         input: InputStream,
         size: Long = -1,
         password: CharArray? = null,
+        spool: SeekableSpool? = null,
     ): ArchiveStream {
         val buffered = BufferedInputStream(input)
         return when (kind) {
@@ -105,7 +106,7 @@ object ArchiveFormats {
             Kind.GZ -> SingleStream(GzipCompressorInputStream(buffered, true), innerName(name, kind), size)
             Kind.BZ2 -> SingleStream(BZip2CompressorInputStream(buffered, true), innerName(name, kind), size)
             Kind.XZ -> SingleStream(XZCompressorInputStream(buffered, true), innerName(name, kind), size)
-            Kind.SEVEN_Z -> SevenZStream.open(buffered)
+            Kind.SEVEN_Z -> SevenZStream.open(buffered, spool)
             Kind.RAR -> RarStream(Archive(buffered))
         }
     }
@@ -242,9 +243,22 @@ private class Zip4jStream(private val zip: Zip4jInputStream) : ArchiveStream {
 /** The archive (or one of its entries) is password-protected, which the app can't open yet. */
 class ArchivePasswordRequired : IOException("This archive is password-protected")
 
+/**
+ * A random-access copy of a stream, for formats that must seek (7z). Implemented in the data layer
+ * (a temporary file in the app cache), so the domain never touches the file system.
+ */
+fun interface SeekableSpool {
+    fun spool(input: InputStream): Spooled
+}
+
+/** The spooled copy; closing it deletes it. */
+interface Spooled : Closeable {
+    val channel: SeekableByteChannel
+}
+
 private class SevenZStream(
     private val file: SevenZFile,
-    private val temp: File,
+    private val spooled: Spooled,
 ) : ArchiveStream {
     override fun next(): ArchiveHeader? {
         val entry = file.nextEntry ?: return null
@@ -267,18 +281,20 @@ private class SevenZStream(
         try {
             file.close()
         } finally {
-            temp.delete()
+            spooled.close()
         }
     }
 
     companion object {
-        fun open(input: InputStream): SevenZStream {
-            val temp = File.createTempFile("atomic-7z-", ".7z")
+        fun open(
+            input: InputStream,
+            spool: SeekableSpool?,
+        ): SevenZStream {
+            val spooled = (spool ?: throw IOException("7z needs a random-access copy")).spool(input)
             try {
-                temp.outputStream().use { input.copyTo(it) }
-                return SevenZStream(SevenZFile.builder().setFile(temp).get(), temp)
+                return SevenZStream(SevenZFile.builder().setSeekableByteChannel(spooled.channel).get(), spooled)
             } catch (e: IOException) {
-                temp.delete()
+                spooled.close()
                 throw e
             }
         }

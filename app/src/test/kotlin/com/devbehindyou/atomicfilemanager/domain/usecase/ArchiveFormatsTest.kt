@@ -1,5 +1,6 @@
 package com.devbehindyou.atomicfilemanager.domain.usecase
 
+import com.devbehindyou.atomicfilemanager.data.archive.TempFileSpool
 import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
@@ -49,7 +50,7 @@ class ArchiveFormatsTest {
     ): FileOperationsEngine.ItemResult {
         val archive = backend.putFile(backend.rootId, name, bytes)
         val target = (backend.createDirectory(backend.rootId, "out") as FileResult.Success).value.id
-        return ArchiveOperationsHelper.extractArchive(archive, target, backend, backend, {}, {})
+        return ArchiveOperationsHelper.extractArchive(archive, target, backend, backend, {}, {}, spool)
     }
 
     private suspend fun textAt(vararg path: String): String {
@@ -142,7 +143,7 @@ class ArchiveFormatsTest {
             val tempsBefore = sevenZTemps()
 
             val id = backend.putFile(backend.rootId, "pack.7z", bytes)
-            val listed = (InspectArchiveUseCase { backend }(id) as FileResult.Success).value
+            val listed = (InspectArchiveUseCase(spool = spool) { backend }(id) as FileResult.Success).value
             assertEquals(listOf("photos/a.txt", "b.txt"), listed.map { it.path })
             assertEquals(FileOperationsEngine.ItemResult.Success, extract("copy.7z", bytes))
             assertEquals("alpha", textAt("out", "photos", "a.txt"))
@@ -218,8 +219,11 @@ class ArchiveFormatsTest {
             assertEquals(listOf("notes.txt"), listed.map { it.path })
         }
 
+    private val spoolDir = java.nio.file.Files.createTempDirectory("spool").toFile()
+    private val spool = TempFileSpool(spoolDir)
+
     private fun sevenZTemps(): Set<String> =
-        java.io.File(System.getProperty("java.io.tmpdir")).list()
+        spoolDir.list()
             .orEmpty()
             .filter { it.startsWith("atomic-7z-") }
             .toSet()

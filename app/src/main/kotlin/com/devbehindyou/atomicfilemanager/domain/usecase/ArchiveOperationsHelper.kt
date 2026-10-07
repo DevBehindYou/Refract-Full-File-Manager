@@ -155,6 +155,7 @@ internal object ArchiveOperationsHelper {
         destBackend: StorageBackend,
         onBytesCopied: (Long) -> Unit,
         emitProgress: suspend (String) -> Unit,
+        spool: SeekableSpool? = null,
     ): FileOperationsEngine.ItemResult {
         val inRes = sourceBackend.openInput(sourceId)
         val inProvider =
@@ -174,7 +175,15 @@ internal object ArchiveOperationsHelper {
 
         try {
             inProvider.stream().use { rawIn ->
-                ArchiveFormats.open(kind, archiveName, rawIn, node?.size ?: -1, password).use { archive ->
+                ArchiveFormats.open(
+                    kind,
+                    archiveName,
+                    rawIn,
+                    node?.size ?: -1,
+                    password = password,
+                    spool = spool,
+                ).use {
+                        archive ->
                     var entry = archive.next()
                     while (entry != null) {
                         if (!coroutineContext.isActive) throw CancellationException()
