@@ -162,6 +162,8 @@ fun StorageScreen(
             )
         }
 
+        LinkedFoldersSection(onBrowseFolder = onBrowseFolder, onNotify = onNotify)
+
         Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
             AtomicSectionLabel("Network")
             if (savedServers.isEmpty()) {
