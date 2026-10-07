@@ -1,7 +1,6 @@
 package com.devbehindyou.atomicfilemanager.ui.components.preview
 
 import android.graphics.Bitmap
-import android.media.MediaPlayer
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,11 +34,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import com.devbehindyou.atomicfilemanager.AppContainer
+import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicChip
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButton
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicIconButtonVariant
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicLoading
@@ -50,6 +53,8 @@ import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import kotlinx.coroutines.delay
+
+private const val SKIP_MS = 10_000L
 
 @Composable
 fun AudioPreviewContent(
@@ -90,46 +95,38 @@ private fun AudioPlayerView(
     media: PreparedMedia,
     modifier: Modifier = Modifier,
 ) {
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    val player = rememberPreviewPlayer(media.filePath, playWhenReady = false, onRelease = media.cleanup)
     var isPlaying by remember { mutableStateOf(false) }
     var currentPositionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(media.metadata.durationMs) }
     var isUserSeeking by remember { mutableStateOf(false) }
     var seekPositionMs by remember { mutableFloatStateOf(0f) }
+    var speed by remember { mutableFloatStateOf(1f) }
 
-    DisposableEffect(media.filePath) {
-        val player =
-            MediaPlayer().apply {
-                setDataSource(media.filePath)
-                prepare()
-                val trackDuration = duration.toLong()
-                if (trackDuration > 0) durationMs = trackDuration
-                setOnCompletionListener {
-                    isPlaying = false
-                    currentPositionMs = 0L
+    DisposableEffect(player) {
+        val listener =
+            object : Player.Listener {
+                override fun onIsPlayingChanged(playing: Boolean) {
+                    isPlaying = playing
+                }
+
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (state == Player.STATE_READY && player.duration != C.TIME_UNSET) durationMs = player.duration
+                    if (state == Player.STATE_ENDED) {
+                        // Back to the start, paused, ready to play again.
+                        player.pause()
+                        player.seekTo(0)
+                        currentPositionMs = 0L
+                    }
                 }
             }
-        mediaPlayer = player
-        onDispose {
-            try {
-                player.stop()
-                player.reset()
-                player.release()
-            } catch (ignored: Exception) {
-                // Ignore player disposal errors
-            }
-            mediaPlayer = null
-            media.cleanup()
-        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
     }
 
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
-            mediaPlayer?.let { player ->
-                if (!isUserSeeking && player.isPlaying) {
-                    currentPositionMs = player.currentPosition.toLong()
-                }
-            }
+            if (!isUserSeeking) currentPositionMs = player.currentPosition
             delay(250)
         }
     }
@@ -157,35 +154,33 @@ private fun AudioPlayerView(
             },
             onSeekFinished = {
                 isUserSeeking = false
-                mediaPlayer?.seekTo(seekPositionMs.toInt())
+                player.seekTo(seekPositionMs.toLong())
                 currentPositionMs = seekPositionMs.toLong()
             },
         )
         Spacer(modifier = Modifier.height(16.dp))
         AudioPlaybackControls(
             isPlaying = isPlaying,
-            onTogglePlayPause = {
-                val player = mediaPlayer ?: return@AudioPlaybackControls
-                if (isPlaying) {
-                    player.pause()
-                    isPlaying = false
-                } else {
-                    player.start()
-                    isPlaying = true
-                }
-            },
+            onTogglePlayPause = { if (player.isPlaying) player.pause() else player.play() },
             onRewind = {
-                mediaPlayer?.let { player ->
-                    player.seekTo((player.currentPosition - 10000).coerceAtLeast(0))
-                    currentPositionMs = player.currentPosition.toLong()
-                }
+                player.seekTo((player.currentPosition - SKIP_MS).coerceAtLeast(0))
+                currentPositionMs = player.currentPosition
             },
             onForward = {
-                mediaPlayer?.let { player ->
-                    player.seekTo((player.currentPosition + 10000).coerceAtMost(player.duration))
-                    currentPositionMs = player.currentPosition.toLong()
-                }
+                val end = if (durationMs > 0) durationMs else Long.MAX_VALUE
+                player.seekTo((player.currentPosition + SKIP_MS).coerceAtMost(end))
+                currentPositionMs = player.currentPosition
             },
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        AtomicChip(
+            label = "Speed ${PlaybackSpeeds.label(speed)}",
+            selected = speed != 1f,
+            onSelectedChange = {
+                speed = PlaybackSpeeds.next(speed)
+                player.setPlaybackSpeed(speed)
+            },
+            modifier = Modifier.testTag("audio_speed"),
         )
     }
 }

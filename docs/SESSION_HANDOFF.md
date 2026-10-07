@@ -306,3 +306,24 @@ Worked as stacked pull requests on top of [#1](https://github.com/DevBehindYou/R
 - **#5 Search index updates:** after a queued copy/move/delete/trash, the folders it touched are re-read one level deep (`refreshFolders`, `foldersTouchedBy`); removed folders drop their whole subtree from the index. Renames and new folders in Files and Trash restores still wait for the next full build.
 
 Phone checks to add: release APK from CI on the phone; an APK in Download; scroll DCIM/Camera for thumbnail jank; copy a file, then search it immediately.
+
+## Update — 6 October 2026 (Phase 2 through parallel PRs into `main`)
+
+Each change went on its own branch from `main` as a pull request, merged once CI (static analysis incl. Android Lint, unit tests + APKs) was green and a local dry-run merge with the other open PRs showed no conflict.
+
+- **#6 Checksums (2.8):** the preview takes an expected MD5/SHA-256 and says match or mismatch (SHA-1/512 lengths recognised as unsupported). With two files selected, Compare says whether the content is identical (size first, then SHA-256). `ChecksumCheck`, `CompareSheet`.
+- **#7 Image viewer (1.5):** `ImageGallery` swipes through the images of the list the preview was opened from (Files both panes, categories); pinch, double-tap 2.5×, pan clamped to the edge; header shows "n of m". Share/open-with hide once another image is shown.
+- **#8 Batch rename (2.1):** selection bar "Rename" with 2+ items. New name, find/replace, before/after, numbering in listing order, case, keep extensions; preview blocks empty, invalid, duplicate and taken names (case-insensitive). Swaps and case-only changes go through short hidden temporary names; failures are put back; Undo in the sheet. Runs directly (like single rename), not through the operation journal.
+- **#9 Text editor (2.3):** Edit chip in the text preview for writable files up to 2 MB. Keeps encoding (UTF-8 ± BOM, UTF-16, Latin-1 byte for byte) and line breaks; binary refused. Save writes a temp file, checks it, then swaps: the previous version goes to Trash where possible, otherwise is set aside and removed after the swap; a failed swap restores the original. Find/next/replace all; unsaved-changes prompt. Markdown files have no Edit yet.
+- **#10 Smart cleanup (2.6):** new cards for screenshots older than 30 days, downloads ≥ 10 MB unchanged for 90 days, and APKs of installed apps (PackageManager via a launcher `<queries>`; no `QUERY_ALL_PACKAGES`). Every card states its reason; only empty folders and temp files start selected; cleanup now moves to **Trash** (was permanent delete). "Not opened in 90 days" uses the modified date because open times aren't recorded.
+- **#11 Tabs (2.4):** up to 4 Browse tabs with per-tab view models (`tabKey`) and their own composition; the strip shows only with 2+ tabs; "New tab" for a single selected folder; opens from Home/Storage go to the active tab; saved as one string (`BrowseTabsState.encode`).
+- **#12 Archive formats (2.2, part):** `ArchiveFormats` over ZIP (platform) and Commons Compress **1.28.0** + `org.tukaani:xz` **1.10** for TAR, TAR.GZ/TGZ, TAR.BZ2, TAR.XZ and single GZ/BZ2/XZ; listing and Extract both use it with the traversal, total-size and new 100k entry-count caps. R8 `-dontwarn` for Compress's optional codecs. **Not done:** 7z (needs random access), AES ZIP (zip4j), RAR extract (junrar), creating TAR/GZ.
+- **#13 App manager (2.7):** Storage → Tools → Apps: search, sort, system apps toggle; per app open, app info, save APK to `Download/Atomic File Manager/Apps`, share, uninstall via the system prompt (`REQUEST_DELETE_PACKAGES`). Split installs save as one `.apks` ZIP.
+
+**Lint lesson:** Android Lint fails the build on `StateFlow.value` read during composition (`StateFlowValueCalledInComposition`); use `collectAsState()`.
+
+**Local checks used:** ktlint 1.0.1 and detekt with `detekt.yml`; a scratch JVM Gradle project compiles `domain/`, `data/operations`, `data/database/room`, `data/search` with their tests (Commons Compress and XZ added). Pure UI rules that live next to composables were tested there by copying the pure part. Nothing from this batch has been checked on a phone.
+
+**Phone checks to add:** swipe through DCIM and zoom; batch-rename a few photos then Undo; swap two names; edit a CRLF text file and confirm the line endings stay; Analysis cards and Undo from the snackbar; open three tabs, rotate, kill the app; extract a `.tar.gz` and a `.log.gz`; Apps: save a split app's `.apks`, uninstall and return.
+
+**Next by the plan:** 2.5 encrypted vault (L, Tink StreamingAead), the rest of 2.2, Media3 audio/video (1.5), benchmark module and baseline profile (0.5), the 0.1 process-kill test. Phases 3–4 still wait on the owner decisions in `ALL_IN_ONE_PLAN.md` §10.
