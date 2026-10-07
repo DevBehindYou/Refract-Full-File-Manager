@@ -25,5 +25,9 @@ interface HiddenFilesRepository {
 
     suspend fun deleteHiddenItem(item: HiddenItem): Result<Unit>
 
+    /** Encrypts a plain Private Storage item stored before the vault; returns the encrypted item. */
+    suspend fun encryptPrivateItem(item: HiddenItem): Result<HiddenItem> =
+        Result.failure(UnsupportedOperationException("The vault isn't available"))
+
     suspend fun recoverUnfinishedOperations()
 }

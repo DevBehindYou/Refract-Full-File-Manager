@@ -9,6 +9,7 @@ import com.devbehindyou.atomicfilemanager.data.vault.VaultFiles
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
+import com.devbehindyou.atomicfilemanager.domain.model.isVaultEncrypted
 import com.devbehindyou.atomicfilemanager.domain.model.originalParent
 import com.google.crypto.tink.KeyTemplates
 import com.google.crypto.tink.KeysetHandle
@@ -132,6 +133,25 @@ class HiddenFilesIntegrationTest {
 
             vaultRepository().restoreFromPrivateStorage(item, item.originalParent()).getOrThrow()
 
+            assertArrayEquals(bytes, file.readBytes())
+        }
+
+    @Test
+    fun plainPrivateItemsCanBeEncryptedLaterAndStillRestore() =
+        runBlocking {
+            val file = temporary.newFile("plain.bin").apply { writeBytes(ByteArray(3_000) { (it % 97).toByte() }) }
+            val bytes = file.readBytes()
+            val plainItem = repository.moveToPrivateStorage(node(file)).getOrThrow()
+            assertFalse(plainItem.isVaultEncrypted)
+            val vaulted = vaultRepository()
+
+            val encrypted = vaulted.encryptPrivateItem(plainItem).getOrThrow()
+
+            assertTrue(encrypted.isVaultEncrypted)
+            assertFalse(File(plainItem.currentLocation).exists())
+            assertFalse(bytes.contentEquals(File(encrypted.currentLocation).readBytes()))
+            assertEquals(listOf(encrypted.id), vaulted.hiddenItems.value.map { it.id })
+            vaulted.restoreFromPrivateStorage(encrypted, encrypted.originalParent()).getOrThrow()
             assertArrayEquals(bytes, file.readBytes())
         }
 

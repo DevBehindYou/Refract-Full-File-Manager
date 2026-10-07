@@ -26,6 +26,10 @@ data class HiddenItem(
     val isAvailable: Boolean = true,
 )
 
+/** A Private Storage item kept encrypted in the vault (ALL_IN_ONE_PLAN.md 2.5), named "<id>.vault". */
+val HiddenItem.isVaultEncrypted: Boolean
+    get() = mode == HideMode.PRIVATE_STORAGE && currentLocation.endsWith("/$id.vault")
+
 /** The folder the item was hidden from. Restoring a private file puts it back here. */
 fun HiddenItem.originalParent(): FileNodeId = FileNodeId.file(originalLocation.substringBeforeLast('/').ifEmpty { "/" })
 

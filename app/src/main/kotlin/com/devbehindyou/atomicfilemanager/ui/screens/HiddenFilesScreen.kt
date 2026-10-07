@@ -44,6 +44,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConf
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSnackbarHost
 import com.devbehindyou.atomicfilemanager.domain.model.HiddenItem
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
+import com.devbehindyou.atomicfilemanager.domain.model.isVaultEncrypted
 import com.devbehindyou.atomicfilemanager.domain.model.originalParent
 import com.devbehindyou.atomicfilemanager.domain.repository.HiddenFilesRepository
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
@@ -174,6 +175,17 @@ fun HiddenFilesScreen(
                             item = item,
                             onRestore = { scope.launch { restoreAndReport(listOf(item)) } },
                             onDelete = { itemToDelete = item },
+                            onEncrypt =
+                                if (item.mode == HideMode.PRIVATE_STORAGE && !item.isVaultEncrypted) {
+                                    {
+                                        scope.launch {
+                                            val done = repository.encryptPrivateItem(item)
+                                            snackbarHostState.showSnackbar(HiddenText.encrypted(item, done.isSuccess))
+                                        }
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
@@ -222,6 +234,7 @@ private fun HiddenItemRow(
     item: HiddenItem,
     onRestore: () -> Unit,
     onDelete: () -> Unit,
+    onEncrypt: (() -> Unit)? = null,
 ) {
     val from = item.originalLocation.substringBeforeLast('/').ifEmpty { "/" }
     AtomicFileRow(
@@ -232,6 +245,10 @@ private fun HiddenItemRow(
         onClick = {},
         trailing = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Items hidden before the vault are still plain; one tap encrypts them in place.
+                if (onEncrypt != null) {
+                    AtomicButton("Encrypt", onClick = onEncrypt, variant = AtomicButtonVariant.Text)
+                }
                 AtomicButton("Restore", onClick = onRestore, variant = AtomicButtonVariant.Text)
                 AtomicIconButton(
                     AtomicIcons.Trash,
@@ -242,4 +259,12 @@ private fun HiddenItemRow(
             }
         },
     )
+}
+
+/** Wording for [HiddenFilesScreen]; pure so it is unit-tested. */
+internal object HiddenText {
+    fun encrypted(
+        item: HiddenItem,
+        ok: Boolean,
+    ): String = if (ok) "“${item.originalName}” is now encrypted" else "“${item.originalName}” couldn't be encrypted"
 }
