@@ -54,3 +54,6 @@
 -dontwarn net.i2p.crypto.eddsa.**
 -dontwarn javax.naming.**
 -dontwarn sun.security.x509.**
+# GSSAPI (Kerberos) auth is never offered; Android has no org.ietf.jgss or JAAS login.
+-dontwarn org.ietf.jgss.**
+-dontwarn javax.security.auth.login.**
