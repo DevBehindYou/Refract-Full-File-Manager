@@ -222,6 +222,7 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
             helper,
             hiddenFolderProvider = { settingsRepository.settings.value.hiddenFolder },
             loadScope = appScope,
+            vault = vaultFiles,
         )
     }
 
