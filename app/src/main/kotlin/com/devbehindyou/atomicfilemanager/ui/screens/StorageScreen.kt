@@ -12,8 +12,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -44,7 +46,10 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicTogg
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicStorageCard
+import com.devbehindyou.atomicfilemanager.data.backend.network.DiscoveredServer
 import com.devbehindyou.atomicfilemanager.data.backend.network.NetworkCredentialsStore
+import com.devbehindyou.atomicfilemanager.data.backend.network.NsdServerDiscovery
+import com.devbehindyou.atomicfilemanager.data.backend.network.ServerDiscovery
 import com.devbehindyou.atomicfilemanager.data.volume.StorageVolumes
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.NetworkProtocol
@@ -54,6 +59,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.StorageVolumeInfo
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 
 /**
@@ -163,6 +169,8 @@ fun StorageScreen(
             )
         }
 
+        LinkedFoldersSection(onBrowseFolder = onBrowseFolder, onNotify = onNotify)
+
         Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
             AtomicSectionLabel("Network")
             if (savedServers.isEmpty()) {
@@ -236,6 +244,8 @@ fun StorageScreen(
     }
 }
 
+private const val SCAN_MS = 15_000L
+
 private fun serverAddress(server: NetworkServerConfig): String {
     val user =
         when {
@@ -287,7 +297,47 @@ private fun AddNetworkServerDialog(
     var anonymous by rememberSaveable { mutableStateOf(false) }
     val portError = if (portText.toIntOrNull()?.let { it in 1..65535 } == false) "Use a port from 1 to 65535." else null
 
+    // Servers that announce themselves on this Wi-Fi (ALL_IN_ONE_PLAN.md 3.2); browsing stops
+    // after a short while, or when the sheet closes.
+    val context = LocalContext.current
+    var found by remember { mutableStateOf(emptyList<DiscoveredServer>()) }
+    var scanning by remember { mutableStateOf(true) }
+    var scanRound by remember { mutableIntStateOf(0) }
+    LaunchedEffect(scanRound) {
+        scanning = true
+        withTimeoutOrNull(SCAN_MS) {
+            NsdServerDiscovery(
+                context.applicationContext,
+            ).discover().collect { found = ServerDiscovery.merge(found, it) }
+        }
+        scanning = false
+    }
+
     AtomicSheet(label = "Add server", onDismiss = onDismiss) {
+        AtomicText("On this network", AtomicTextRole.MonoLabel)
+        if (found.isEmpty()) {
+            AtomicText(
+                if (scanning) "Looking for file servers…" else "No server announced itself. Enter one below.",
+                AtomicTextRole.BodySecondary,
+            )
+        }
+        found.forEach { server ->
+            AtomicSettingsRow(
+                title = server.name,
+                value = "${server.protocol.name} · ${server.host}",
+                onClick = {
+                    selectedProtocol = server.protocol
+                    host = server.host
+                    portText = server.port.toString()
+                    remotePath = server.path
+                    if (name.isBlank()) name = server.name
+                },
+                modifier = Modifier.testTag("discovered_server"),
+            )
+        }
+        if (!scanning) {
+            AtomicButton("Look again", onClick = { scanRound++ }, variant = AtomicButtonVariant.Text)
+        }
         AtomicText("Protocol", AtomicTextRole.MonoLabel)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(AtomicSpacing.s8),
