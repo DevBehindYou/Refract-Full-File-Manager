@@ -162,6 +162,7 @@ fun FileDetailsDialog(
     var copied by remember(node.id) { mutableStateOf(false) }
     AtomicSheet(label = if (node.isDirectory) "Folder info" else "File info", onDismiss = onDismiss) {
         AtomicFactSheet(fileFacts(node))
+        localImageFile(node)?.let { ImageMetadataSection(node, it) }
         AtomicButton(
             if (copied) "Path copied" else "Copy path",
             onClick = {

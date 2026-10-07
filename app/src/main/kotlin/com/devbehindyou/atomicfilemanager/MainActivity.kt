@@ -502,6 +502,38 @@ fun AtomicAppContent(
             PaletteCommand.SETTINGS, PaletteCommand.THEME -> navigateTab(NavigationTab.SETTINGS)
             PaletteCommand.ABOUT -> showAboutDialog = true
         }
+        if (openRequest == MainActivity.OPEN_PALETTE) {
+            showPalette = true
+            onOpenRequestHandled()
+        }
+    }
+
+    fun runCommand(command: PaletteCommand) {
+        showPalette = false
+        // A command starts from the tabs, so Back from what it opens returns there.
+        routeEntries = emptyList()
+        when (command) {
+            PaletteCommand.SEARCH -> push(AtomicRoute.Search)
+            PaletteCommand.FILES -> navigateTab(NavigationTab.BROWSE)
+            PaletteCommand.DOWNLOADS -> openCategory(FileCategory.DOWNLOAD)
+            PaletteCommand.IMAGES -> openCategory(FileCategory.IMAGE)
+            PaletteCommand.VIDEOS -> openCategory(FileCategory.VIDEO)
+            PaletteCommand.AUDIO -> openCategory(FileCategory.AUDIO)
+            PaletteCommand.DOCUMENTS -> openCategory(FileCategory.DOCUMENT)
+            PaletteCommand.ARCHIVES -> openCategory(FileCategory.ARCHIVE)
+            PaletteCommand.APKS -> openCategory(FileCategory.APK)
+            PaletteCommand.STORAGE -> navigateTab(NavigationTab.STORAGE)
+            PaletteCommand.ANALYSIS -> push(AtomicRoute.Analysis(defaultFolderRaw))
+            PaletteCommand.TRASH -> push(AtomicRoute.Trash)
+            PaletteCommand.OPERATIONS -> push(AtomicRoute.Operations)
+            PaletteCommand.APPS -> push(AtomicRoute.Apps)
+            PaletteCommand.PRIVATE -> push(AtomicRoute.PrivateFiles)
+            PaletteCommand.SETTINGS, PaletteCommand.THEME -> navigateTab(NavigationTab.SETTINGS)
+            PaletteCommand.ABOUT -> showAboutDialog = true
+        }
+    }
+    if (showPalette) {
+        CommandPaletteSheet(onRun = ::runCommand, onDismiss = { showPalette = false })
     }
     // Opens asked for from outside: the operation notification, a launcher shortcut, a pinned
     // folder, the storage widget or Ctrl+K.

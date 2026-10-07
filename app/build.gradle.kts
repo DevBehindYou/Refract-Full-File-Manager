@@ -90,6 +90,7 @@ dependencies {
     implementation(libs.tukaani.xz)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.tink.android)
 
     implementation(libs.hilt.android)
