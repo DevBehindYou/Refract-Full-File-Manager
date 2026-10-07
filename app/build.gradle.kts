@@ -86,6 +86,8 @@ dependencies {
     implementation(libs.coil.video)
     implementation(libs.junrar)
     implementation(libs.zip4j)
+    implementation(libs.sshj)
+    implementation(libs.bouncycastle.prov)
     implementation(libs.commons.compress)
     implementation(libs.tukaani.xz)
     implementation(libs.media3.exoplayer)
@@ -109,6 +111,8 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.junit.jupiter.params)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.apache.sshd.core)
+    testImplementation(libs.apache.sshd.sftp)
 
     // The one Robolectric smoke test uses JUnit4 + RobolectricTestRunner deliberately
     // (see PHASE_1_NOTES.md) — the vintage engine bridges it into the same JUnit
