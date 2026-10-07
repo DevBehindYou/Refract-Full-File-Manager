@@ -50,13 +50,14 @@ class RouteStackTest {
                 .push(AtomicRoute.PrivateFiles)
                 .push(AtomicRoute.Operations)
                 .push(AtomicRoute.Apps)
+                .push(AtomicRoute.FolderCompare("file:/storage/emulated/0/DCIM", "sftp:nas:/home/me/Photos"))
 
         assertEquals(stack, RouteStack.decode(stack.encode()))
     }
 
     @Test
     fun `unknown or malformed entries are dropped`() {
-        val decoded = RouteStack.decode(listOf("private", "bogus:1", "category:", "analysis"))
+        val decoded = RouteStack.decode(listOf("private", "bogus:1", "category:", "analysis", "compare:file:/a"))
 
         assertEquals(listOf<AtomicRoute>(AtomicRoute.PrivateFiles), decoded.entries)
         assertNull(AtomicRoute.decode(""))

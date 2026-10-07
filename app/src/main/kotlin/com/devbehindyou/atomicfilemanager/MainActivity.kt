@@ -85,6 +85,7 @@ import com.devbehindyou.atomicfilemanager.domain.model.StorageType
 import com.devbehindyou.atomicfilemanager.domain.model.StorageVolumeInfo
 import com.devbehindyou.atomicfilemanager.domain.model.ThemeMode
 import com.devbehindyou.atomicfilemanager.domain.repository.SettingsRepository
+import com.devbehindyou.atomicfilemanager.domain.usecase.FolderComparer
 import com.devbehindyou.atomicfilemanager.ui.components.ConflictSheet
 import com.devbehindyou.atomicfilemanager.ui.components.RecoverySheet
 import com.devbehindyou.atomicfilemanager.ui.screens.AppManagerScreen
@@ -93,6 +94,7 @@ import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabStrip
 import com.devbehindyou.atomicfilemanager.ui.screens.BrowseTabsState
 import com.devbehindyou.atomicfilemanager.ui.screens.CategoryScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.CommandPaletteSheet
+import com.devbehindyou.atomicfilemanager.ui.screens.FolderCompareScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HiddenFilesScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.HomeScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.OperationsScreen
@@ -556,6 +558,21 @@ fun AtomicAppContent(
             AppManagerScreen(onBack = ::pop, onNotify = ::notify)
             return
         }
+        is AtomicRoute.FolderCompare -> {
+            val comparer = remember { FolderComparer { app.container.storageBackendSelector.forNode(it) } }
+            FolderCompareScreen(
+                left = FileNodeId(route.leftRaw),
+                right = FileNodeId(route.rightRaw),
+                comparer = comparer,
+                onRun = { operations ->
+                    operations.forEach { operationQueue.enqueue(it) }
+                    pop()
+                    notify("Sync started. Follow it in Operations.")
+                },
+                onBack = ::pop,
+            )
+            return
+        }
         AtomicRoute.Trash -> {
             TrashScreen(
                 store = app.container.trashStore,
@@ -673,6 +690,7 @@ fun AtomicAppContent(
                     onOpenOperations = { push(AtomicRoute.Operations) },
                     onOpenTrash = { push(AtomicRoute.Trash) },
                     onOpenApps = { push(AtomicRoute.Apps) },
+                    onCompareFolders = { left, right -> push(AtomicRoute.FolderCompare(left.raw, right.raw)) },
                 ),
         )
     }
@@ -781,6 +799,7 @@ private class ShellCallbacks(
     val onOpenOperations: () -> Unit,
     val onOpenTrash: () -> Unit,
     val onOpenApps: () -> Unit,
+    val onCompareFolders: (FileNodeId, FileNodeId) -> Unit,
 )
 
 @Composable
@@ -833,6 +852,7 @@ private fun MainScreenContent(
                         } else {
                             null
                         },
+                    onCompareFolders = callbacks.onCompareFolders,
                 )
             }
         }
