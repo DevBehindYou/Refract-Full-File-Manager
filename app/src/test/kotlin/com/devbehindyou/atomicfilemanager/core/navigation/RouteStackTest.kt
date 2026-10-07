@@ -51,6 +51,7 @@ class RouteStackTest {
                 .push(AtomicRoute.Operations)
                 .push(AtomicRoute.Apps)
                 .push(AtomicRoute.FolderCompare("file:/storage/emulated/0/DCIM", "sftp:nas:/home/me/Photos"))
+                .push(AtomicRoute.WifiShare)
 
         assertEquals(stack, RouteStack.decode(stack.encode()))
     }

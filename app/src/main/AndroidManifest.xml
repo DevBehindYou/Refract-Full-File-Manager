@@ -73,6 +73,23 @@
                 android:resource="@xml/storage_widget_info" />
         </receiver>
 
+        <!-- Quick Settings tile: opens Wi-Fi share; sharing still needs Start (ALL_IN_ONE_PLAN.md 4.5). -->
+        <service
+            android:name=".ui.shortcuts.WifiShareTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_wifi_share"
+            android:label="@string/tile_wifi_share"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Stop button on the Wi-Fi share notification (ALL_IN_ONE_PLAN.md 3.4). -->
+        <receiver
+            android:name=".data.share.WifiShareStopReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

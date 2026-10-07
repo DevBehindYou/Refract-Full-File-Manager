@@ -105,6 +105,7 @@ import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.TrashScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.TrashText
+import com.devbehindyou.atomicfilemanager.ui.screens.WifiShareScreen
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
 import com.devbehindyou.atomicfilemanager.ui.shortcuts.AppShortcuts
 import com.devbehindyou.atomicfilemanager.ui.shortcuts.OpenTarget
@@ -500,6 +501,7 @@ fun AtomicAppContent(
             PaletteCommand.OPERATIONS -> push(AtomicRoute.Operations)
             PaletteCommand.APPS -> push(AtomicRoute.Apps)
             PaletteCommand.PRIVATE -> push(AtomicRoute.PrivateFiles)
+            PaletteCommand.WIFI_SHARE -> push(AtomicRoute.WifiShare)
             PaletteCommand.SETTINGS, PaletteCommand.THEME -> navigateTab(NavigationTab.SETTINGS)
             PaletteCommand.ABOUT -> showAboutDialog = true
         }
@@ -571,6 +573,10 @@ fun AtomicAppContent(
                 },
                 onBack = ::pop,
             )
+            return
+        }
+        AtomicRoute.WifiShare -> {
+            WifiShareScreen(controller = app.container.wifiShare, onBack = ::pop)
             return
         }
         AtomicRoute.Trash -> {
@@ -691,6 +697,7 @@ fun AtomicAppContent(
                     onOpenTrash = { push(AtomicRoute.Trash) },
                     onOpenApps = { push(AtomicRoute.Apps) },
                     onCompareFolders = { left, right -> push(AtomicRoute.FolderCompare(left.raw, right.raw)) },
+                    onOpenWifiShare = { push(AtomicRoute.WifiShare) },
                 ),
         )
     }
@@ -800,6 +807,7 @@ private class ShellCallbacks(
     val onOpenTrash: () -> Unit,
     val onOpenApps: () -> Unit,
     val onCompareFolders: (FileNodeId, FileNodeId) -> Unit,
+    val onOpenWifiShare: () -> Unit,
 )
 
 @Composable
@@ -865,6 +873,7 @@ private fun MainScreenContent(
                 onOpenOperations = callbacks.onOpenOperations,
                 onOpenTrash = callbacks.onOpenTrash,
                 onOpenApps = callbacks.onOpenApps,
+                onOpenWifiShare = callbacks.onOpenWifiShare,
                 onNotify = callbacks.onNotify,
             )
         }

@@ -70,6 +70,7 @@ fun StorageScreen(
     onOpenOperations: () -> Unit = {},
     onOpenTrash: () -> Unit = {},
     onOpenApps: () -> Unit = {},
+    onOpenWifiShare: () -> Unit = {},
     onNotify: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -147,6 +148,12 @@ fun StorageScreen(
                 value = TrashText.summary(trash),
                 onClick = onOpenTrash,
                 modifier = Modifier.testTag("open_trash"),
+            )
+            AtomicSettingsRow(
+                title = "Wi-Fi share",
+                value = "Send a folder to a computer's browser",
+                onClick = onOpenWifiShare,
+                modifier = Modifier.testTag("open_wifi_share"),
             )
             AtomicSettingsRow(
                 title = "Apps",
