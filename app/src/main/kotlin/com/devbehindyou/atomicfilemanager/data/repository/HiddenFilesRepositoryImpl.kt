@@ -3,6 +3,7 @@ package com.devbehindyou.atomicfilemanager.data.repository
 import android.content.Context
 import com.devbehindyou.atomicfilemanager.data.database.HiddenFilesDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.hide.FastObscureHelper
+import com.devbehindyou.atomicfilemanager.data.vault.VaultFiles
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.HiddenItem
@@ -39,6 +40,11 @@ class HiddenFilesRepositoryImpl(
      * it null and get the old synchronous load.
      */
     loadScope: CoroutineScope? = null,
+    /**
+     * When set, new Private Storage items are encrypted (ALL_IN_ONE_PLAN.md 2.5) and stored as
+     * `<id>.vault`; items stored before stay plain and restore as before.
+     */
+    private val vault: VaultFiles? = null,
 ) : HiddenFilesRepository {
     private val _hiddenItems = MutableStateFlow<List<HiddenItem>>(emptyList())
     override val hiddenItems: StateFlow<List<HiddenItem>> = _hiddenItems.asStateFlow()
@@ -256,6 +262,8 @@ class HiddenFilesRepositoryImpl(
                 privateDir.mkdirs()
             }
 
+            vault?.let { return@io moveIntoVault(it, sourceFile, privateDir) }
+
             val targetFile = File(privateDir, sourceFile.name)
             if (!targetFile.createNewFile()) {
                 return@io Result.failure(
@@ -318,6 +326,11 @@ class HiddenFilesRepositoryImpl(
             val privateFile = File(item.currentLocation)
             if (!privateFile.exists()) {
                 return@io Result.failure(IllegalStateException("Private file no longer exists"))
+            }
+            if (isVaultFile(item, privateFile)) {
+                val cipher =
+                    vault ?: return@io Result.failure(IllegalStateException("The vault isn't available"))
+                return@io restoreFromVault(cipher, item, privateFile, destinationParent)
             }
 
             val destDir =
@@ -427,8 +440,77 @@ class HiddenFilesRepositoryImpl(
             refresh()
         }
 
+    /** Encrypts [sourceFile] into the vault; the original is removed only after the vault copy checks out. */
+    private fun moveIntoVault(
+        cipher: VaultFiles,
+        sourceFile: File,
+        privateDir: File,
+    ): Result<HiddenItem> {
+        val id = UUID.randomUUID().toString()
+        val target = File(privateDir, "$id$VAULT_SUFFIX")
+        val plainSize = sourceFile.length()
+        FileInputStream(sourceFile)
+            .use { input -> cipher.encrypt(input, target, id.toByteArray()) }
+            .getOrElse { return Result.failure(it) }
+        if (!sourceFile.delete()) {
+            target.delete()
+            return Result.failure(IllegalStateException("Could not remove original file"))
+        }
+        val item =
+            HiddenItem(
+                id = id,
+                originalLocation = sourceFile.absolutePath,
+                currentLocation = target.absolutePath,
+                originalName = sourceFile.name,
+                size = plainSize,
+                mode = HideMode.PRIVATE_STORAGE,
+            )
+        dbHelper.insertHiddenItem(item)
+        refresh()
+        return Result.success(item)
+    }
+
+    /** Decrypts back to the original folder; the vault copy goes only once the plain file is complete. */
+    private fun restoreFromVault(
+        cipher: VaultFiles,
+        item: HiddenItem,
+        vaultFile: File,
+        destinationParent: FileNodeId,
+    ): Result<Unit> {
+        val destDir =
+            destinationParent.localFileOrNull()
+                ?: return Result.failure(IllegalArgumentException("Restoration requires a local folder"))
+        destDir.mkdirs()
+        val targetFile = File(destDir, item.originalName)
+        if (!targetFile.createNewFile()) {
+            return Result.failure(IllegalStateException("Destination filename already exists"))
+        }
+        val written =
+            FileOutputStream(targetFile).use { output ->
+                cipher.decrypt(vaultFile, output, item.id.toByteArray()).onSuccess { output.fd.sync() }
+            }
+        if (written.isFailure || written.getOrNull() != item.size) {
+            targetFile.delete()
+            return Result.failure(written.exceptionOrNull() ?: IllegalStateException("Restoration size mismatch"))
+        }
+        if (!vaultFile.delete()) return Result.failure(IllegalStateException("Could not remove the vault copy"))
+        dbHelper.deleteHiddenItem(item.id)
+        refresh()
+        return Result.success(Unit)
+    }
+
+    /** Vault copies are named by their item id, so a plain file the user called "x.vault" is never mistaken for one. */
+    private fun isVaultFile(
+        item: HiddenItem,
+        file: File,
+    ): Boolean = file.name == "${item.id}$VAULT_SUFFIX"
+
     private fun FileNodeId.localFileOrNull(): File? =
         if (prefix == FileNodeId.Prefix.FILE) File(raw.removePrefix(FileNodeId.Prefix.FILE.scheme)) else null
+
+    private companion object {
+        const val VAULT_SUFFIX = ".vault"
+    }
 }
 
 /** `/storage/emulated/0/...` gives `/storage/emulated/0`, `/storage/ABCD-1234/...` gives `/storage/ABCD-1234`. */

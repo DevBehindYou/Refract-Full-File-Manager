@@ -110,6 +110,7 @@ jobs:
           :app:assembleDebug
           :app:assembleRelease
           :app:assembleDebugAndroidTest
+          :benchmark:assembleBenchmark
 
       - name: Upload test reports
         if: always()

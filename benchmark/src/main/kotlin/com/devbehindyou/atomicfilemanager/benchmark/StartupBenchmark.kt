@@ -21,21 +21,21 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class StartupBenchmark {
-
     @get:Rule
     val benchmarkRule = MacrobenchmarkRule()
 
     @Test
-    fun coldStartupNoCompilation() = benchmarkRule.measureRepeated(
-        packageName = TARGET_PACKAGE,
-        metrics = listOf(StartupTimingMetric()),
-        iterations = 5,
-        startupMode = StartupMode.COLD,
-        compilationMode = CompilationMode.None(),
-    ) {
-        pressHome()
-        startActivityAndWait()
-    }
+    fun coldStartupNoCompilation() =
+        benchmarkRule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(StartupTimingMetric()),
+            iterations = 5,
+            startupMode = StartupMode.COLD,
+            compilationMode = CompilationMode.None(),
+        ) {
+            pressHome()
+            startActivityAndWait()
+        }
 
     private companion object {
         const val TARGET_PACKAGE = "com.devbehindyou.atomicfilemanager"

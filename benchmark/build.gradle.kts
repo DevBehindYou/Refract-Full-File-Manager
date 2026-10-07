@@ -1,45 +1,33 @@
-// A macrobenchmark module, deliberately NOT using the atomic.android.application
-// convention plugin — see settings.gradle.kts and PHASE_1_NOTES.md's addendum for why.
-// This is the one module in the project not built on that shared baseline.
+// Macrobenchmarks (ALL_IN_ONE_PLAN.md 0.5, §16.1): cold start and Files scrolling, run against
+// :app's "benchmark" build type on a device or emulator. CI only compiles this module.
 plugins {
-    id("com.android.test")
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.androidx.benchmark)
+    id("atomic.android.test")
 }
 
 android {
     namespace = "com.devbehindyou.atomicfilemanager.benchmark"
-    compileSdk = 36
 
     defaultConfig {
-        minSdk = 27
-        targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Mirrors :app's flavours exactly so Gradle can match variants between this module
-    // and its target (androidx.benchmark's variant-matching needs this on both sides).
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("base") { dimension = "distribution" }
-        create("reporting") { dimension = "distribution" }
+    // Matches :app's "benchmark" build type: release-like (R8, not debuggable) app, debuggable
+    // test APK, both signed with the debug key so they install side by side.
+    buildTypes {
+        create("benchmark") {
+            isDebuggable = true
+            signingConfig = getByName("debug").signingConfig
+            matchingFallbacks += listOf("release")
+        }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    // The androidx.benchmark plugin (applied above) adds a "benchmark" build type
-    // derived from release automatically — non-debuggable, non-minified-by-default,
-    // matching real-world startup conditions. See PHASE_1_NOTES.md for what this
-    // scaffold does and doesn't verify.
     targetProjectPath = ":app"
     experimentalProperties["android.experimental.self-instrumenting"] = true
 }
 
-kotlin {
-    jvmToolchain(17)
+// Only the benchmark variant is useful; skip building debug/release test APKs.
+androidComponents {
+    beforeVariants(selector().all()) { it.enable = it.buildType == "benchmark" }
 }
 
 dependencies {
