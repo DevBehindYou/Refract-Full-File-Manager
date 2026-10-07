@@ -2,6 +2,7 @@ package com.devbehindyou.atomicfilemanager.data.backend.network
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.model.NetworkProtocol
