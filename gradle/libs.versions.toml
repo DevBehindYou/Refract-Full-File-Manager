@@ -38,6 +38,8 @@ junrar = "8.1.1"
 zip4j = "2.11.6"
 # SFTP (ALL_IN_ONE_PLAN.md 3.1), Apache 2.0; brings BouncyCastle 1.84. Maven Central, 7 Oct 2026.
 sshj = "0.41.1"
+# SMB 2/3 (ALL_IN_ONE_PLAN.md 3.1), Apache 2.0; never negotiates SMB1. Maven Central, checked 7 Oct 2026.
+smbj = "0.15.0"
 # Declared directly: SftpBackend installs the full provider, and sshj only lists it at runtime.
 bouncycastle = "1.84"
 # In-process SSH/SFTP server for backend tests only, Apache 2.0.
@@ -107,6 +109,7 @@ coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "c
 junrar = { group = "com.github.junrar", name = "junrar", version.ref = "junrar" }
 zip4j = { group = "net.lingala.zip4j", name = "zip4j", version.ref = "zip4j" }
 sshj = { group = "com.hierynomus", name = "sshj", version.ref = "sshj" }
+smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
 bouncycastle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 apache-sshd-core = { group = "org.apache.sshd", name = "sshd-core", version.ref = "apacheSshd" }
 apache-sshd-sftp = { group = "org.apache.sshd", name = "sshd-sftp", version.ref = "apacheSshd" }

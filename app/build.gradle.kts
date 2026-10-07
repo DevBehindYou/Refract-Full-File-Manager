@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.junrar)
     implementation(libs.zip4j)
     implementation(libs.sshj)
+    implementation(libs.smbj)
     implementation(libs.bouncycastle.prov)
     implementation(libs.commons.compress)
     implementation(libs.tukaani.xz)

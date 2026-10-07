@@ -57,3 +57,11 @@
 # GSSAPI (Kerberos) auth is never offered; Android has no org.ietf.jgss or JAAS login.
 -dontwarn org.ietf.jgss.**
 -dontwarn javax.security.auth.login.**
+
+# --- smbj (ALL_IN_ONE_PLAN.md 3.1) ---
+# smbj dispatches packets to @Handler methods through mbassador, found by reflection, so both
+# are kept whole. Kerberos (SPNEGO) sign-in is never offered; Android has no JAAS Kerberos.
+-keep class com.hierynomus.** { *; }
+-keep class net.engio.mbassy.** { *; }
+-dontwarn javax.el.**
+-dontwarn javax.security.auth.kerberos.**

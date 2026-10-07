@@ -2,7 +2,6 @@ package com.devbehindyou.atomicfilemanager.data.backend.network
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.devbehindyou.atomicfilemanager.domain.model.FileError
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.model.NetworkProtocol
@@ -292,50 +291,32 @@ class NetworkStorageTest {
             assertTrue("Expected failure for unconfigured SMB server", smbResult is FileResult.Failure)
         }
 
-    // --- Regression guard: the unimplemented-protocol backends must never fabricate success.
-    // SFTP is real now (SftpBackendTest); SMB stays a stub until smbj lands, so these cover SMB.
+    // --- Regression guard: a backend must never fabricate success.
     //
-    // A previous implementation of SftpBackend/SmbBackend returned Success for writes,
-    // directory creation, renames and deletes without ever touching the network:
-    // `openOutput` handed back an OutputTarget whose stream discarded every byte and whose
-    // toNode() reported success, and `delete` returned Success having deleted nothing.
-    // These tests fail loudly if that behaviour ever returns. See
-    // UnimplementedProtocolBackend and BUILD_READINESS_NOTES.md §2.
+    // An early SftpBackend/SmbBackend returned Success for writes, directory creation, renames
+    // and deletes without touching the network. Both are real now (SftpBackendTest, SmbPathsTest);
+    // these check that every write against a server that isn't saved still fails.
 
     @Test
-    fun `unimplemented protocol backends never report a successful write`() =
+    fun `network backends never report success for a server that isn't saved`() =
         runTest {
             val store = NetworkCredentialsStore(context, cipher)
-
-            for (backend in listOf(SmbBackend(store))) {
-                val parent = FileNodeId.smb("srv", "/")
-
-                val output = backend.openOutput(parent, "payload.bin", "application/octet-stream")
+            val cases =
+                listOf(
+                    SmbBackend(store) to { path: String -> FileNodeId.smb("srv", path) },
+                    SftpBackend(store) to { path: String -> FileNodeId.sftp("srv", path) },
+                )
+            for ((backend, id) in cases) {
+                val parent = id("/share")
+                val target = id("/share/doomed.txt")
                 assertTrue(
                     "${backend.type} openOutput must fail rather than return a discarding stream",
-                    output is FileResult.Failure,
+                    backend.openOutput(parent, "payload.bin", "application/octet-stream") is FileResult.Failure,
                 )
-                assertTrue(
-                    "${backend.type} should report the protocol as unavailable",
-                    (output as FileResult.Failure).error is FileError.ProviderUnavailable,
-                )
-
-                val created = backend.createDirectory(parent, "new-folder")
                 assertTrue(
                     "${backend.type} createDirectory must not invent a directory",
-                    created is FileResult.Failure,
+                    backend.createDirectory(parent, "new-folder") is FileResult.Failure,
                 )
-            }
-        }
-
-    @Test
-    fun `unimplemented protocol backends never report a successful delete or rename`() =
-        runTest {
-            val store = NetworkCredentialsStore(context, cipher)
-
-            for (backend in listOf(SmbBackend(store))) {
-                val target = FileNodeId.smb("srv", "/doomed.txt")
-
                 assertTrue(
                     "${backend.type} delete must not claim to have deleted anything",
                     backend.delete(target) is FileResult.Failure,
@@ -346,19 +327,4 @@ class NetworkStorageTest {
                 )
             }
         }
-
-    @Test
-    fun `unimplemented protocol backends advertise no write capabilities`() {
-        val store = NetworkCredentialsStore(context, cipher)
-
-        for (backend in listOf(SmbBackend(store))) {
-            val caps = backend.capabilities
-            assertFalse("${backend.type} must not advertise canWrite", caps.canWrite)
-            assertFalse("${backend.type} must not advertise canCreate", caps.canCreate)
-            assertFalse("${backend.type} must not advertise canDelete", caps.canDelete)
-            // VerifiedFileTransfer gates on canRename before staging a transfer, so this
-            // one is what actually stops a copy/move onto these backends up front.
-            assertFalse("${backend.type} must not advertise canRename", caps.canRename)
-        }
-    }
 }
