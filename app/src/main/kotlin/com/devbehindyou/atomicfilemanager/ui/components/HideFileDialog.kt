@@ -46,8 +46,9 @@ fun HideFileDialog(
         AtomicChoiceCard(
             title = "Private Storage",
             description =
-                "Moves the file into the app's private folder, out of reach of other apps. " +
-                    "It is deleted if Atomic File Manager is uninstalled.",
+                "Encrypts the file into the app's private folder, out of reach of other apps. " +
+                    "The key stays on this phone: if the phone is reset or Atomic File Manager is " +
+                    "uninstalled, private files can't be recovered. Restore them first.",
             selected = selectedMode == HideMode.PRIVATE_STORAGE,
             onSelect = { selectedMode = HideMode.PRIVATE_STORAGE },
         )
