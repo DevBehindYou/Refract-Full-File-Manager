@@ -26,4 +26,4 @@ includeBuild("build-logic")
 
 include(":app")
 include(":lint-rules")
-// include(":benchmark")
+include(":benchmark")

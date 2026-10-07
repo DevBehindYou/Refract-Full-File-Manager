@@ -5,10 +5,16 @@ import androidx.test.core.app.ApplicationProvider
 import com.devbehindyou.atomicfilemanager.data.backend.FileSystemBackend
 import com.devbehindyou.atomicfilemanager.data.database.HiddenFilesDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.repository.HiddenFilesRepositoryImpl
+import com.devbehindyou.atomicfilemanager.data.vault.VaultFiles
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.FileResult
 import com.devbehindyou.atomicfilemanager.domain.model.originalParent
+import com.google.crypto.tink.KeyTemplates
+import com.google.crypto.tink.KeysetHandle
+import com.google.crypto.tink.RegistryConfiguration
+import com.google.crypto.tink.StreamingAead
+import com.google.crypto.tink.streamingaead.StreamingAeadConfig
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
@@ -83,6 +89,49 @@ class HiddenFilesIntegrationTest {
             val item = repository.moveToPrivateStorage(node(file)).getOrThrow()
             assertFalse(file.exists())
             repository.restoreFromPrivateStorage(item, FileNodeId.file(temporary.root.absolutePath)).getOrThrow()
+            assertArrayEquals(bytes, file.readBytes())
+        }
+
+    private fun vaultRepository(): HiddenFilesRepositoryImpl {
+        StreamingAeadConfig.register()
+        val aead =
+            KeysetHandle.generateNew(KeyTemplates.get("AES256_GCM_HKDF_1MB"))
+                .getPrimitive(RegistryConfiguration.get(), StreamingAead::class.java)
+        return HiddenFilesRepositoryImpl(
+            ApplicationProvider.getApplicationContext(),
+            database,
+            vault = VaultFiles { aead },
+        )
+    }
+
+    @Test
+    fun privateMoveEncryptsAndRestoresTheSameBytes() =
+        runBlocking {
+            val vaulted = vaultRepository()
+            val file = temporary.newFile("diary.txt").apply { writeBytes(ByteArray(70_000) { (it % 251).toByte() }) }
+            val bytes = file.readBytes()
+
+            val item = vaulted.moveToPrivateStorage(node(file)).getOrThrow()
+
+            assertFalse(file.exists())
+            val stored = File(item.currentLocation)
+            assertTrue(stored.name.endsWith(".vault"))
+            assertFalse(bytes.contentEquals(stored.readBytes()))
+            assertEquals(bytes.size.toLong(), item.size)
+            vaulted.restoreFromPrivateStorage(item, item.originalParent()).getOrThrow()
+            assertArrayEquals(bytes, file.readBytes())
+            assertFalse(stored.exists())
+        }
+
+    @Test
+    fun plainPrivateItemsFromBeforeTheVaultStillRestore() =
+        runBlocking {
+            val file = temporary.newFile("old.bin").apply { writeBytes(ByteArray(512) { it.toByte() }) }
+            val bytes = file.readBytes()
+            val item = repository.moveToPrivateStorage(node(file)).getOrThrow()
+
+            vaultRepository().restoreFromPrivateStorage(item, item.originalParent()).getOrThrow()
+
             assertArrayEquals(bytes, file.readBytes())
         }
 
