@@ -693,11 +693,8 @@ fun AtomicAppContent(
                     onClearScanCache = phoneIndex::invalidate,
                     onNotify = ::notify,
                     onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
-                    onOpenOperations = { push(AtomicRoute.Operations) },
-                    onOpenTrash = { push(AtomicRoute.Trash) },
-                    onOpenApps = { push(AtomicRoute.Apps) },
+                    onOpenRoute = ::push,
                     onCompareFolders = { left, right -> push(AtomicRoute.FolderCompare(left.raw, right.raw)) },
-                    onOpenWifiShare = { push(AtomicRoute.WifiShare) },
                 ),
         )
     }
@@ -803,11 +800,9 @@ private class ShellCallbacks(
     val onClearScanCache: () -> Unit,
     val onNotify: (String) -> Unit,
     val onOpenStorageDetails: () -> Unit,
-    val onOpenOperations: () -> Unit,
-    val onOpenTrash: () -> Unit,
-    val onOpenApps: () -> Unit,
+    /** Opens a pushed screen: Operations, Trash, Apps, Wi-Fi share. */
+    val onOpenRoute: (AtomicRoute) -> Unit,
     val onCompareFolders: (FileNodeId, FileNodeId) -> Unit,
-    val onOpenWifiShare: () -> Unit,
 )
 
 @Composable
@@ -844,7 +839,7 @@ private fun MainScreenContent(
                     onNavigateBack = callbacks.onNavigateBack,
                     openRequest = tab.openRequest,
                     onNotify = callbacks.onNotify,
-                    onOpenOperations = callbacks.onOpenOperations,
+                    onOpenOperations = { callbacks.onOpenRoute(AtomicRoute.Operations) },
                     tabKey = if (tab.id == 0) "" else "tab${tab.id}:",
                     tabStrip = {
                         BrowseTabStrip(
@@ -870,10 +865,10 @@ private fun MainScreenContent(
                 onBrowseVolume = callbacks.onBrowseVolume,
                 onBrowseFolder = callbacks.onFolderSelected,
                 onOpenStorageIntelligence = callbacks.onOpenStorageIntelligence,
-                onOpenOperations = callbacks.onOpenOperations,
-                onOpenTrash = callbacks.onOpenTrash,
-                onOpenApps = callbacks.onOpenApps,
-                onOpenWifiShare = callbacks.onOpenWifiShare,
+                onOpenOperations = { callbacks.onOpenRoute(AtomicRoute.Operations) },
+                onOpenTrash = { callbacks.onOpenRoute(AtomicRoute.Trash) },
+                onOpenApps = { callbacks.onOpenRoute(AtomicRoute.Apps) },
+                onOpenWifiShare = { callbacks.onOpenRoute(AtomicRoute.WifiShare) },
                 onNotify = callbacks.onNotify,
             )
         }
