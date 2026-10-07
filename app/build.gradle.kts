@@ -84,6 +84,7 @@ dependencies {
     // Thumbnails in file lists (ALL_IN_ONE_PLAN.md hotspot H7): images and video frames, memory + disk cache.
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.junrar)
     implementation(libs.commons.compress)
     implementation(libs.tukaani.xz)
     implementation(libs.media3.exoplayer)

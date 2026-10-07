@@ -36,6 +36,8 @@ class FileOperationsEngine
     constructor(
         /** Needed for [OperationType.TRASH] and [OperationType.RESTORE_FROM_TRASH]; both fail without it. */
         private val trashManager: TrashManager? = null,
+        /** Random-access copies for extracting 7z archives. */
+        private val archiveSpool: SeekableSpool? = null,
         // Last, so `FileOperationsEngine { backend }` keeps working.
         private val backendSelector: (FileNodeId) -> StorageBackend,
     ) {
@@ -352,6 +354,7 @@ class FileOperationsEngine
                                             bytesSinceLastSpeedCheck += copied
                                         },
                                         emitProgress = { entryName -> emitProgress(entryName) },
+                                        spool = archiveSpool,
                                     )
 
                                 when (extractResult) {
