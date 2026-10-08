@@ -785,7 +785,7 @@ Walk (once, incremental) ──► search_index (Room + FTS4)
 | Test | What it proves | Status |
 |---|---|---|
 | Fault-injection backends (`FaultInjectingBackendsTest`) | Full disk, corruption, failures mid-copy are handled | Exists; extend to each new operation type |
-| Process-kill tests | Killing the app at each step of a copy, trash or rename loses nothing and offers resume | Missing; required by 0.1 |
+| Process-kill tests | Killing the app at each step of a copy, trash or rename loses nothing and offers resume | Copy covered by `ProcessKillTest` (mid-write, before publish, while replacing, after publish; JVM, simulated kill). A real-device kill run is still to do |
 | Disposable-fixture device tests | Real file round trips on internal and SD | 12 exist; add one per new mutating feature |
 | Monkey / random UI test | No crashes under random taps for 10,000 events | Add to the emulator CI job |
 | Device matrix | API 27, 29, 30, 33, 34, 36; phone, tablet, foldable (`testing/DEVICE_MATRIX.md`) | Only API 34 phone so far |
