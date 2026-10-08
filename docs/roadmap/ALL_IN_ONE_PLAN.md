@@ -722,7 +722,7 @@ Nothing in this section counts as done without a number.
 | H5 | Two separate full storage walks | `PhoneFileIndex` (categories) and `StorageAnalyzerUseCase` (analysis) each walk every folder | One shared index (16.4) | 1.4 |
 | H6 | Storage analysis has no saved result | `StorageAnalyzerUseCase` rescans every time | Save results with a "last scanned" time (FR-7.5); rescan incrementally | 1.4 |
 | H7 | File lists show icons, not thumbnails | `FileListItem` draws `Icon` only | Add Coil 3 thumbnails sized to the row, memory + disk cache, cancelled when scrolled off-screen | 0.5 / 1.5 |
-| H8 | Copy buffer is 64 KB | `FileOperationsEngine.BUFFER_SIZE` | Benchmark 256 KB–1 MB for large files on internal, SD and USB; use `FileChannel.transferTo` for local-to-local copies where the backend allows | 0.1 |
+| H8 | Copy buffer was 64 KB | `FileOperationsEngine.BUFFER_SIZE` | **Done:** 256 KB. `transferTo` rejected: copies hash the source while streaming, and a kernel copy would need a second full source read to verify. On-device timing on SD and USB still to record | 0.1 |
 | H9 | Very large screen files | `BrowseScreen.kt` 1,324 lines, `MainActivity.kt` 640 | Split into smaller composables with stable parameters so a selection change does not recompose the whole screen; navigation routes (0.3) | 0.3 |
 | H10 | Old media APIs | `VideoView`, `MediaPlayer` in previews | Media3 with proper release on lifecycle stop | 1.5 |
 
