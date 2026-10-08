@@ -125,6 +125,35 @@ class HiddenFilesIntegrationTest {
         }
 
     @Test
+    fun exportWritesADecryptedCopyAndKeepsThePrivateOne() =
+        runBlocking {
+            val vaulted = vaultRepository()
+            val file = temporary.newFile("report.pdf").apply { writeBytes(ByteArray(40_000) { (it % 233).toByte() }) }
+            val bytes = file.readBytes()
+            val item = vaulted.moveToPrivateStorage(node(file)).getOrThrow()
+            val out = temporary.newFolder("exported")
+            File(out, "report.pdf").writeText("already here")
+
+            val name = vaulted.exportCopy(item, FileNodeId.file(out.absolutePath)).getOrThrow()
+
+            assertEquals("report (1).pdf", name)
+            assertArrayEquals(bytes, File(out, name).readBytes())
+            assertEquals("already here", File(out, "report.pdf").readText())
+            assertTrue(File(item.currentLocation).exists())
+            assertEquals(listOf(item.id), vaulted.hiddenItems.value.map { it.id })
+        }
+
+    @Test
+    fun exportRefusesGalleryItemsAndLeavesNothingBehind() =
+        runBlocking {
+            val file = temporary.newFile("pic.jpg").apply { writeText("photo") }
+            val item = repository.hideFromGallery(node(file)).getOrThrow()
+            val out = temporary.newFolder("out")
+            assertTrue(repository.exportCopy(item, FileNodeId.file(out.absolutePath)).isFailure)
+            assertTrue(out.listFiles().orEmpty().isEmpty())
+        }
+
+    @Test
     fun plainPrivateItemsFromBeforeTheVaultStillRestore() =
         runBlocking {
             val file = temporary.newFile("old.bin").apply { writeBytes(ByteArray(512) { it.toByte() }) }

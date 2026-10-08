@@ -31,6 +31,9 @@ value class FileNodeId(val raw: String) {
         FTPS("ftps:"),
         SMB("smb:"),
         WEBDAV("webdav:"),
+
+        /** `/Android/data` and `/Android/obb` read through Shizuku (ALL_IN_ONE_PLAN.md 4.3). */
+        SHIZUKU("shizuku:"),
     }
 
     val prefix: Prefix?
@@ -49,6 +52,12 @@ value class FileNodeId(val raw: String) {
         fun file(path: String): FileNodeId {
             require(isAbsolutePath(path)) { "file: path must be absolute, was \"$path\"" }
             return FileNodeId(Prefix.FILE.scheme + path)
+        }
+
+        /** A path under `Android/data` or `Android/obb`, read through Shizuku. */
+        fun shizuku(path: String): FileNodeId {
+            require(isAbsolutePath(path)) { "shizuku: path must be absolute, was \"$path\"" }
+            return FileNodeId(Prefix.SHIZUKU.scheme + path)
         }
 
         fun saf(contentUri: String): FileNodeId {
@@ -124,7 +133,7 @@ value class FileNodeId(val raw: String) {
 
             val valid =
                 when (prefix) {
-                    Prefix.FILE -> isAbsolutePath(body)
+                    Prefix.FILE, Prefix.SHIZUKU -> isAbsolutePath(body)
                     Prefix.SAF ->
                         runCatching { URLDecoder.decode(body, "UTF-8") }
                             .getOrNull()

@@ -65,3 +65,7 @@
 -keep class net.engio.mbassy.** { *; }
 -dontwarn javax.el.**
 -dontwarn javax.security.auth.kerberos.**
+
+# --- Shizuku (ALL_IN_ONE_PLAN.md 4.3) ---
+# Shizuku starts the user service by class name, with its no-argument constructor.
+-keep class com.devbehindyou.atomicfilemanager.data.backend.shizuku.ShizukuFileService { <init>(); }

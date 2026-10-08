@@ -17,7 +17,7 @@ import java.io.OutputStream
  * `java.io.InputStream`/`OutputStream` here are plain JDK types, not `java.io.File` — they
  * don't trip `NoAndroidInDomain` and don't require an Android runtime to use or test against.
  */
-enum class BackendType { FILE, SAF, MEDIASTORE, USB, SFTP, FTP, FTPS, SMB, WEBDAV }
+enum class BackendType { FILE, SAF, MEDIASTORE, USB, SFTP, FTP, FTPS, SMB, WEBDAV, SHIZUKU }
 
 /** Callers must close the returned stream (`use { }` — CODING_RULES.md #20). */
 fun interface InputStreamProvider {
@@ -55,6 +55,8 @@ interface StorageBackend {
                 BackendType.SMB,
                 BackendType.WEBDAV,
                 -> StorageCapabilities.REMOTE_NETWORK
+                // Labs and read-only (ALL_IN_ONE_PLAN.md 4.3): copy out, never write into app folders.
+                BackendType.SHIZUKU -> StorageCapabilities.READ_ONLY
             }
 
     fun canHandle(id: FileNodeId): Boolean

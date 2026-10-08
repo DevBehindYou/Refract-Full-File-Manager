@@ -63,12 +63,17 @@ fun FolderCompareScreen(
     onRun: (List<FileOperation>) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The mode this pair was saved with, when it was. */
+    savedMode: SyncMode? = null,
+    /** Saves the pair with a mode for one-tap re-runs; null hides the button. */
+    onSave: ((SyncMode) -> Unit)? = null,
 ) {
     BackHandler(onBack = onBack)
     var reloads by remember { mutableIntStateOf(0) }
     var result by remember { mutableStateOf<FileResult<List<CompareEntry>>?>(null) }
     var filter by rememberSaveable { mutableStateOf<CompareState?>(null) }
-    var mode by rememberSaveable { mutableStateOf(SyncMode.COPY_NEW) }
+    var mode by rememberSaveable { mutableStateOf(savedMode ?: SyncMode.COPY_NEW) }
+    var savedAs by rememberSaveable { mutableStateOf(savedMode) }
     var reviewing by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(left, right, reloads) {
@@ -152,6 +157,18 @@ fun FolderCompareScreen(
                             onSelectedChange = { mode = option },
                         )
                     }
+                }
+                if (onSave != null) {
+                    AtomicButton(
+                        if (savedAs == mode) "Saved for one-tap sync" else "Save this pair",
+                        onClick = {
+                            onSave(mode)
+                            savedAs = mode
+                        },
+                        enabled = savedAs != mode,
+                        variant = AtomicButtonVariant.Text,
+                        modifier = Modifier.testTag("save_sync_pair"),
+                    )
                 }
                 AtomicButton(
                     "Review sync",

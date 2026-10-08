@@ -50,6 +50,11 @@ android {
         }
     }
 
+    // The Shizuku user service talks over AIDL (ALL_IN_ONE_PLAN.md 4.3).
+    buildFeatures {
+        aidl = true
+    }
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -88,6 +93,8 @@ dependencies {
     implementation(libs.zip4j)
     implementation(libs.sshj)
     implementation(libs.smbj)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.util)
     implementation(libs.bouncycastle.pkix)
