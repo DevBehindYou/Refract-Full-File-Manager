@@ -1,8 +1,8 @@
 package com.devbehindyou.atomicfilemanager.ui.screens
 
-import android.app.Activity
 import android.os.Environment
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.devbehindyou.atomicfilemanager.core.designsystem.Atomic
 import com.devbehindyou.atomicfilemanager.core.designsystem.atoms.AtomicButton
@@ -61,7 +60,7 @@ fun WifiShareScreen(
 
     // Leaving the screen ends the share; nothing keeps serving in the background. A rotation
     // rebuilds the screen without leaving it, so the share carries on through that.
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
     DisposableEffect(controller) {
         onDispose {
             if (activity?.isChangingConfigurations != true) {
