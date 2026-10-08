@@ -116,6 +116,7 @@ fun StorageIntelligenceScreen(
     var scannedFilesCount by remember { mutableIntStateOf(0) }
     var currentCategory by rememberSaveable { mutableStateOf(StorageAnalysisCategory.LARGE_FILES) }
     var analysisResult by remember { mutableStateOf(StorageAnalysisResult()) }
+    var scannedAt by remember { mutableStateOf<Long?>(null) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
     var showConfirmDelete by remember { mutableStateOf(false) }
 
@@ -127,6 +128,7 @@ fun StorageIntelligenceScreen(
                 scannedFilesCount = progress.scannedFilesCount
                 if (progress.isComplete) {
                     analysisResult = progress.result ?: StorageAnalysisResult(isPartial = true)
+                    scannedAt = System.currentTimeMillis()
                     selected = StorageCleanupSelection.initialSelection(analysisResult, currentCategory)
                     isScanning = false
                 }
@@ -134,7 +136,17 @@ fun StorageIntelligenceScreen(
         }
     }
 
-    LaunchedEffect(rootId) { startScan() }
+    LaunchedEffect(rootId) {
+        // A recent result is shown again at once; Rescan walks the storage on request (§16.2 H6).
+        val last = app.container.storageAnalyzerUseCase.lastAnalysis(rootId)
+        if (last == null) {
+            startScan()
+        } else {
+            analysisResult = last.result
+            scannedAt = last.scannedAt
+            selected = StorageCleanupSelection.initialSelection(last.result, currentCategory)
+        }
+    }
 
     val toggle: (FileNode) -> Unit = { node ->
         selected = if (node.id.raw in selected) selected - node.id.raw else selected + node.id.raw
@@ -171,7 +183,9 @@ fun StorageIntelligenceScreen(
                 } else {
                     AtomicStatTile(
                         value = FileUtils.formatBytes(analysisResult.totalPotentialSavingsBytes),
-                        caption = "You could free · ${analysisResult.scannedFilesCount} files scanned",
+                        caption =
+                            "You could free · ${analysisResult.scannedFilesCount} files scanned" +
+                                AnalysisAge.suffix(scannedAt, System.currentTimeMillis()),
                         featured = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -364,4 +378,18 @@ private fun CleanupRow(
                 null
             },
     )
+}
+
+/** "· scanned 4 min ago" under the total; pure so it is unit-tested. */
+internal object AnalysisAge {
+    private const val MINUTE_MILLIS = 60_000L
+
+    fun suffix(
+        scannedAt: Long?,
+        now: Long,
+    ): String {
+        if (scannedAt == null) return ""
+        val minutes = (now - scannedAt).coerceAtLeast(0) / MINUTE_MILLIS
+        return if (minutes < 1) " · scanned just now" else " · scanned $minutes min ago"
+    }
 }

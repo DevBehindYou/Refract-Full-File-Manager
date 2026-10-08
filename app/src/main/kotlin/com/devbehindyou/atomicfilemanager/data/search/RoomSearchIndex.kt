@@ -62,6 +62,15 @@ class RoomSearchIndex(
         return dao.search(pattern, limit).map { it.toHit() }
     }
 
+    override suspend fun files(roots: List<FileNodeId>): List<SearchHit> {
+        if (_state.value.builtAt == null || roots.isEmpty()) return emptyList()
+        val prefixes = roots.map { it.raw.trimEnd('/') }
+        return dao
+            .allFiles()
+            .filter { row -> prefixes.any { row.id == it || row.id.startsWith("$it/") } }
+            .map { it.toHit() }
+    }
+
     override fun refreshIfStale(roots: List<FileNodeId>) {
         val builtAt = _state.value.builtAt
         if (builtAt == null || clock() - builtAt > freshForMillis) rebuild(roots)

@@ -6,6 +6,7 @@ import com.devbehindyou.atomicfilemanager.domain.testing.InMemoryBackend
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -36,6 +37,26 @@ class StorageAnalyzerUseCaseTest {
         target.sync()
         return (target.toNode() as FileResult.Success).value.id
     }
+
+    @Test
+    fun `keeps the last finished analysis for a while`() =
+        runTest {
+            var now = 1_000L
+            val timed =
+                StorageAnalyzerUseCase(
+                    backendSelector = { backend },
+                    readFileContentUseCase = readContent,
+                    clock = { now },
+                )
+            writeBytes(backend.rootId, "a.dat", ByteArray(10))
+            assertNull(timed.lastAnalysis(backend.rootId))
+            timed.analyze(backend.rootId).toList()
+            val last = timed.lastAnalysis(backend.rootId)
+            assertEquals(1, last?.result?.scannedFilesCount)
+            assertEquals(1_000L, last?.scannedAt)
+            now += StorageAnalyzerUseCase.RECENT_MILLIS + 1
+            assertNull(timed.lastAnalysis(backend.rootId))
+        }
 
     @Test
     fun `detects large files exceeding specified threshold`() =
