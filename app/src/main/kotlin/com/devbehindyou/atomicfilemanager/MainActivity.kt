@@ -113,6 +113,7 @@ import com.devbehindyou.atomicfilemanager.ui.screens.WifiShareScreen
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
 import com.devbehindyou.atomicfilemanager.ui.shortcuts.AppShortcuts
 import com.devbehindyou.atomicfilemanager.ui.shortcuts.OpenTarget
+import com.devbehindyou.atomicfilemanager.ui.util.DebugJank
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -166,6 +167,7 @@ class MainActivity : FragmentActivity() {
                 AtomicAppContent(openRequest = openRequest, onOpenRequestHandled = { externalOpen.value = null })
             }
         }
+        DebugJank.track(this)
     }
 
     override fun onNewIntent(intent: Intent) {
