@@ -470,6 +470,57 @@ class HiddenFilesRepositoryImpl(
             Result.success(encrypted)
         }
 
+    override suspend fun exportCopy(
+        item: HiddenItem,
+        destinationParent: FileNodeId,
+    ): Result<String> =
+        io {
+            val source = File(item.currentLocation)
+            when {
+                item.mode != HideMode.PRIVATE_STORAGE ->
+                    return@io Result.failure(IllegalArgumentException("Only Private Storage items can be exported"))
+                !source.exists() -> return@io Result.failure(IllegalStateException("Private file no longer exists"))
+            }
+            val destDir =
+                destinationParent.localFileOrNull()
+                    ?: return@io Result.failure(IllegalArgumentException("Export needs a local folder"))
+            destDir.mkdirs()
+            val target = reserveName(destDir, item.originalName)
+            val written =
+                if (isVaultFile(item, source)) {
+                    val cipher = vault ?: return@io Result.failure(IllegalStateException("The vault isn't available"))
+                    FileOutputStream(target).use { output ->
+                        cipher.decrypt(source, output, item.id.toByteArray()).onSuccess { output.fd.sync() }
+                    }
+                } else {
+                    runCatching {
+                        FileInputStream(source).use {
+                                input ->
+                            FileOutputStream(target).use { input.copyTo(it) }
+                        }
+                    }
+                }
+            // The private copy stays either way; a short or failed export leaves nothing behind.
+            if (written.isFailure || written.getOrNull() != item.size) {
+                target.delete()
+                return@io Result.failure(written.exceptionOrNull() ?: IllegalStateException("Export size mismatch"))
+            }
+            Result.success(target.name)
+        }
+
+    /** Creates an empty file named [name] in [dir], or "name (1).ext" and so on when it is taken. */
+    private fun reserveName(
+        dir: File,
+        name: String,
+    ): File {
+        val dot = name.lastIndexOf('.').takeIf { it > 0 } ?: name.length
+        val base = name.substring(0, dot)
+        val ext = name.substring(dot)
+        return generateSequence(0) { it + 1 }
+            .map { n -> File(dir, if (n == 0) name else "$base ($n)$ext") }
+            .first { it.createNewFile() }
+    }
+
     /** Encrypts [sourceFile] into the vault; the original is removed only after the vault copy checks out. */
     private fun moveIntoVault(
         cipher: VaultFiles,

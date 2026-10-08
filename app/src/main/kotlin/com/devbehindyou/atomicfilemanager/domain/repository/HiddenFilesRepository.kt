@@ -29,5 +29,14 @@ interface HiddenFilesRepository {
     suspend fun encryptPrivateItem(item: HiddenItem): Result<HiddenItem> =
         Result.failure(UnsupportedOperationException("The vault isn't available"))
 
+    /**
+     * Writes a normal copy of a Private Storage item into [destinationParent] and keeps the
+     * private one. Returns the copy's name, which gets " (1)" etc. if the name is taken.
+     */
+    suspend fun exportCopy(
+        item: HiddenItem,
+        destinationParent: FileNodeId,
+    ): Result<String> = Result.failure(UnsupportedOperationException("Export isn't available"))
+
     suspend fun recoverUnfinishedOperations()
 }
