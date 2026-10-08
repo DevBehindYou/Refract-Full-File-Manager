@@ -71,6 +71,8 @@ fun StorageScreen(
     volumes: List<StorageVolumeInfo>,
     onBrowseVolume: (StorageVolumeInfo) -> Unit,
     onBrowseFolder: (FileNodeId) -> Unit = {},
+    /** Opens a saved folder sync (ALL_IN_ONE_PLAN.md 4.1). */
+    onCompareFolders: (FileNodeId, FileNodeId) -> Unit = { _, _ -> },
     onOpenStorageIntelligence: ((FileNodeId) -> Unit)? = null,
     modifier: Modifier = Modifier,
     onOpenOperations: () -> Unit = {},
@@ -163,6 +165,8 @@ fun StorageScreen(
         }
 
         LinkedFoldersSection(onBrowseFolder = onBrowseFolder, onNotify = onNotify)
+
+        SyncPairsSection(onCompareFolders = onCompareFolders)
 
         Column(verticalArrangement = Arrangement.spacedBy(AtomicSpacing.s12)) {
             AtomicSectionLabel("Network")
