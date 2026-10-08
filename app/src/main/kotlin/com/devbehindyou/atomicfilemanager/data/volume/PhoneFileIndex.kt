@@ -26,7 +26,15 @@ class PhoneIndexSnapshot(
  * Enumerates readable shared volumes, including files outside Android's media index.
  * Hidden (dot-prefixed) files and folders are skipped.
  */
-class PhoneFileIndex(private val listDirectory: GetDirectoryListingUseCase) {
+class PhoneFileIndex(
+    private val listDirectory: GetDirectoryListingUseCase,
+    /**
+     * Files already known from the search index (ALL_IN_ONE_PLAN.md §16.2 H5). When it has any,
+     * they are shown at once while the walk confirms them, instead of an empty screen that fills
+     * up over the walk. A manual refresh skips them.
+     */
+    private val known: suspend (List<FileNodeId>) -> List<FileNode> = { emptyList() },
+) {
     private class CacheEntry(
         val roots: List<FileNodeId>,
         val snapshot: PhoneIndexSnapshot,
@@ -52,6 +60,10 @@ class PhoneFileIndex(private val listDirectory: GetDirectoryListingUseCase) {
                 emit(hit.snapshot)
                 return@flow
             }
+            val seeded = if (refresh) emptyList() else known(roots)
+            // A walk's partial results would briefly show fewer files than the seed, so with a seed
+            // only the finished walk replaces it.
+            if (seeded.isNotEmpty()) emit(PhoneIndexSnapshot(seeded))
             val canonicalRoots = roots.mapNotNull { canonicalPathOf(it) }
             val pending = ArrayDeque(roots)
             val visited = HashSet<String>()
@@ -90,7 +102,7 @@ class PhoneFileIndex(private val listDirectory: GetDirectoryListingUseCase) {
                         }
                     }
                 }
-                if (System.nanoTime() - lastUpdate > PARTIAL_EMIT_INTERVAL_NANOS) {
+                if (seeded.isEmpty() && System.nanoTime() - lastUpdate > PARTIAL_EMIT_INTERVAL_NANOS) {
                     emit(PhoneIndexSnapshot(found.values.toList(), unreadable = unreadable))
                     lastUpdate = System.nanoTime()
                 }

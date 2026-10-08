@@ -43,6 +43,9 @@ interface SearchIndexDao {
     @Query("DELETE FROM search_index WHERE generation < :generation")
     suspend fun deleteOlderThan(generation: Long): Int
 
+    @Query("SELECT * FROM search_index WHERE isDirectory = 0")
+    suspend fun allFiles(): List<SearchIndexEntity>
+
     @Query("SELECT COUNT(*) FROM search_index")
     suspend fun count(): Int
 

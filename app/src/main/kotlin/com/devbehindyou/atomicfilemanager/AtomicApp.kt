@@ -47,6 +47,7 @@ import com.devbehindyou.atomicfilemanager.data.vault.VaultFiles
 import com.devbehindyou.atomicfilemanager.data.vault.VaultKeys
 import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
 import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
+import com.devbehindyou.atomicfilemanager.domain.model.toNode
 import com.devbehindyou.atomicfilemanager.domain.repository.BackendType
 import com.devbehindyou.atomicfilemanager.domain.repository.FavouritesRepository
 import com.devbehindyou.atomicfilemanager.domain.repository.FolderSortMemory
@@ -367,7 +368,9 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val phoneFileIndex: PhoneFileIndex by lazy {
-        PhoneFileIndex(getDirectoryListingUseCase)
+        PhoneFileIndex(getDirectoryListingUseCase) { roots ->
+            searchIndex.files(roots).map { it.toNode() }.filterNot { it.isHidden }
+        }
     }
 }
 

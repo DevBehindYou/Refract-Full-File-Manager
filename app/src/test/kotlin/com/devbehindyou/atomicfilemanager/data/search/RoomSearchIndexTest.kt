@@ -63,6 +63,8 @@ class RoomSearchIndexTest {
             return old.size
         }
 
+        override suspend fun allFiles() = rows.values.filterNot { it.isDirectory }
+
         override suspend fun count() = rows.size
     }
 
@@ -199,5 +201,22 @@ class RoomSearchIndexTest {
             backend.putFile(backend.rootId, "a.txt", byteArrayOf(1))
             index().refreshFolders(listOf(backend.rootId))
             assertTrue(dao.rows.isEmpty())
+        }
+
+    @Test
+    fun `files lists indexed files under the given roots once built`() =
+        runTest {
+            val docs = folder(backend.rootId, "Docs")
+            backend.putFile(docs, "a.pdf", byteArrayOf(1))
+            backend.putFile(backend.rootId, "b.txt", byteArrayOf(1))
+            val index = index()
+            assertTrue(index.files(listOf(FileNodeId.file("/mem"))).isEmpty())
+
+            index.build(listOf(backend.rootId))
+
+            // In-memory ids are flat (/mem/0, /mem/1, ...), so their common parent stands in for the volume.
+            val volume = FileNodeId.file("/mem")
+            assertEquals(setOf("a.pdf", "b.txt"), index.files(listOf(volume)).map { it.name }.toSet())
+            assertTrue(index.files(listOf(FileNodeId.file("/elsewhere"))).isEmpty())
         }
 }

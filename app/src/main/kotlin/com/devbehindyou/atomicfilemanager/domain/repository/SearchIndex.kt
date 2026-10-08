@@ -26,4 +26,11 @@ interface SearchIndex {
      * missing ones removed with everything below them. Does nothing before the first full build.
      */
     suspend fun refreshFolders(folders: Collection<FileNodeId>)
+
+    /**
+     * Every file (not folder) indexed under [roots], from the last finished build; empty before
+     * the first one. Lets category screens show results at once instead of waiting for a walk
+     * (ALL_IN_ONE_PLAN.md §16.2 H5).
+     */
+    suspend fun files(roots: List<FileNodeId>): List<SearchHit> = emptyList()
 }

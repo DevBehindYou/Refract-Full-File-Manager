@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.util.ArrayDeque
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.coroutineContext
@@ -30,6 +31,23 @@ class StorageAnalyzerUseCase
         private val isInstalledApk: suspend (FileNode) -> Boolean = { false },
         private val clock: () -> Long = System::currentTimeMillis,
     ) {
+        /** A finished [analyze] run and when it finished. */
+        class LastAnalysis(
+            val result: StorageAnalysisResult,
+            val scannedAt: Long,
+        )
+
+        private val lastRuns = ConcurrentHashMap<FileNodeId, LastAnalysis>()
+
+        /**
+         * The last finished [analyze] of [rootId] if it is younger than [maxAgeMillis], so the screen
+         * can show it at once instead of walking the storage again (ALL_IN_ONE_PLAN.md §16.2 H6).
+         */
+        fun lastAnalysis(
+            rootId: FileNodeId,
+            maxAgeMillis: Long = RECENT_MILLIS,
+        ): LastAnalysis? = lastRuns[rootId]?.takeIf { clock() - it.scannedAt in 0..maxAgeMillis }
+
         fun analyze(
             rootId: FileNodeId,
             largeFileThresholdBytes: Long = 50 * 1024 * 1024L,
@@ -37,6 +55,7 @@ class StorageAnalyzerUseCase
         ): Flow<StorageAnalysisProgress> =
             flow {
                 val result = scan(rootId, largeFileThresholdBytes, maxScanDepth) { emit(it) }
+                lastRuns[rootId] = LastAnalysis(result, clock())
                 emit(
                     StorageAnalysisProgress(
                         category = StorageAnalysisCategory.DUPLICATE_FILES,
@@ -169,5 +188,10 @@ class StorageAnalyzerUseCase
             return lower.endsWith(".tmp") || lower.endsWith(".temp") || lower.endsWith(".log") ||
                 lower.endsWith(".bak") || lower.endsWith("~") || lower.startsWith("thumb_") ||
                 node.id.raw.contains("/.thumbnails/") || node.id.raw.contains("/cache/")
+        }
+
+        companion object {
+            /** How long a finished analysis is shown again without a rescan. */
+            const val RECENT_MILLIS = 10L * 60 * 1000
         }
     }
