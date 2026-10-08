@@ -24,7 +24,7 @@ This uses direct shared-storage access for a file manager. SAF tree grant/revoca
 
 ## Verification
 
-Status updated 15 September 2026: work is paused at the user's request after documenting the session. See [agent handoff](../SESSION_HANDOFF.md) for source changes, environment and resume commands.
+Status updated 15 September 2026: work is paused at the user's request after documenting the session. See [archived agent handoff](../ai-handover/history/2026-09-15-session-handoff.md) for source changes, environment and resume commands.
 
 - `mobile-gates-2.log`: format, detekt, 238 app tests, debug and instrumentation APK assembly passed in 2m 51s (88 tasks).
 - `mobile-device-tests.log`: **12 tests passed**, 10.023s, including three navigation tests plus the existing storage/hiding tests.

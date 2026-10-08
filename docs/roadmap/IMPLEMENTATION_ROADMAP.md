@@ -1,4 +1,4 @@
-> Session checkpoint (15 September 2026): development is paused at the user's request. See [agent handoff](../SESSION_HANDOFF.md) for completed work, pending verification and resume order. No roadmap phase is newly certified by this documentation update.
+> Superseded for planning by [ALL_IN_ONE_PLAN.md](ALL_IN_ONE_PLAN.md); current state in [the AI handover](../ai-handover/INDEX.md).
 
 > Verification status (13 September 2026): roadmap completion labels describe intent or implementation claims, not release certification. The [verification report](../testing/VERIFICATION_REPORT.md) records current evidence and prioritized remaining work.
 

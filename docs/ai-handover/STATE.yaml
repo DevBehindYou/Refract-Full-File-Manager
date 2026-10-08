@@ -1,0 +1,63 @@
+protocol: AI-HANDOVER/V2
+updated: 2026-10-08
+project: atomic-file-manager   # repo DevBehindYou/Refract-Full-File-Manager, launcher name "Refract"
+objective: all-in-one-plan-complete; device verification and remaining §16 optimization
+
+repo:
+  branch: main
+  commit: "e2b1509"
+  dirty: false
+  open_prs: []
+
+stack:
+  - kotlin-2.2.10
+  - jetpack-compose (bom 2026.04.01) + atomic design system
+  - agp-9.1.1 / gradle-9.3.1 / java-21
+  - android minSdk 27, targetSdk 36
+  - room v4 + sqliteopenhelper
+  - manual DI (AppContainer), hilt declared but unused
+
+status:
+  build: VERIFIED          # CI static analysis + unit + R8 release on main
+  unit_tests: VERIFIED     # ~535 JVM/Robolectric tests
+  device_tests: UNKNOWN    # manual emulator job not run since Phases 1-4
+  runtime: UNKNOWN         # no phone run since 2026-09-15
+  release_signing: BROKEN  # debug-signed (ISS-001)
+  plan_phases_0_4: IMPLEMENTED
+  plan_16_optimization: PARTIAL
+
+progress:
+  code: "~99%"
+  remaining: device verification, owner actions, optional §16 items
+
+done:
+  - plan phases 0-4 (PRs #1-#37)
+  - "§16: H1 H2 H3 H7 H8 H10, StrictMode, JankStats, monkey job (#38 #39)"
+  - "§16 partial: H4 H5 H6 H9 (#39 #40 #41)"
+
+pending:
+  P0: [TASK-001 emulator job, TASK-002 baseline profile, TASK-003 network on hardware, TASK-004 usb checklist, TASK-005 real process kill]
+  P1: [TASK-006 play policy (owner), TASK-007 signing (owner)]
+  P2: [TASK-010..TASK-016]
+
+constraints:
+  - one PR per task on claude/<topic>; auto-merge only when CI green and no conflict
+  - no model identifiers in commits or PRs; session trailers on commits
+  - never skip or disable tests; never rewrite shared history
+  - no secrets in repo
+  - plain-language UI (plan §7.4); every mutation through FileOperationsEngine + journal
+
+critical_files:
+  - docs/roadmap/ALL_IN_ONE_PLAN.md
+  - app/src/main/kotlin/com/devbehindyou/atomicfilemanager/AtomicApp.kt
+  - app/src/main/kotlin/com/devbehindyou/atomicfilemanager/MainActivity.kt
+  - app/src/main/kotlin/com/devbehindyou/atomicfilemanager/domain/usecase/FileOperationsEngine.kt
+  - app/src/main/kotlin/com/devbehindyou/atomicfilemanager/data/operations/OperationQueue.kt
+  - .github/workflows/ci.yml
+
+next:
+  - TASK-001 run emulator job
+  - TASK-002 generate baseline profile
+  - TASK-003..005 hardware checks
+
+confidence: HIGH (code/CI), LOW (device behaviour)

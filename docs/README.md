@@ -1,6 +1,6 @@
 # Atomic File Manager — Android File Manager
 
-> **Latest working-tree status (15 September 2026):** read [SESSION_HANDOFF.md](SESSION_HANDOFF.md) before continuing. Work is paused at the user's request. It separates verified changes from pending source and records the exact next steps; product specifications below are not release certification.
+> **Current status (8 October 2026):** read [the AI handover](ai-handover/INDEX.md) before continuing. It separates what CI verified from what still needs a device, and gives the next steps. Product specifications below are not release certification.
 
 > **Read this file first.** It is the master context document for any AI coding agent or
 > engineer working on this project. Every claim here is expanded in a linked document.
