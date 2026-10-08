@@ -60,4 +60,14 @@ class FileActionDialogsTest {
         assertEquals("3", folder["Items"])
         assertNull(folder["Size"])
     }
+
+    @Test
+    fun `removable drives add the FAT name rules`() {
+        assertNull(fileNameError("10:30 meeting"))
+        assertEquals(
+            "USB drives and SD cards can't store \":\" in a name.",
+            fileNameError("10:30 meeting", removable = true),
+        )
+        assertNull(fileNameError("Report", removable = true))
+    }
 }
