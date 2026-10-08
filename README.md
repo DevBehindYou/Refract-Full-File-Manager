@@ -11,7 +11,7 @@ generative-AI tool that can't open or build a Gradle project at all).
 
 ## Current status — 15 September 2026
 
-Start with [the agent handoff](docs/SESSION_HANDOFF.md) for completed changes, exact test scope, environment setup and pending work. **Work is paused at the user's request after documentation updates.**
+Start with [the AI handover](docs/ai-handover/INDEX.md) (protocol AI-HANDOVER/V2) for the current state, verification evidence and pending work.
 
 The app has compiled successfully. Earlier verification passed 238 app tests and 22 custom lint tests, debug/release assembly and Android Lint with zero errors. A later mobile build passed 12 physical-device tests. These passes apply to the versions identified in [the verification report](docs/testing/VERIFICATION_REPORT.md) and [mobile verification](docs/testing/MOBILE_LAYOUT_VERIFICATION.md).
 

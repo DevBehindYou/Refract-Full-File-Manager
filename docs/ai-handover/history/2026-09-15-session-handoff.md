@@ -1,3 +1,5 @@
+> **OBSOLETE (archived 8 October 2026).** This was the 15 September handoff. It describes a paused working tree on a Windows machine before plan Phases 1–4. For the current state, read [`../INDEX.md`](../INDEX.md). Relative links below were written for `docs/` and may not resolve from here.
+
 # Agent handoff — 15 September 2026
 
 Read this before resuming development. This records the current working tree, not a release certification. Preserve all existing edits and untracked source files; do not reset the repository to HEAD. No commit or push was made for this follow-up.

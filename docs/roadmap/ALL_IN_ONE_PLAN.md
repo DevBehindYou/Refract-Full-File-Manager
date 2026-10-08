@@ -353,7 +353,7 @@ Each new feature gets an `AppSettings` field only if the user needs to choose so
 - [ ] Reachable in ≤ 3 taps; no new permanent surface element unless one was removed.
 - [ ] ktlint, detekt, Lint and unit tests green in CI.
 - [ ] Phone check recorded in `testing/VERIFICATION_REPORT.md` with what was and was not verified.
-- [ ] `SESSION_HANDOFF.md` updated.
+- [ ] `ai-handover/` updated (`STATE.yaml`, `CHANGES.md`, `PENDING.md`).
 
 ---
 
