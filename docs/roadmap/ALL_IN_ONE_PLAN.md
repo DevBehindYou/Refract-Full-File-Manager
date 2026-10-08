@@ -723,7 +723,7 @@ Nothing in this section counts as done without a number.
 | H6 | Storage analysis has no saved result | `StorageAnalyzerUseCase` rescans every time | Save results with a "last scanned" time (FR-7.5); rescan incrementally | 1.4 |
 | H7 | File lists show icons, not thumbnails | `FileListItem` draws `Icon` only | Add Coil 3 thumbnails sized to the row, memory + disk cache, cancelled when scrolled off-screen | 0.5 / 1.5 |
 | H8 | Copy buffer is 64 KB | `FileOperationsEngine.BUFFER_SIZE` | Benchmark 256 KB–1 MB for large files on internal, SD and USB; use `FileChannel.transferTo` for local-to-local copies where the backend allows | 0.1 |
-| H9 | Very large screen files | `BrowseScreen.kt` 1,324 lines, `MainActivity.kt` 640 | Split into smaller composables with stable parameters so a selection change does not recompose the whole screen; navigation routes (0.3) | 0.3 |
+| H9 | Very large screen files | `BrowseScreen.kt` had 1,438 lines, `MainActivity.kt` 958 | **Partly done:** `BrowseScreen.kt` split into Screen, Headers, BottomBar, Dialogs and Panes (largest now 528 lines), behaviour unchanged. Recomposition measurement (Layout Inspector counts) and splitting `MainActivity` remain | 0.3 |
 | H10 | Old media APIs | `VideoView`, `MediaPlayer` in previews | Media3 with proper release on lifecycle stop | 1.5 |
 
 Already good, keep it that way: listings stream in chunks of 200 (`ListingChunkSize.kt`); list items have stable keys (`key = { it.id.raw }`); category filtering and sorting run off the main thread; `PhoneIndexSnapshot` avoids structural `equals` on huge lists; images are downsampled with `inSampleSize`; verified copy hashes the source while copying (two passes, not three).
