@@ -73,6 +73,10 @@ android {
 dependencies {
     lintChecks(project(":lint-rules"))
 
+    // Plan 16.1: install baseline profiles without Play, and JankStats for debug phone checks.
+    implementation(libs.androidx.profileinstaller)
+    implementation(libs.androidx.metrics.performance)
+
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)

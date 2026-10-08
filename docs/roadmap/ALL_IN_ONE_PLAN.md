@@ -697,7 +697,7 @@ Nothing in this section counts as done without a number.
 | Macrobenchmark (`benchmark` module, currently disabled) | Cold start, folder scroll jank, search latency | Re-enable in Phase 0.5; run in CI on the emulator job |
 | Baseline Profile (`androidx.profileinstaller` + generated profile) | Precompiles startup and Browse scroll code; typically a large cold-start improvement for Compose apps | Phase 0.5 |
 | `StrictMode` (debug builds only) | Crashes the debug build on disk or network access on the main thread, so regressions are caught immediately | Phase 0.5 |
-| JankStats | Logs slow frames on device during phone checks | Debug builds |
+| JankStats | Logs slow frames on device during phone checks (`adb logcat -s AtomicJank`; `ui/util/DebugJank.kt`) | Debug builds; done |
 | APK size report | Fail CI if the release APK grows more than an agreed amount without a note | CI |
 
 **Budgets** (repeated from 7.5 so they live with the plan):
@@ -718,7 +718,7 @@ Nothing in this section counts as done without a number.
 | H1 | Disk access on the main thread at start-up | `MainActivity.refreshVolumes()` runs from `LaunchedEffect` on the main thread; `StorageVolumes.enumerate` calls `StatFs` and `listFiles` | Run on `Dispatchers.IO`, show cached volumes instantly, update when ready | First sprint |
 | H2 | SQLite reads on the main thread | `TransferBubbleDatabaseHelper` and `HiddenFilesDatabaseHelper` read in repository `init` | Move to IO (0.2), later to Room with `Flow` queries | 0.2 |
 | H3 | No code shrinking | `isMinifyEnabled = false` in release | Enable R8 and resource shrinking with keep rules; re-run all tests on the shrunk build | 0.5 |
-| H4 | No baseline profile | No `profileinstaller` or profile file | Generate with Macrobenchmark; ship in release | 0.5 |
+| H4 | No baseline profile | No `profileinstaller` or profile file | **Partly done:** `profileinstaller` ships (installs the library profiles Compose already bundles) and `BaselineProfileGenerator` exists in `:benchmark`. Generating and committing `app/src/main/baseline-prof.txt` needs an emulator run | 0.5 |
 | H5 | Two separate full storage walks | `PhoneFileIndex` (categories) and `StorageAnalyzerUseCase` (analysis) each walk every folder | **Partly done:** categories show the search index's files at once and the walk only confirms them (no empty screen). Replacing the walk outright waits for MediaStore-generation freshness (16.4), so new camera photos are never missed | 1.4 |
 | H6 | Storage analysis had no saved result | `StorageAnalyzerUseCase` rescanned every time | **Done (in memory):** a result under 10 minutes old is shown again with "scanned N min ago"; Rescan and cleanup walk again. Kept across app restarts and incremental rescans: not done | 1.4 |
 | H7 | File lists show icons, not thumbnails | `FileListItem` draws `Icon` only | Add Coil 3 thumbnails sized to the row, memory + disk cache, cancelled when scrolled off-screen | 0.5 / 1.5 |
@@ -787,7 +787,7 @@ Walk (once, incremental) ──► search_index (Room + FTS4)
 | Fault-injection backends (`FaultInjectingBackendsTest`) | Full disk, corruption, failures mid-copy are handled | Exists; extend to each new operation type |
 | Process-kill tests | Killing the app at each step of a copy, trash or rename loses nothing and offers resume | Copy covered by `ProcessKillTest` (mid-write, before publish, while replacing, after publish; JVM, simulated kill). A real-device kill run is still to do |
 | Disposable-fixture device tests | Real file round trips on internal and SD | 12 exist; add one per new mutating feature |
-| Monkey / random UI test | No crashes under random taps for 10,000 events | Add to the emulator CI job |
+| Monkey / random UI test | No crashes under random taps for 10,000 events | In the manual emulator CI job (release build, seed 42); not yet run |
 | Device matrix | API 27, 29, 30, 33, 34, 36; phone, tablet, foldable (`testing/DEVICE_MATRIX.md`) | Only API 34 phone so far |
 | Large-data test | 100,000 files, a 4 GB file, a 10,000-entry folder | Missing; needed for the budgets in 16.1 |
 

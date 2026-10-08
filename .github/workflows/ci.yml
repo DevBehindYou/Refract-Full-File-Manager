@@ -205,6 +205,10 @@ jobs:
             cat release-launch.log
             if grep -q "FATAL EXCEPTION" release-launch.log; then echo "Release build crashed on launch"; exit 1; fi
             adb shell pidof com.devbehindyou.atomicfilemanager
+            # Plan 16.8: 10,000 random events on the release build; monkey exits non-zero on a
+            # crash or ANR. System keys are off so it stays inside the app.
+            adb shell monkey -p com.devbehindyou.atomicfilemanager --pct-syskeys 0 --throttle 20 -s 42 -v 10000 > monkey.log 2>&1 || { tail -60 monkey.log; echo "Monkey found a crash or ANR"; exit 1; }
+            tail -5 monkey.log
 
       - name: Upload instrumented test reports
         if: always()

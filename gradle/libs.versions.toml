@@ -32,6 +32,8 @@ kotlinxCoroutines = "1.9.0" # [BEST-EFFORT]
 # Coil 3.3.0 is the newest release built with Kotlin 2.2 (3.4.0 needs 2.3, 3.5+ needs 2.4; this build
 # compiles with 2.2.10). Maven Central, checked 6 Oct 2026. Raise together with the Kotlin version.
 coil = "3.3.0"
+profileinstaller = "1.4.1" # Installs the bundled baseline profiles (ours and Compose's) on sideloaded installs
+metricsPerformance = "1.0.0-beta01" # JankStats, debug builds only (plan 16.1)
 # RAR extract only (its licence forbids creating RAR, ALL_IN_ONE_PLAN.md 2.2). Maven Central, 7 Oct 2026.
 junrar = "8.1.1"
 # Encrypted ZIP (ZipCrypto and AES) read, Apache 2.0. Maven Central, 7 Oct 2026.
@@ -110,6 +112,8 @@ androidx-biometric = { group = "androidx.biometric", name = "biometric", version
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidxFragment" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
+androidx-metrics-performance = { group = "androidx.metrics", name = "metrics-performance", version.ref = "metricsPerformance" }
 junrar = { group = "com.github.junrar", name = "junrar", version.ref = "junrar" }
 zip4j = { group = "net.lingala.zip4j", name = "zip4j", version.ref = "zip4j" }
 sshj = { group = "com.hierynomus", name = "sshj", version.ref = "sshj" }
