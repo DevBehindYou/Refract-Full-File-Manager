@@ -208,6 +208,8 @@ fun StorageScreen(
             )
         }
 
+        ShizukuLabsSection(onBrowseFolder = onBrowseFolder)
+
         AtomicText(
             "Android keeps some system partitions private. Free and total space cover shared storage only.",
             AtomicTextRole.BodySecondary,
