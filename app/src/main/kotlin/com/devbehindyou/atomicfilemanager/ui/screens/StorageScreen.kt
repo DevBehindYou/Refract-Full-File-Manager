@@ -205,7 +205,10 @@ fun StorageScreen(
                 leadingIcon = AtomicIcons.Add,
                 modifier = Modifier.fillMaxWidth().testTag("add_network_server_button"),
             )
-            AtomicText("SFTP and SMB are coming soon. FTP, FTPS and WebDAV work today.", AtomicTextRole.MonoMeta)
+            AtomicText(
+                "SFTP, SMB, FTP, FTPS and WebDAV. For SMB, put the share in the path, like /Photos.",
+                AtomicTextRole.MonoMeta,
+            )
         }
 
         AtomicText(
