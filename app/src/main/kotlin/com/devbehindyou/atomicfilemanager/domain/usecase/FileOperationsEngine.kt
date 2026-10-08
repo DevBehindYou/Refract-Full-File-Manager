@@ -42,7 +42,13 @@ class FileOperationsEngine
         private val backendSelector: (FileNodeId) -> StorageBackend,
     ) {
         companion object {
-            const val BUFFER_SIZE = 64 * 1024 // 64 KB bounded streaming buffer
+            /**
+             * Bounded streaming buffer (plan 16.2 H8). 256 KB cuts per-read overhead on SD, USB and
+             * network streams to a quarter of 64 KB while staying small enough to allocate per copy.
+             * `FileChannel.transferTo` is not used: the source is hashed while it is copied, and a
+             * kernel-side copy would force a second full read of the source to verify it.
+             */
+            const val BUFFER_SIZE = 256 * 1024
             const val PROGRESS_THROTTLE_MS = 250L // 4 Hz progress reporting
         }
 

@@ -47,7 +47,10 @@ class ProcessKillTest {
     private val journal = FakeOperationJournal()
     private val executor = Executors.newSingleThreadExecutor()
     private val dispatcher = executor.asCoroutineDispatcher()
-    private val payload = ByteArray(300_000) { (it * 31 % 251).toByte() }
+
+    // Several copy buffers long, so the mid-write kill (at half) lands after progress was recorded,
+    // whatever the buffer size.
+    private val payload = ByteArray(FileOperationsEngine.BUFFER_SIZE * 4 + 1_234) { (it * 31 % 251).toByte() }
 
     @AfterEach
     fun tearDown() = executor.shutdownNow().let { }
