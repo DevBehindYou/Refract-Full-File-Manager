@@ -38,6 +38,7 @@ enum class PaletteCommand(
     OPERATIONS("Operations", "Tools", listOf("copy", "move", "progress", "transfers", "queue")),
     APPS("Apps", "Tools", listOf("app manager", "uninstall", "backup apk")),
     PRIVATE("Private files", "Tools", listOf("hidden", "vault", "secure", "encrypt")),
+    WIFI_SHARE("Wi-Fi share", "Tools", listOf("send to computer", "pc", "browser", "transfer", "wifi")),
     SETTINGS("Settings", "Settings", listOf("preferences", "options")),
     THEME("Theme", "Settings", listOf("dark mode", "light mode", "colours", "colors", "appearance")),
     ABOUT("About Atomic File Manager", "Settings", listOf("version", "privacy")),

@@ -109,6 +109,7 @@ import com.devbehindyou.atomicfilemanager.ui.screens.StorageIntelligenceScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.StorageScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.TrashScreen
 import com.devbehindyou.atomicfilemanager.ui.screens.TrashText
+import com.devbehindyou.atomicfilemanager.ui.screens.WifiShareScreen
 import com.devbehindyou.atomicfilemanager.ui.security.AuthGate
 import com.devbehindyou.atomicfilemanager.ui.shortcuts.AppShortcuts
 import com.devbehindyou.atomicfilemanager.ui.shortcuts.OpenTarget
@@ -526,6 +527,7 @@ fun AtomicAppContent(
             PaletteCommand.OPERATIONS -> push(AtomicRoute.Operations)
             PaletteCommand.APPS -> push(AtomicRoute.Apps)
             PaletteCommand.PRIVATE -> push(AtomicRoute.PrivateFiles)
+            PaletteCommand.WIFI_SHARE -> push(AtomicRoute.WifiShare)
             PaletteCommand.SETTINGS, PaletteCommand.THEME -> navigateTab(NavigationTab.SETTINGS)
             PaletteCommand.ABOUT -> showAboutDialog = true
         }
@@ -600,6 +602,10 @@ fun AtomicAppContent(
                 },
                 onBack = ::pop,
             )
+            return
+        }
+        AtomicRoute.WifiShare -> {
+            WifiShareScreen(controller = app.container.wifiShare, onBack = ::pop)
             return
         }
         AtomicRoute.Trash -> {
@@ -716,9 +722,7 @@ fun AtomicAppContent(
                     onClearScanCache = phoneIndex::invalidate,
                     onNotify = ::notify,
                     onOpenStorageDetails = { navigateTab(NavigationTab.STORAGE) },
-                    onOpenOperations = { push(AtomicRoute.Operations) },
-                    onOpenTrash = { push(AtomicRoute.Trash) },
-                    onOpenApps = { push(AtomicRoute.Apps) },
+                    onOpenRoute = ::push,
                     onCompareFolders = { left, right -> push(AtomicRoute.FolderCompare(left.raw, right.raw)) },
                 ),
         )
@@ -825,9 +829,8 @@ private class ShellCallbacks(
     val onClearScanCache: () -> Unit,
     val onNotify: (String) -> Unit,
     val onOpenStorageDetails: () -> Unit,
-    val onOpenOperations: () -> Unit,
-    val onOpenTrash: () -> Unit,
-    val onOpenApps: () -> Unit,
+    /** Opens a pushed screen: Operations, Trash, Apps, Wi-Fi share. */
+    val onOpenRoute: (AtomicRoute) -> Unit,
     val onCompareFolders: (FileNodeId, FileNodeId) -> Unit,
 )
 
@@ -865,7 +868,7 @@ private fun MainScreenContent(
                     onNavigateBack = callbacks.onNavigateBack,
                     openRequest = tab.openRequest,
                     onNotify = callbacks.onNotify,
-                    onOpenOperations = callbacks.onOpenOperations,
+                    onOpenOperations = { callbacks.onOpenRoute(AtomicRoute.Operations) },
                     tabKey = if (tab.id == 0) "" else "tab${tab.id}:",
                     tabStrip = {
                         BrowseTabStrip(
@@ -892,9 +895,10 @@ private fun MainScreenContent(
                 onBrowseFolder = callbacks.onFolderSelected,
                 onCompareFolders = callbacks.onCompareFolders,
                 onOpenStorageIntelligence = callbacks.onOpenStorageIntelligence,
-                onOpenOperations = callbacks.onOpenOperations,
-                onOpenTrash = callbacks.onOpenTrash,
-                onOpenApps = callbacks.onOpenApps,
+                onOpenOperations = { callbacks.onOpenRoute(AtomicRoute.Operations) },
+                onOpenTrash = { callbacks.onOpenRoute(AtomicRoute.Trash) },
+                onOpenApps = { callbacks.onOpenRoute(AtomicRoute.Apps) },
+                onOpenWifiShare = { callbacks.onOpenRoute(AtomicRoute.WifiShare) },
                 onNotify = callbacks.onNotify,
             )
         }

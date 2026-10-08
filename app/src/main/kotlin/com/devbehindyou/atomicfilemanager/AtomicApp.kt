@@ -42,6 +42,7 @@ import com.devbehindyou.atomicfilemanager.data.repository.TransferBubbleReposito
 import com.devbehindyou.atomicfilemanager.data.repository.volumeRootOf
 import com.devbehindyou.atomicfilemanager.data.search.RoomSearchIndex
 import com.devbehindyou.atomicfilemanager.data.search.foldersTouchedBy
+import com.devbehindyou.atomicfilemanager.data.share.WifiShareController
 import com.devbehindyou.atomicfilemanager.data.vault.VaultFiles
 import com.devbehindyou.atomicfilemanager.data.vault.VaultKeys
 import com.devbehindyou.atomicfilemanager.data.volume.PhoneFileIndex
@@ -121,6 +122,9 @@ interface AppContainer {
     /** Starred files and folders, and recently opened files (ALL_IN_ONE_PLAN.md 1.2). */
     val favouritesRepository: FavouritesRepository
 
+    /** The guarded Wi-Fi share (ALL_IN_ONE_PLAN.md 3.4); one at a time. */
+    val wifiShare: WifiShareController
+
     /** Labs: Android/data through Shizuku (ALL_IN_ONE_PLAN.md 4.3); off unless turned on. */
     val shizukuAccess: ShizukuAccess
     val recentsRepository: RecentsRepository
@@ -193,6 +197,8 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
 
     override val favouritesRepository: FavouritesRepository by lazy { RoomFavouritesRepository(database.favourites()) }
+
+    override val wifiShare: WifiShareController by lazy { WifiShareController(application) }
 
     override val recentsRepository: RecentsRepository by lazy {
         val media = RecentMediaSource(application)

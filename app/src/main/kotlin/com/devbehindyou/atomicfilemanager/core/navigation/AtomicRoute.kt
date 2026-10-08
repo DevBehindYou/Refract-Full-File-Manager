@@ -32,6 +32,11 @@ sealed interface AtomicRoute {
         override fun encode() = APPS
     }
 
+    /** The guarded Wi-Fi share (ALL_IN_ONE_PLAN.md 3.4). */
+    data object WifiShare : AtomicRoute {
+        override fun encode() = WIFI_SHARE
+    }
+
     /** A category collection; [collection] is a `FileCollection` name. */
     data class Category(
         val collection: String,
@@ -60,6 +65,7 @@ sealed interface AtomicRoute {
         private const val TRASH = "trash"
         private const val SEARCH = "search"
         private const val APPS = "apps"
+        private const val WIFI_SHARE = "wifi-share"
         private const val CATEGORY = "category"
         private const val ANALYSIS = "analysis"
         private const val COMPARE = "compare"
@@ -75,6 +81,7 @@ sealed interface AtomicRoute {
             if (value == TRASH) return Trash
             if (value == SEARCH) return Search
             if (value == APPS) return Apps
+            if (value == WIFI_SHARE) return WifiShare
             val kind = value.substringBefore(SEPARATOR, missingDelimiterValue = "")
             val argument = value.substringAfter(SEPARATOR, missingDelimiterValue = "")
             if (argument.isEmpty()) return null
