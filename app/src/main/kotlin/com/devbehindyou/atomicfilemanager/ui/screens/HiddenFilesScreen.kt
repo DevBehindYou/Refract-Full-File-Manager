@@ -1,5 +1,6 @@
 package com.devbehindyou.atomicfilemanager.ui.screens
 
+import android.os.Environment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +43,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicSect
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicWarningBox
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicConfirmSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSnackbarHost
+import com.devbehindyou.atomicfilemanager.domain.model.FileNodeId
 import com.devbehindyou.atomicfilemanager.domain.model.HiddenItem
 import com.devbehindyou.atomicfilemanager.domain.model.HideMode
 import com.devbehindyou.atomicfilemanager.domain.model.isVaultEncrypted
@@ -50,6 +52,7 @@ import com.devbehindyou.atomicfilemanager.domain.repository.HiddenFilesRepositor
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.io.File
 
 private val HideMode.tabLabel: String
     get() =
@@ -186,16 +189,22 @@ fun HiddenFilesScreen(
                                 } else {
                                     null
                                 },
+                            onExport =
+                                if (item.isVaultEncrypted) {
+                                    {
+                                        scope.launch {
+                                            val saved = repository.exportCopy(item, HiddenText.exportFolder())
+                                            snackbarHostState.showSnackbar(HiddenText.exported(item, saved.getOrNull()))
+                                        }
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
                 item {
-                    AtomicWarningBox(
-                        title = "Not encryption",
-                        body =
-                            "Hiding keeps files out of other apps' sight. " +
-                                "The encrypted Vault comes in a later update.",
-                    )
+                    AtomicWarningBox(title = HiddenText.boxTitle(mode), body = HiddenText.boxBody(mode))
                 }
             }
         }
@@ -235,6 +244,7 @@ private fun HiddenItemRow(
     onRestore: () -> Unit,
     onDelete: () -> Unit,
     onEncrypt: (() -> Unit)? = null,
+    onExport: (() -> Unit)? = null,
 ) {
     val from = item.originalLocation.substringBeforeLast('/').ifEmpty { "/" }
     AtomicFileRow(
@@ -248,6 +258,10 @@ private fun HiddenItemRow(
                 // Items hidden before the vault are still plain; one tap encrypts them in place.
                 if (onEncrypt != null) {
                     AtomicButton("Encrypt", onClick = onEncrypt, variant = AtomicButtonVariant.Text)
+                }
+                // Encrypted items: a normal copy in Download, the private one stays.
+                if (onExport != null) {
+                    AtomicButton("Export", onClick = onExport, variant = AtomicButtonVariant.Text)
                 }
                 AtomicButton("Restore", onClick = onRestore, variant = AtomicButtonVariant.Text)
                 AtomicIconButton(
@@ -267,4 +281,35 @@ internal object HiddenText {
         item: HiddenItem,
         ok: Boolean,
     ): String = if (ok) "“${item.originalName}” is now encrypted" else "“${item.originalName}” couldn't be encrypted"
+
+    fun exported(
+        item: HiddenItem,
+        savedName: String?,
+    ): String =
+        if (savedName != null) {
+            "Saved a copy to $EXPORT_PATH/$savedName"
+        } else {
+            "“${item.originalName}” couldn't be exported"
+        }
+
+    fun boxTitle(mode: HideMode): String =
+        if (mode == HideMode.PRIVATE_STORAGE) "Encrypted on this phone" else "Not encryption"
+
+    fun boxBody(mode: HideMode): String =
+        if (mode == HideMode.PRIVATE_STORAGE) {
+            "New private files are encrypted with a key kept in Android's keystore. Restore puts a file back; " +
+                "Export saves a normal copy to Download and keeps the private one."
+        } else {
+            "Hiding keeps files out of other apps' sight but doesn't encrypt them. Private files are encrypted."
+        }
+
+    const val EXPORT_PATH = "Download/Atomic File Manager/Exported"
+
+    fun exportFolder(): FileNodeId =
+        FileNodeId.file(
+            File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                "Atomic File Manager/Exported",
+            ).absolutePath,
+        )
 }
