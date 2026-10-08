@@ -21,6 +21,7 @@ import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFact
 import com.devbehindyou.atomicfilemanager.core.designsystem.molecules.AtomicFactSheet
 import com.devbehindyou.atomicfilemanager.core.designsystem.organisms.AtomicSheet
 import com.devbehindyou.atomicfilemanager.domain.model.FileNode
+import com.devbehindyou.atomicfilemanager.domain.model.RemovableNames
 import com.devbehindyou.atomicfilemanager.ui.shortcuts.AppShortcuts
 import com.devbehindyou.atomicfilemanager.ui.util.FileUtils
 import java.util.Locale
@@ -31,7 +32,10 @@ private const val MAX_NAME_BYTES = 255
  * Checks a file or folder name before it reaches the backend. Returns null when the name is
  * usable, otherwise one sentence that says how to fix it (spec §11: errors say what to do).
  */
-fun fileNameError(name: String): String? {
+fun fileNameError(
+    name: String,
+    removable: Boolean = false,
+): String? {
     val trimmed = name.trim()
     return when {
         trimmed.isEmpty() -> "Enter a name."
@@ -39,6 +43,7 @@ fun fileNameError(name: String): String? {
         trimmed.contains('\u0000') -> "A name can't contain hidden control characters."
         trimmed == "." || trimmed == ".." -> "\"$trimmed\" is reserved. Choose another name."
         trimmed.toByteArray(Charsets.UTF_8).size > MAX_NAME_BYTES -> "That name is too long. Shorten it."
+        removable -> RemovableNames.problem(trimmed)
         else -> null
     }
 }
@@ -49,10 +54,12 @@ fun NewFolderDialog(
     onDismiss: () -> Unit,
     onConfirm: (name: String) -> Unit,
     parentName: String? = null,
+    /** The folder is on a USB drive or SD card, so FAT/exFAT name rules apply. */
+    removable: Boolean = false,
 ) {
     var folderName by rememberSaveable { mutableStateOf("") }
     var touched by rememberSaveable { mutableStateOf(false) }
-    val error = fileNameError(folderName)
+    val error = fileNameError(folderName, removable)
 
     AtomicSheet(label = if (parentName != null) "New folder in /$parentName" else "New folder", onDismiss = onDismiss) {
         AtomicTextField(
@@ -86,9 +93,11 @@ fun RenameDialog(
     initialName: String,
     onDismiss: () -> Unit,
     onConfirm: (newName: String) -> Unit,
+    /** The file is on a USB drive or SD card, so FAT/exFAT name rules apply. */
+    removable: Boolean = false,
 ) {
     var name by rememberSaveable { mutableStateOf(initialName) }
-    val error = fileNameError(name)
+    val error = fileNameError(name, removable)
     val unchanged = name.trim() == initialName
 
     AtomicSheet(label = "Rename", onDismiss = onDismiss) {

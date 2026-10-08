@@ -73,6 +73,25 @@ class ExceptionMappingTest {
     }
 
     @Test
+    fun `a drive removed mid-operation maps to FileError StorageUnavailable`() {
+        listOf(OsConstants.EIO, OsConstants.ENODEV, OsConstants.ENXIO).forEach { errno ->
+            val wrapped = IOException("read failed", ErrnoException("read", errno))
+            assertTrue(wrapped.toFileError(ErrorContext("clip.mp4")) is FileError.StorageUnavailable)
+        }
+    }
+
+    @Test
+    fun `the errno inside an Android stream exception decides the error`() {
+        val denied =
+            FileNotFoundException("open failed: EACCES").apply {
+                initCause(ErrnoException("open", OsConstants.EACCES))
+            }
+        assertTrue(denied.toFileError(ErrorContext("locked.txt")) is FileError.AccessDenied)
+        val full = IOException("write failed", ErrnoException("write", OsConstants.ENOSPC))
+        assertTrue(full.toFileError() is FileError.DiskFull)
+    }
+
+    @Test
     fun `ErrnoException ENAMETOOLONG maps to FileError PathTooLong`() {
         val error = ErrnoException("open", OsConstants.ENAMETOOLONG).toFileError(ErrorContext("x".repeat(300)))
 

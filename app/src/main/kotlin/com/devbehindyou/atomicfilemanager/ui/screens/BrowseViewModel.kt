@@ -648,7 +648,9 @@ class BrowseViewModel(
             is FileError.PermissionDenied -> "Permission denied"
             is FileError.PlatformRestricted -> "Access restricted by Android OS"
             is FileError.ProviderUnavailable -> "Storage provider unavailable"
-            is FileError.StorageUnavailable -> "Storage volume unavailable: ${volumeLabel.orEmpty()}"
+            is FileError.StorageUnavailable ->
+                volumeLabel?.let { "Storage volume unavailable: $it" }
+                    ?: "The storage was removed or can't be reached. Reconnect it and try again."
             is FileError.ReadOnlyStorage -> "Storage is read-only"
             is FileError.DiskFull -> "Insufficient storage space"
             is FileError.OutOfMemory -> "Out of memory"
