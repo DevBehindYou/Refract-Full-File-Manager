@@ -1,16 +1,19 @@
 package com.devbehindyou.atomicfilemanager.data.share
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities.TRANSPORT_WIFI
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.devbehindyou.atomicfilemanager.AtomicApp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -116,7 +119,14 @@ class WifiShareController(private val context: Context) {
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .addAction(0, "Stop", stop)
                 .build()
-        runCatching { NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification) }
+        // Without the permission (Android 13+, refused) the share still runs; the screen shows it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
     }
 
     private companion object {
