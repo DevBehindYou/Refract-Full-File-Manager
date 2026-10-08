@@ -62,7 +62,8 @@ class PhoneFileIndexTest {
             val target = (backend.openOutput(root, "real.jpg", "image/jpeg") as FileResult.Success).value
             target.stream().use { it.write(1) }
             target.sync()
-            val stale = (target.toNode() as FileResult.Success).value.copy(id = FileNodeId.file("/gone.jpg"), name = "gone.jpg")
+            val real = (target.toNode() as FileResult.Success).value
+            val stale = real.copy(id = FileNodeId.file("/gone.jpg"), name = "gone.jpg")
             var asked = 0
             val index =
                 PhoneFileIndex(GetDirectoryListingUseCase { backend }) {
