@@ -40,6 +40,8 @@ zip4j = "2.11.6"
 sshj = "0.41.1"
 # SMB 2/3 (ALL_IN_ONE_PLAN.md 3.1), Apache 2.0; never negotiates SMB1. Maven Central, checked 7 Oct 2026.
 smbj = "0.15.0"
+# Labs: Android/data through Shizuku (ALL_IN_ONE_PLAN.md 4.3), Apache 2.0. Maven Central, checked 8 Oct 2026.
+shizuku = "13.1.5"
 # Declared directly: SftpBackend installs the full provider, and sshj only lists it at runtime.
 # All three BouncyCastle jars are pinned together: smbj pulls bcprov up to 1.85.x, where a class
 # moved from bcutil into bcprov, and a bcutil left behind at sshj's 1.84 then duplicates it.
@@ -112,6 +114,8 @@ junrar = { group = "com.github.junrar", name = "junrar", version.ref = "junrar" 
 zip4j = { group = "net.lingala.zip4j", name = "zip4j", version.ref = "zip4j" }
 sshj = { group = "com.hierynomus", name = "sshj", version.ref = "sshj" }
 smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
+shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
+shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
 bouncycastle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-util = { group = "org.bouncycastle", name = "bcutil-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-pkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncycastle" }

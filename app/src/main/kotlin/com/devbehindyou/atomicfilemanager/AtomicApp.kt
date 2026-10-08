@@ -19,6 +19,8 @@ import com.devbehindyou.atomicfilemanager.data.backend.network.PrefsKnownHosts
 import com.devbehindyou.atomicfilemanager.data.backend.network.SftpBackend
 import com.devbehindyou.atomicfilemanager.data.backend.network.SmbBackend
 import com.devbehindyou.atomicfilemanager.data.backend.network.WebDavBackend
+import com.devbehindyou.atomicfilemanager.data.backend.shizuku.ShizukuAccess
+import com.devbehindyou.atomicfilemanager.data.backend.shizuku.ShizukuBackend
 import com.devbehindyou.atomicfilemanager.data.database.HiddenFilesDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.database.TransferBubbleDatabaseHelper
 import com.devbehindyou.atomicfilemanager.data.database.room.AtomicDatabase
@@ -118,6 +120,9 @@ interface AppContainer {
 
     /** Starred files and folders, and recently opened files (ALL_IN_ONE_PLAN.md 1.2). */
     val favouritesRepository: FavouritesRepository
+
+    /** Labs: Android/data through Shizuku (ALL_IN_ONE_PLAN.md 4.3); off unless turned on. */
+    val shizukuAccess: ShizukuAccess
     val recentsRepository: RecentsRepository
 
     /** Sort order chosen per folder in Files (FR-3.3). */
@@ -255,6 +260,8 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
     }
     private val smbBackend by lazy { SmbBackend(networkCredentialsStore) }
 
+    override val shizukuAccess: ShizukuAccess by lazy { ShizukuAccess(application) }
+
     private val backends: Map<BackendType, StorageBackend> by lazy {
         mapOf(
             BackendType.FILE to fileSystemBackend,
@@ -265,6 +272,7 @@ class DefaultAppContainer(private val application: Application) : AppContainer {
             BackendType.WEBDAV to webdavBackend,
             BackendType.SFTP to sftpBackend,
             BackendType.SMB to smbBackend,
+            BackendType.SHIZUKU to ShizukuBackend(shizukuAccess),
         )
     }
 

@@ -39,6 +39,7 @@ class StorageBackendSelector
                     FileNodeId.Prefix.FTPS -> BackendType.FTPS
                     FileNodeId.Prefix.SMB -> BackendType.SMB
                     FileNodeId.Prefix.WEBDAV -> BackendType.WEBDAV
+                    FileNodeId.Prefix.SHIZUKU -> BackendType.SHIZUKU
                     null -> error("Malformed FileNodeId with no recognised prefix: $id")
                 }
             return backends[backendType] ?: error("No StorageBackend bound for $backendType")
