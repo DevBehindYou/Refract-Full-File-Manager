@@ -326,7 +326,10 @@ fun AtomicAppContent(
                 MEDIA_EVENTS.forEach(::addAction)
                 addDataScheme("file")
             }
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        // Exported, because only the system may send these protected broadcasts. Not-exported
+        // would route through a signature permission on Android 12 and older that the system's
+        // media broadcasts don't carry.
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
